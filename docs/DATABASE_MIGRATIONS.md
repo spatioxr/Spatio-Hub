@@ -23,6 +23,9 @@ environment.
 6. `20260729000300_project_assignments.sql` adds controlled Manager and team
    assignment operations, stamps the assigning employee, and makes explicit
    project membership the Manager visibility boundary.
+7. `20260729000400_work_sessions.sql` adds server-controlled start, current,
+   and end operations for project/activity work sessions and denies direct
+   authenticated session writes.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -85,6 +88,11 @@ Run `supabase/verify/hrms_009_project_assignments.sql` for the rollback-only
 assignment check. It verifies admin and owned-project Manager assignments,
 strict Manager and employee project scope, assignment actor stamping, and
 denial outside Manager ownership, then rolls everything back.
+
+Run `supabase/verify/hrms_010_work_sessions.sql` for the rollback-only
+session-model check. It verifies activity and project sessions, exactly-one
+target enforcement, ordered non-overlapping sessions, current-session lookup,
+department derivation, and denial of direct authenticated writes.
 
 ## Rollback
 

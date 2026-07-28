@@ -26,6 +26,10 @@ confirm:
 Managers are scoped through explicit project ownership and team membership.
 Neither `reports_to` nor department grants Manager access.
 
+Authenticated clients read permitted work sessions through RLS and mutate their
+own live session only through the server-controlled start/end functions.
+Direct insert, update, and delete privileges on `work_entries` are denied.
+
 Attendance and daily-report corrections remain self-service or superadmin-only
 until HRMS-013 adds mandatory edit reasons and immutable audit history. This
 prevents a direct client from bypassing the future audit requirement.
