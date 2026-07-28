@@ -14,6 +14,9 @@ environment.
    per-employee BOS/EOD settings, constraints, indexes, and matching RLS.
 3. `20260728000300_auth_mapping.sql` links any already-created Supabase Auth users
    to employee profiles by a case-insensitive email match.
+4. `20260729000100_project_invariants.sql` adds atomic project creation with
+   initial manager ownership, active-manager guards, and controlled
+   archive/restore operations.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -62,6 +65,10 @@ Run `supabase/verify/phase1_schema.sql` in the SQL editor after migrations.
 Every returned boolean must be `true`. This verifies all 14 current tables,
 RLS, anonymous denial, the 43 scoped policies, helper functions, seed
 activities, and overlap guards.
+
+Run `supabase/verify/hrms_007_projects.sql` for the rollback-only project model
+check. It creates and archives a temporary project inside a transaction, checks
+manager ownership and enforcement objects, then rolls everything back.
 
 ## Rollback
 
