@@ -1,28 +1,48 @@
-# Supabase Auth Setup
+# Supabase Auth and Database Setup
 
 HRMS uses Supabase Auth for identity and the `employees` table for the HR profile.
 
-## Configure the Supabase project
+## Current cloud environment
 
-1. In Supabase, enable the Email provider under Authentication.
-2. Set the production Site URL to the deployed HRMS URL.
-3. Add these redirect URLs:
-   - local: `http://localhost:5173/reset-password`
-   - production: `https://<your-hrms-domain>/reset-password`
-4. Create an Auth user for each employee who should access HRMS.
-5. Use the same normalised email address in Authentication and `public.employees`.
-6. Run `supabase_auth_setup.sql` once to link existing employee rows to Auth users.
-7. Run `supabase_remove_legacy_password.sql` to remove the obsolete application-managed password column.
+- Production URL: `https://spatio-hub.vercel.app`
+- Supabase project: `spatio-people`
+- Supabase project ref: `kuelyansmnumhwwfyboi`
+- Initial super-admin: `jasim@spatiotech.ai`
 
-The app first looks up an employee by `auth_id`. During the transition it may fall back to the authenticated email and link the row automatically. The explicit SQL link is preferred before enabling RLS.
+The Supabase integration is connected to Vercel Production and Preview. Never commit Supabase keys or place a service-role key in a `VITE_` environment variable.
 
-Existing employee, attendance, leave, and reporting rows are preserved. Removing the legacy password column does not delete employee profiles; users sign in with passwords managed exclusively by Supabase Auth.
+## Bootstrap a replacement project
+
+For a brand-new, empty Supabase project:
+
+1. Run `supabase_phase1_bootstrap.sql` once in the Supabase SQL editor.
+2. Confirm the six public tables exist: `employees`, `attendance`, `daily_reports`, `leaves`, `leave_balances`, and `holidays`.
+3. Confirm the seeded `STS001` employee is `jasim@spatiotech.ai` with role `superadmin`.
+4. Under Authentication, send an email invitation to `jasim@spatiotech.ai`.
+5. Set the Site URL to `https://spatio-hub.vercel.app`.
+6. Add `https://spatio-hub.vercel.app/reset-password` to the redirect allow list.
+7. Redeploy the Vercel Production environment so it reads the latest integration variables.
+
+The bootstrap deliberately contains no mock employee history and no application-managed password field. It enables baseline RLS policies; the complete RBAC policy matrix and tests belong to `HRMS-004`.
+
+If Supabase falls back to the Site URL for an invitation or recovery link, the app detects that Auth flow and routes it to `/reset-password`.
+
+Do not run the bootstrap against an existing populated project. It is intended for a clean phase-1 environment.
+
+## Adding employees
+
+1. Create the employee profile with a unique employee code and normalised, lowercase email.
+2. Send an Auth invitation to that same email.
+3. Ask the employee to accept the invitation and choose their password.
+
+On first successful login, the app matches the authenticated email to the employee profile and safely links its `auth_id`. Passwords remain entirely within Supabase Auth.
 
 ## Password recovery
 
-The Forgot Password page calls Supabase recovery email. Confirm that the Supabase email template points users back to the configured `/reset-password` redirect.
+The Forgot Password page requests a Supabase recovery email. The production `/reset-password` URL must remain in the Auth redirect allow list.
 
 ## Before production
 
-- Complete `HRMS-004` to enable and verify RLS policies.
-- Never place the Supabase service-role key in a `VITE_` environment variable or browser code.
+- Complete `HRMS-004` and verify the full role matrix.
+- Complete the basic automated-test issue `HRMS-039`.
+- Test invitation acceptance, first login, logout, and password recovery using the production URL.

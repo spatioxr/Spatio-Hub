@@ -23,14 +23,22 @@ const ProtectedRoute = ({ children }) => {
 };
 
 const AppRoutes = () => (
-  <Routes>
-    <Route path="/login" element={<Login />} />
-    <Route path="/reset-password" element={<ResetPassword />} />
-    <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-    <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
-    <Route path="/leave" element={<ProtectedRoute><Leave /></ProtectedRoute>} />
-    <Route path="*" element={<Navigate to="/" replace />} />
-  </Routes>
+  <AuthContext.Consumer>
+    {({ isPasswordRecovery }) => (
+      isPasswordRecovery && window.location.pathname !== '/reset-password'
+        ? <Navigate to="/reset-password" replace />
+        : (
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
+            <Route path="/leave" element={<ProtectedRoute><Leave /></ProtectedRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        )
+    )}
+  </AuthContext.Consumer>
 );
 
 const App = () => {

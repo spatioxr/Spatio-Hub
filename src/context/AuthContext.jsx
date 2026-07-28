@@ -3,6 +3,12 @@ import { supabase } from '../utils/supabaseClient';
 
 export const AuthContext = createContext();
 
+const getAuthLinkType = () => {
+  const queryType = new URLSearchParams(window.location.search).get('type');
+  const hashType = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('type');
+  return queryType || hashType;
+};
+
 const EMPLOYEE_PROFILE_FIELDS = [
   'id',
   'auth_id',
@@ -65,7 +71,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState('');
-  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(
+    () => ['invite', 'recovery'].includes(getAuthLinkType()),
+  );
 
   const syncSession = useCallback(async (nextSession) => {
     setSession(nextSession);
@@ -105,7 +113,12 @@ export const AuthProvider = ({ children }) => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!active) return;
 
-      if (event === 'PASSWORD_RECOVERY') {
+      const authLinkType = getAuthLinkType();
+
+      if (
+        event === 'PASSWORD_RECOVERY'
+        || (event === 'SIGNED_IN' && authLinkType === 'invite')
+      ) {
         setIsPasswordRecovery(true);
       } else if (event === 'SIGNED_OUT') {
         setIsPasswordRecovery(false);

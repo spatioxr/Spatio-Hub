@@ -62,10 +62,12 @@ All other routes redirect to the dashboard.
 - [Phase 1 scope and decisions](docs/PHASE_1.md)
 - [Supabase Auth setup](docs/AUTH_SETUP.md)
 - [Issue tracker](https://docs.google.com/spreadsheets/d/1LZCCncJ7yVvNWi6MN-k5rkCAItkkmtV6_76l7hVnFnE/edit?gid=0#gid=0)
+- Production: [spatio-hub.vercel.app](https://spatio-hub.vercel.app)
+- Supabase project: `spatio-people` (`kuelyansmnumhwwfyboi`)
 
 ## Important security status
 
-Authentication uses Supabase Auth sessions and the legacy employee password column has been retired. Database row-level security is still pending, so do not treat the current build as production-safe until tracker item `HRMS-004` is complete.
+Authentication uses Supabase Auth sessions and the legacy employee password column has been retired. The clean phase-1 database has RLS enabled with baseline self-service and super-admin policies. Tracker item `HRMS-004` remains responsible for implementing and testing the complete role and permission matrix before broad launch.
 
 ## Continuing the project
 
