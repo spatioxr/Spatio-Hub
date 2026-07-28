@@ -12,8 +12,11 @@ HRMS uses Supabase Auth for identity and the `employees` table for the HR profil
 4. Create an Auth user for each employee who should access HRMS.
 5. Use the same normalised email address in Authentication and `public.employees`.
 6. Run `supabase_auth_setup.sql` once to link existing employee rows to Auth users.
+7. Run `supabase_remove_legacy_password.sql` to remove the obsolete application-managed password column.
 
 The app first looks up an employee by `auth_id`. During the transition it may fall back to the authenticated email and link the row automatically. The explicit SQL link is preferred before enabling RLS.
+
+Existing employee, attendance, leave, and reporting rows are preserved. Removing the legacy password column does not delete employee profiles; users sign in with passwords managed exclusively by Supabase Auth.
 
 ## Password recovery
 
@@ -21,6 +24,5 @@ The Forgot Password page calls Supabase recovery email. Confirm that the Supabas
 
 ## Before production
 
-- Complete `HRMS-003` to remove the legacy employee password column and old seed passwords.
 - Complete `HRMS-004` to enable and verify RLS policies.
 - Never place the Supabase service-role key in a `VITE_` environment variable or browser code.

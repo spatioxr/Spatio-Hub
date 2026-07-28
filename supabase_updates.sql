@@ -6,8 +6,7 @@
 -- 1. Add missing columns to employees table
 ALTER TABLE employees
   ADD COLUMN IF NOT EXISTS designation TEXT,
-  ADD COLUMN IF NOT EXISTS date_of_joining DATE,
-  ADD COLUMN IF NOT EXISTS password TEXT DEFAULT 'password123';
+  ADD COLUMN IF NOT EXISTS date_of_joining DATE;
 
 -- 2. Create daily_reports table (BOS / EOD)
 CREATE TABLE IF NOT EXISTS daily_reports (
@@ -34,14 +33,13 @@ ALTER TABLE daily_reports DISABLE ROW LEVEL SECURITY;
 -- =============================================================
 -- 3. Insert Mock Employees (3 test users)
 -- =============================================================
-INSERT INTO employees (id, emp_code, name, email, department, designation, role, status, date_of_joining, password)
+INSERT INTO employees (id, emp_code, name, email, department, designation, role, status, date_of_joining)
 VALUES
-  ('11111111-1111-1111-1111-111111111111', 'STS001', 'Sarah Admin',   'admin@spatio.com',    'Management',  'Super Administrator', 'superadmin', 'Active', '2022-04-01', 'admin123'),
-  ('22222222-2222-2222-2222-222222222222', 'STS002', 'John Manager',  'manager@spatio.com',  'Engineering', 'Engineering Manager',  'admin',      'Active', '2022-06-15', 'manager123'),
-  ('33333333-3333-3333-3333-333333333333', 'STS003', 'Alice Johnson', 'employee@spatio.com', 'Engineering', 'Software Developer',   'employee',   'Active', '2023-01-10', 'employee123')
+  ('11111111-1111-1111-1111-111111111111', 'STS001', 'Sarah Admin',   'admin@spatio.com',    'Management',  'Super Administrator', 'superadmin', 'Active', '2022-04-01'),
+  ('22222222-2222-2222-2222-222222222222', 'STS002', 'John Manager',  'manager@spatio.com',  'Engineering', 'Engineering Manager',  'admin',      'Active', '2022-06-15'),
+  ('33333333-3333-3333-3333-333333333333', 'STS003', 'Alice Johnson', 'employee@spatio.com', 'Engineering', 'Software Developer',   'employee',   'Active', '2023-01-10')
 ON CONFLICT (email) DO UPDATE
-  SET password = EXCLUDED.password,
-      designation = EXCLUDED.designation,
+  SET designation = EXCLUDED.designation,
       date_of_joining = EXCLUDED.date_of_joining;
 
 -- =============================================================

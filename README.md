@@ -65,7 +65,7 @@ All other routes redirect to the dashboard.
 
 ## Important security status
 
-Authentication uses Supabase Auth sessions, but database row-level security and removal of the legacy employee password column are still pending. Do not treat the current build as production-safe until tracker items `HRMS-003` and `HRMS-004` are complete.
+Authentication uses Supabase Auth sessions and the legacy employee password column has been retired. Database row-level security is still pending, so do not treat the current build as production-safe until tracker item `HRMS-004` is complete.
 
 ## Continuing the project
 

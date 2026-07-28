@@ -18,4 +18,4 @@ Implementation rules:
 - Add focused tests for business rules as the test setup becomes available.
 - Verify acceptance criteria before changing an issue to Done.
 
-Current security blockers are `HRMS-003` and `HRMS-004`. The application is not production-safe until they are complete.
+The current security blocker is `HRMS-004`. The application is not production-safe until database RLS policies are complete.

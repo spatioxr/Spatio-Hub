@@ -324,8 +324,7 @@ const Employees = () => {
       if (error) alert('Error updating employee: ' + error.message);
       else { fetchEmployees(); setShowModal(false); setEditingEmployee(null); }
     } else {
-      const insertData = { ...dataToSave, password: '123' };
-      const { data: newEmployee, error } = await supabase.from('employees').insert([insertData]).select();
+      const { data: newEmployee, error } = await supabase.from('employees').insert([dataToSave]).select();
       if (error) alert('Error adding employee: ' + error.message);
       else {
         if (newEmployee && newEmployee.length > 0) {
