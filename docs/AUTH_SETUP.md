@@ -23,7 +23,12 @@ For a brand-new, empty Supabase project:
 6. Add `https://spatio-hub.vercel.app/reset-password` to the redirect allow list.
 7. Redeploy the Vercel Production environment so it reads the latest integration variables.
 
-The bootstrap deliberately contains no mock employee history and no application-managed password field. It enables baseline RLS policies; the complete RBAC policy matrix and tests belong to `HRMS-004`.
+For an already-bootstrapped project, run `supabase_rls_phase1.sql` to apply the
+latest current-table access policies, then run `supabase_rls_verify.sql`.
+
+The bootstrap deliberately contains no mock employee history and no
+application-managed password field. It includes the current-table HRMS-004 RLS
+policies; future schema migrations must add matching policies for their tables.
 
 If Supabase falls back to the Site URL for an invitation or recovery link, the app detects that Auth flow and routes it to `/reset-password`.
 

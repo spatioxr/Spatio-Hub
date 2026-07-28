@@ -49,11 +49,15 @@ project or team.
   history.
 - Navigation visibility is convenience only. Supabase RLS is the enforcement
   boundary and must reject the same unauthorised reads and writes.
+- Until project assignments exist, Manager read scope uses the explicit
+  `reports_to` relationship. HRMS-009 will make project/team assignments the
+  primary scope without granting access by department.
 
 ## Implementation ownership
 
 - `HRMS-005`: canonical roles, permission names, UI capability checks, and this matrix.
-- `HRMS-004`: database helper functions, RLS policies, and direct-client denial tests.
+- `HRMS-004`: database helper functions, current-table RLS policies, and
+  direct-client denial checks. See [Phase 1 Row-Level Security](RLS.md).
 - `HRMS-009`: explicit project Manager and member assignments used for Manager scope.
 - `HRMS-013`: immutable time-entry correction audit history.
 - `HRMS-034`: leave workflow correctness. Phase 1 keeps approvals superadmin-only

@@ -1,82 +1,7 @@
--- Clean Phase 1 bootstrap for the Spatio People Supabase project.
--- This script intentionally excludes payroll, inbox, performance, and seed data.
+-- HRMS-004: server-enforced access for the Phase 1 tables that exist today.
+-- Safe to rerun. Future schema migrations must add RLS for every new table.
 
 BEGIN;
-
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
-CREATE TABLE IF NOT EXISTS public.employees (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  auth_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
-  emp_code TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL CHECK (email = lower(email)),
-  department TEXT,
-  designation TEXT,
-  role TEXT NOT NULL DEFAULT 'employee'
-    CHECK (role IN ('superadmin', 'admin', 'manager', 'employee')),
-  status TEXT NOT NULL DEFAULT 'Active'
-    CHECK (status IN ('Active', 'On Leave', 'On Notice', 'Released')),
-  date_of_joining DATE,
-  managed_department TEXT,
-  reports_to UUID REFERENCES public.employees(id) ON DELETE SET NULL,
-  avatar_url TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
-);
-
-CREATE TABLE IF NOT EXISTS public.attendance (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  employee_id UUID NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
-  date DATE NOT NULL,
-  check_in TIME,
-  check_out TIME,
-  status TEXT CHECK (status IN ('Present', 'Late', 'Absent')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
-  UNIQUE (employee_id, date)
-);
-
-CREATE TABLE IF NOT EXISTS public.daily_reports (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  employee_id UUID NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
-  date DATE NOT NULL,
-  bos_report TEXT,
-  bos_submitted_at TIMESTAMPTZ,
-  eod_report TEXT,
-  eod_submitted_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
-  UNIQUE (employee_id, date)
-);
-
-CREATE TABLE IF NOT EXISTS public.leaves (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  employee_id UUID NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
-  type TEXT NOT NULL
-    CHECK (type IN ('Sick Leave', 'Annual Leave', 'Casual Leave', 'Comp Off')),
-  from_date DATE NOT NULL,
-  to_date DATE NOT NULL,
-  days NUMERIC NOT NULL CHECK (days > 0),
-  reason TEXT,
-  status TEXT NOT NULL DEFAULT 'Pending'
-    CHECK (status IN ('Pending', 'Approved', 'Rejected')),
-  rejection_comment TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
-  CHECK (to_date >= from_date)
-);
-
-CREATE TABLE IF NOT EXISTS public.leave_balances (
-  employee_id UUID PRIMARY KEY REFERENCES public.employees(id) ON DELETE CASCADE,
-  sick_leave NUMERIC NOT NULL DEFAULT 12,
-  casual_leave NUMERIC NOT NULL DEFAULT 12,
-  comp_off NUMERIC NOT NULL DEFAULT 0,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
-);
-
-CREATE TABLE IF NOT EXISTS public.holidays (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  date DATE UNIQUE NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
-);
 
 CREATE OR REPLACE FUNCTION public.current_employee_id()
 RETURNS UUID
@@ -206,20 +131,20 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.current_employee_id() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.current_employee_role() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.is_superadmin() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.has_organisation_access() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.can_access_employee(UUID) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.guard_employee_self_update() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.current_employee_id() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.current_employee_role() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.is_superadmin() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.has_organisation_access() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.can_access_employee(UUID) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.guard_employee_self_update() FROM PUBLIC, anon;
+
 GRANT EXECUTE ON FUNCTION public.current_employee_id() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_employee_role() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_superadmin() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.has_organisation_access() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_access_employee(UUID) TO authenticated;
 
-DROP TRIGGER IF EXISTS guard_employee_self_update
-  ON public.employees;
+DROP TRIGGER IF EXISTS guard_employee_self_update ON public.employees;
 CREATE TRIGGER guard_employee_self_update
   BEFORE UPDATE ON public.employees
   FOR EACH ROW
@@ -250,6 +175,13 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
   public.holidays
 TO authenticated;
 
+DROP POLICY IF EXISTS "employees_select_self_or_superadmin" ON public.employees;
+DROP POLICY IF EXISTS "employees_link_own_auth_or_superadmin" ON public.employees;
+DROP POLICY IF EXISTS "employees_insert_superadmin" ON public.employees;
+DROP POLICY IF EXISTS "employees_delete_superadmin" ON public.employees;
+DROP POLICY IF EXISTS "employees_select_scoped" ON public.employees;
+DROP POLICY IF EXISTS "employees_update_self_or_superadmin" ON public.employees;
+
 CREATE POLICY "employees_select_scoped"
   ON public.employees FOR SELECT TO authenticated
   USING (
@@ -277,6 +209,14 @@ CREATE POLICY "employees_delete_superadmin"
   ON public.employees FOR DELETE TO authenticated
   USING (public.is_superadmin());
 
+DROP POLICY IF EXISTS "attendance_select_own_or_superadmin" ON public.attendance;
+DROP POLICY IF EXISTS "attendance_insert_own_or_superadmin" ON public.attendance;
+DROP POLICY IF EXISTS "attendance_update_own_or_superadmin" ON public.attendance;
+DROP POLICY IF EXISTS "attendance_delete_superadmin" ON public.attendance;
+DROP POLICY IF EXISTS "attendance_select_scoped" ON public.attendance;
+DROP POLICY IF EXISTS "attendance_insert_own" ON public.attendance;
+DROP POLICY IF EXISTS "attendance_update_own_or_superadmin" ON public.attendance;
+
 CREATE POLICY "attendance_select_scoped"
   ON public.attendance FOR SELECT TO authenticated
   USING (public.can_access_employee(employee_id));
@@ -287,12 +227,25 @@ CREATE POLICY "attendance_insert_own"
 
 CREATE POLICY "attendance_update_own_or_superadmin"
   ON public.attendance FOR UPDATE TO authenticated
-  USING (employee_id = public.current_employee_id() OR public.is_superadmin())
-  WITH CHECK (employee_id = public.current_employee_id() OR public.is_superadmin());
+  USING (
+    employee_id = public.current_employee_id()
+    OR public.is_superadmin()
+  )
+  WITH CHECK (
+    employee_id = public.current_employee_id()
+    OR public.is_superadmin()
+  );
 
 CREATE POLICY "attendance_delete_superadmin"
   ON public.attendance FOR DELETE TO authenticated
   USING (public.is_superadmin());
+
+DROP POLICY IF EXISTS "daily_reports_select_own_or_superadmin" ON public.daily_reports;
+DROP POLICY IF EXISTS "daily_reports_insert_own_or_superadmin" ON public.daily_reports;
+DROP POLICY IF EXISTS "daily_reports_update_own_or_superadmin" ON public.daily_reports;
+DROP POLICY IF EXISTS "daily_reports_select_scoped" ON public.daily_reports;
+DROP POLICY IF EXISTS "daily_reports_insert_own" ON public.daily_reports;
+DROP POLICY IF EXISTS "daily_reports_update_own_or_superadmin" ON public.daily_reports;
 
 CREATE POLICY "daily_reports_select_scoped"
   ON public.daily_reports FOR SELECT TO authenticated
@@ -304,12 +257,29 @@ CREATE POLICY "daily_reports_insert_own"
 
 CREATE POLICY "daily_reports_update_own_or_superadmin"
   ON public.daily_reports FOR UPDATE TO authenticated
-  USING (employee_id = public.current_employee_id() OR public.is_superadmin())
-  WITH CHECK (employee_id = public.current_employee_id() OR public.is_superadmin());
+  USING (
+    employee_id = public.current_employee_id()
+    OR public.is_superadmin()
+  )
+  WITH CHECK (
+    employee_id = public.current_employee_id()
+    OR public.is_superadmin()
+  );
+
+DROP POLICY IF EXISTS "leaves_select_own_or_superadmin" ON public.leaves;
+DROP POLICY IF EXISTS "leaves_insert_own_or_superadmin" ON public.leaves;
+DROP POLICY IF EXISTS "leaves_update_own_or_superadmin" ON public.leaves;
+DROP POLICY IF EXISTS "leaves_select_own_or_superadmin" ON public.leaves;
+DROP POLICY IF EXISTS "leaves_insert_own" ON public.leaves;
+DROP POLICY IF EXISTS "leaves_update_superadmin" ON public.leaves;
+DROP POLICY IF EXISTS "leaves_delete_superadmin" ON public.leaves;
 
 CREATE POLICY "leaves_select_own_or_superadmin"
   ON public.leaves FOR SELECT TO authenticated
-  USING (employee_id = public.current_employee_id() OR public.is_superadmin());
+  USING (
+    employee_id = public.current_employee_id()
+    OR public.is_superadmin()
+  );
 
 CREATE POLICY "leaves_insert_own"
   ON public.leaves FOR INSERT TO authenticated
@@ -327,14 +297,23 @@ CREATE POLICY "leaves_delete_superadmin"
   ON public.leaves FOR DELETE TO authenticated
   USING (public.is_superadmin());
 
+DROP POLICY IF EXISTS "leave_balances_select_own_or_superadmin" ON public.leave_balances;
+DROP POLICY IF EXISTS "leave_balances_write_superadmin" ON public.leave_balances;
+
 CREATE POLICY "leave_balances_select_own_or_superadmin"
   ON public.leave_balances FOR SELECT TO authenticated
-  USING (employee_id = public.current_employee_id() OR public.is_superadmin());
+  USING (
+    employee_id = public.current_employee_id()
+    OR public.is_superadmin()
+  );
 
 CREATE POLICY "leave_balances_write_superadmin"
   ON public.leave_balances FOR ALL TO authenticated
   USING (public.is_superadmin())
   WITH CHECK (public.is_superadmin());
+
+DROP POLICY IF EXISTS "holidays_read_authenticated" ON public.holidays;
+DROP POLICY IF EXISTS "holidays_write_superadmin" ON public.holidays;
 
 CREATE POLICY "holidays_read_authenticated"
   ON public.holidays FOR SELECT TO authenticated
@@ -344,35 +323,5 @@ CREATE POLICY "holidays_write_superadmin"
   ON public.holidays FOR ALL TO authenticated
   USING (public.is_superadmin())
   WITH CHECK (public.is_superadmin());
-
-INSERT INTO public.employees (
-  emp_code,
-  name,
-  email,
-  department,
-  designation,
-  role,
-  status,
-  date_of_joining
-)
-VALUES (
-  'STS001',
-  'Jasim',
-  'jasim@spatiotech.ai',
-  'Management',
-  'Super Administrator',
-  'superadmin',
-  'Active',
-  CURRENT_DATE
-)
-ON CONFLICT (email) DO UPDATE
-SET role = 'superadmin',
-    status = 'Active';
-
-INSERT INTO public.leave_balances (employee_id)
-SELECT id
-FROM public.employees
-WHERE email = 'jasim@spatiotech.ai'
-ON CONFLICT (employee_id) DO NOTHING;
 
 COMMIT;

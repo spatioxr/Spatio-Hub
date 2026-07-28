@@ -1,0 +1,42 @@
+# Phase 1 Row-Level Security
+
+`supabase_rls_phase1.sql` is the idempotent HRMS-004 policy migration for the
+six tables currently present in the clean cloud project. Run
+`supabase_rls_verify.sql` afterwards and confirm:
+
+- all six tables report `rls_enabled = true`
+- only the expected authenticated policies are present
+- `anon_can_select = false` for every table
+- the signed-in superadmin reports organisation access
+
+## Current enforcement
+
+| Data | Employee | Manager | Admin | Superadmin |
+| --- | --- | --- | --- | --- |
+| Employee profiles | Own | Explicit reports | Organisation | Organisation |
+| Attendance | Own | Explicit reports, read-only | Organisation, read-only | Organisation |
+| Daily reports | Own | Explicit reports, read-only | Organisation, read-only | Organisation |
+| Leave and balances | Own | Own | Own | Organisation |
+| Holidays | Read | Read | Read | Read/write |
+
+Managers are temporarily scoped through the explicit `reports_to` relationship.
+HRMS-009 will replace/extend that scope with project Manager and project-member
+assignments. Department never grants Manager access.
+
+Attendance and daily-report corrections remain self-service or superadmin-only
+until HRMS-013 adds mandatory edit reasons and immutable audit history. This
+prevents a direct client from bypassing the future audit requirement.
+
+## Rule for future tables
+
+RLS must be enabled in the same migration that creates every project, activity,
+assignment, work-session, break, daily-requirement, or audit table. That
+migration must:
+
+1. revoke all `anon` table access
+2. grant only required operations to `authenticated`
+3. attach policies matching `docs/PERMISSIONS.md`
+4. add a verification query or automated policy test
+
+No future Phase 1 table is complete while it is publicly writable or missing
+its scoped policies.

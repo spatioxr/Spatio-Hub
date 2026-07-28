@@ -61,6 +61,7 @@ All other routes redirect to the dashboard.
 
 - [Phase 1 scope and decisions](docs/PHASE_1.md)
 - [Phase 1 permission matrix](docs/PERMISSIONS.md)
+- [Phase 1 row-level security](docs/RLS.md)
 - [Supabase Auth setup](docs/AUTH_SETUP.md)
 - [Issue tracker](https://docs.google.com/spreadsheets/d/1LZCCncJ7yVvNWi6MN-k5rkCAItkkmtV6_76l7hVnFnE/edit?gid=0#gid=0)
 - Production: [spatio-hub.vercel.app](https://spatio-hub.vercel.app)
@@ -68,7 +69,7 @@ All other routes redirect to the dashboard.
 
 ## Important security status
 
-Authentication uses Supabase Auth sessions and the legacy employee password column has been retired. The clean phase-1 database has RLS enabled with baseline self-service and super-admin policies. Tracker item `HRMS-004` remains responsible for implementing and testing the complete role and permission matrix before broad launch.
+Authentication uses Supabase Auth sessions and the legacy employee password column has been retired. The six current phase-1 tables enforce scoped RLS for employee, manager, admin, and superadmin access. Every future schema issue must add matching RLS in the same migration that creates its tables.
 
 ## Continuing the project
 
