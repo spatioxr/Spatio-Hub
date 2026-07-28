@@ -49,9 +49,9 @@ project or team.
   history.
 - Navigation visibility is convenience only. Supabase RLS is the enforcement
   boundary and must reject the same unauthorised reads and writes.
-- Until project assignments exist, Manager read scope uses the explicit
-  `reports_to` relationship. HRMS-009 will make project/team assignments the
-  primary scope without granting access by department.
+- Manager read scope comes from explicit project ownership and membership.
+  The employee-profile `reports_to` and department fields do not grant project
+  or timesheet access.
 
 ## Implementation ownership
 

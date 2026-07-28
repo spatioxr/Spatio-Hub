@@ -20,6 +20,9 @@ environment.
 5. `20260729000200_activity_invariants.sql` adds controlled activity creation
    and archive/restore operations, prevents authenticated hard deletion, and
    preserves labels after work has been logged against an activity.
+6. `20260729000300_project_assignments.sql` adds controlled Manager and team
+   assignment operations, stamps the assigning employee, and makes explicit
+   project membership the Manager visibility boundary.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -66,7 +69,7 @@ first sign-in.
 
 Run `supabase/verify/phase1_schema.sql` in the SQL editor after migrations.
 Every returned boolean must be `true`. This verifies all 14 current tables,
-RLS, anonymous denial, the 43 scoped policies, helper functions, seed
+RLS, anonymous denial, the 44 scoped policies, helper functions, seed
 activities, and overlap guards.
 
 Run `supabase/verify/hrms_007_projects.sql` for the rollback-only project model
@@ -77,6 +80,11 @@ Run `supabase/verify/hrms_008_activities.sql` for the rollback-only activity
 catalogue check. It creates and archives a temporary activity, confirms the
 five Phase 1 seeds remain selectable, verifies historical label retention and
 the archived-activity work-entry guard, then rolls everything back.
+
+Run `supabase/verify/hrms_009_project_assignments.sql` for the rollback-only
+assignment check. It verifies admin and owned-project Manager assignments,
+strict Manager and employee project scope, assignment actor stamping, and
+denial outside Manager ownership, then rolls everything back.
 
 ## Rollback
 

@@ -13,9 +13,9 @@ confirm:
 
 | Data | Employee | Manager | Admin | Superadmin |
 | --- | --- | --- | --- | --- |
-| Employee profiles | Own | Explicit reports | Organisation | Organisation |
-| Attendance | Own | Explicit reports, read-only | Organisation, read-only | Organisation |
-| Daily reports | Own | Explicit reports, read-only | Organisation, read-only | Organisation |
+| Employee profiles | Own | Assigned project teams | Organisation | Organisation |
+| Attendance | Own | Assigned project teams, read-only | Organisation, read-only | Organisation |
+| Daily reports | Own | Assigned project teams, read-only | Organisation, read-only | Organisation |
 | Leave and balances | Own | Own | Own | Organisation |
 | Holidays | Read | Read | Read | Read/write |
 | Projects/assignments | Assigned | Assigned/managed | Organisation | Organisation |
@@ -23,8 +23,8 @@ confirm:
 | Audit history | Own | Assigned teams/projects | Organisation | Organisation |
 | BOS/EOD settings | Own, read-only | Own, read-only | Own, read-only | Organisation |
 
-Managers are scoped through explicit `reports_to` relationships and assigned
-project teams. Department never grants Manager access.
+Managers are scoped through explicit project ownership and team membership.
+Neither `reports_to` nor department grants Manager access.
 
 Attendance and daily-report corrections remain self-service or superadmin-only
 until HRMS-013 adds mandatory edit reasons and immutable audit history. This
