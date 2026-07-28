@@ -60,6 +60,7 @@ All other routes redirect to the dashboard.
 ## Project references
 
 - [Phase 1 scope and decisions](docs/PHASE_1.md)
+- [Phase 1 permission matrix](docs/PERMISSIONS.md)
 - [Supabase Auth setup](docs/AUTH_SETUP.md)
 - [Issue tracker](https://docs.google.com/spreadsheets/d/1LZCCncJ7yVvNWi6MN-k5rkCAItkkmtV6_76l7hVnFnE/edit?gid=0#gid=0)
 - Production: [spatio-hub.vercel.app](https://spatio-hub.vercel.app)

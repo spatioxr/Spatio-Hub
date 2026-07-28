@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate, Navigate, Link } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import logoDark from '../assets/logo-dark.png';
 
@@ -124,9 +124,9 @@ const Login = () => {
                 />
                 Remember me
               </label>
-              <Link to="/reset-password" className="login-forgot">
-                Forgot Password?
-              </Link>
+              <span className="login-forgot" style={{ cursor: 'default' }}>
+                Password help: contact super-admin
+              </span>
             </div>
 
             {/* Sign in button */}

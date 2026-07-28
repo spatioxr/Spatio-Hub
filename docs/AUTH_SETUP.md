@@ -39,7 +39,10 @@ On first successful login, the app matches the authenticated email to the employ
 
 ## Password recovery
 
-The Forgot Password page requests a Supabase recovery email. The production `/reset-password` URL must remain in the Auth redirect allow list.
+Self-service recovery is disabled until launch-grade custom SMTP is configured
+and delivery is verified. During the internal Phase 1 rollout, the super-admin
+provisions users and handles password-reset assistance. Authenticated users may
+change their own password from the profile menu.
 
 ## Before production
 

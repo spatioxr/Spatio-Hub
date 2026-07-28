@@ -29,6 +29,8 @@ Example internal activities include pre-sales, proposal creation, estimation, de
 - Superadmin: full phase-1 access and per-user BOS/EOD exceptions.
 
 Exact access must be enforced in Supabase RLS as well as the UI.
+The canonical capability table is documented in
+[Phase 1 Permission Matrix](PERMISSIONS.md).
 
 ## Visibility
 

@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Leave from './pages/Leave';
 import ResetPassword from './pages/ResetPassword';
+import { hasPermission, PERMISSIONS } from './utils/rbac';
 
 const SessionLoader = () => (
   <div className="login-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -19,6 +20,7 @@ const ProtectedRoute = ({ children }) => {
 
   if (loading) return <SessionLoader />;
   if (!user) return <Navigate to="/login" replace />;
+  if (!hasPermission(user, PERMISSIONS.ACCESS_PORTAL)) return <Navigate to="/login" replace />;
   return children;
 };
 

@@ -2,7 +2,6 @@ import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { AuthContext } from '../context/AuthContext';
-import { supabase } from '../utils/supabaseClient';
 
 const ResetPassword = () => {
   const { user, loading: authLoading, updatePassword, isPasswordRecovery } = useContext(AuthContext);
@@ -13,35 +12,12 @@ const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
-  // Logged-out state
-  const [email, setEmail] = useState('');
-  const [recoveryEmailSent, setRecoveryEmailSent] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ message: '', type: '' });
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast({ message: '', type: '' }), 4000);
-  };
-
-  const handleLoggedOutSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email.trim().toLowerCase(),
-      { redirectTo: `${window.location.origin}/reset-password` },
-    );
-
-    setLoading(false);
-
-    if (error) {
-      showToast(error.message || 'Failed to send recovery email. Please try again.', 'error');
-    } else {
-      setRecoveryEmailSent(true);
-      showToast('If an account exists for that email, a recovery link has been sent.', 'success');
-    }
   };
 
   const handleLoggedInSubmit = async (e) => {
@@ -79,7 +55,7 @@ const ResetPassword = () => {
     );
   }
 
-  // If NOT logged in, show "Forgot Password" UI.
+  // Email recovery remains disabled until launch-grade SMTP is configured.
   if (!user) {
     return (
       <div className="login-container">
@@ -93,50 +69,24 @@ const ResetPassword = () => {
                 margin: '0 auto 1.5rem',
                 color: 'var(--primary)', fontSize: '2rem'
               }}>
-                <i className="ri-mail-send-line"></i>
+                <i className="ri-customer-service-2-line"></i>
               </div>
-              <h2>Forgot Password?</h2>
-              <p>Enter your email to receive a secure recovery link.</p>
+              <h2>Password help</h2>
+              <p>Self-service recovery is temporarily unavailable.</p>
             </div>
 
-            {recoveryEmailSent ? (
-              <div style={{
-                background: '#F0FFF8', border: '1px solid #00A884', borderRadius: 12,
-                padding: '1.5rem', textAlign: 'center', marginBottom: '2rem'
-              }}>
-                <h3 style={{ color: '#00A884', marginBottom: '1rem' }}>Success!</h3>
-                <p style={{ color: '#2B3674', fontSize: '0.95rem', marginBottom: '1rem' }}>
-                  If an account exists for <strong>{email}</strong>, a secure recovery link has been sent.
-                </p>
-                <p style={{ color: '#707EAE', fontSize: '0.8rem', marginTop: '1rem' }}>
-                  Open the link in the same browser to choose a new password.
-                </p>
-                <Link to="/login" className="btn-signin" style={{ display: 'inline-block', textDecoration: 'none', marginTop: '1.5rem' }}>
-                  Return to Login
-                </Link>
-              </div>
-            ) : (
-              <form onSubmit={handleLoggedOutSubmit}>
-                <div className="login-input-group">
-                  <label>Email Address</label>
-                  <input
-                    type="email"
-                    placeholder="Enter your registered email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <button type="submit" className="btn-signin" disabled={loading} style={{ marginTop: '1rem' }}>
-                  {loading ? 'Sending...' : 'Send Recovery Link'}
-                </button>
-                <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-                  <Link to="/login" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
-                    <i className="ri-arrow-left-line"></i> Back to Login
-                  </Link>
-                </div>
-              </form>
-            )}
+            <div style={{
+              background: '#FFF8F0', border: '1px solid #FFCE2066', borderRadius: 12,
+              padding: '1.25rem', color: '#6B4E00', lineHeight: 1.5,
+            }}>
+              Contact the HRMS super-admin to reset your password. This avoids claiming
+              an email was sent while the production mail service is not configured.
+            </div>
+            <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+              <Link to="/login" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
+                <i className="ri-arrow-left-line"></i> Back to Login
+              </Link>
+            </div>
           </div>
         </div>
         
