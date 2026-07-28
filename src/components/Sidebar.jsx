@@ -1,21 +1,15 @@
 import React, { useContext } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import logoDark from '../assets/logo-dark.png';
 
 const Sidebar = () => {
-  const { user, logout } = useContext(AuthContext);
-  const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   
   const menuItems = [
     { path: '/', name: 'Dashboard', icon: 'ri-dashboard-line', roles: ['superadmin', 'head', 'admin', 'manager', 'employee'] },
-    { path: '/attendance', name: 'Attendance', icon: 'ri-calendar-check-line', roles: ['superadmin', 'head', 'admin', 'manager', 'employee'] },
+    { path: '/attendance', name: 'Work Tracking', icon: 'ri-calendar-check-line', roles: ['superadmin', 'head', 'admin', 'manager', 'employee'] },
     { path: '/leave', name: 'Leave', icon: 'ri-flight-takeoff-line', roles: ['superadmin', 'head', 'admin', 'manager', 'employee'] },
-    // { path: '/inbox', name: 'Inbox', icon: 'ri-mail-line', roles: ['superadmin', 'admin', 'employee'] },
-    { path: '/employees', name: 'Employees', icon: 'ri-group-line', roles: ['superadmin', 'head', 'admin', 'manager'] },
-    { path: '/salary', name: 'Salary', icon: 'ri-wallet-3-line', roles: ['superadmin', 'head', 'admin', 'manager', 'employee'] },
-    // { path: '/performance', name: 'Performance', icon: 'ri-line-chart-line', roles: ['superadmin', 'admin', 'employee'] },
-    // { path: '/reports', name: 'Reports', icon: 'ri-file-chart-line', roles: ['superadmin', 'admin'] },
   ];
 
   const filteredMenu = menuItems.filter(item => item.roles.includes(user?.role));

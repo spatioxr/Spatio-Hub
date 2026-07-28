@@ -304,8 +304,7 @@ const Dashboard = () => {
       // Admin and Super Admin
       return (
         <div className="dashboard-kpi-grid">
-          <div className="dashboard-card-custom green-theme" style={{ cursor: 'pointer' }} onClick={() => navigate('/employees')}>
-            <i className="ri-arrow-right-s-line card-chevron"></i>
+          <div className="dashboard-card-custom green-theme">
             <div className="card-icon-wrapper">
               <i className="ri-group-line"></i>
             </div>
