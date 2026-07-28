@@ -17,14 +17,14 @@ The source of truth for implementation work is the [Spatio HRMS issue tracker](h
 - One BOS report is required at the first start of the day.
 - One EOD report is required at the final end of the day.
 - Superadmin may make BOS or EOD optional for selected employees.
-- PM, admin, and superadmin may correct permitted time entries with a required reason and immutable audit history.
+- Managers, admins, and superadmins may correct permitted time entries with a required reason and immutable audit history.
 
 Example internal activities include pre-sales, proposal creation, estimation, demo-video production, and marketing-material production.
 
 ## Roles
 
 - Employee: own timer, own timesheet, leave, and the company live-status board.
-- PM: employee capabilities plus assigned project/team timesheets and project team assignment.
+- Manager: employee capabilities plus assigned project/team timesheets and team assignment. This role covers project managers, product managers, tech leads, 3D leads, and similar assigned leads.
 - Admin: organisation tracking, project/activity administration, reporting, and permitted corrections.
 - Superadmin: full phase-1 access and per-user BOS/EOD exceptions.
 
@@ -39,7 +39,7 @@ All authenticated users may see who is in, out, or on break.
 Timesheet visibility:
 
 - employees see their own data
-- PMs see their assigned project teams
+- managers see their assigned project teams
 - admins and superadmins see organisation data
 
 Department, project, activity, employee, and date filters will support visual interpretation of tracked work.

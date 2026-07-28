@@ -6,16 +6,20 @@ This is the single product-level permission source for Phase 1. UI checks use
 Only these roles may be assigned to new users:
 
 - `employee`
-- `pm`
+- `manager`
 - `admin`
 - `superadmin`
 
-Legacy `manager` and `head` values are read as `pm` and `admin` temporarily.
+Legacy `pm` and `head` values are read as `manager` and `admin` temporarily.
 They are not valid choices for new records.
+
+Manager is intentionally broad. It can represent a project manager, product
+manager, tech lead, 3D lead, or another person assigned responsibility for a
+project or team.
 
 ## Permission matrix
 
-| Capability | Employee | PM | Admin | Superadmin |
+| Capability | Employee | Manager | Admin | Superadmin |
 | --- | --- | --- | --- | --- |
 | Access the Phase 1 portal | Yes | Yes | Yes | Yes |
 | View company In/Break/Out status | Yes | Yes | Yes | Yes |
@@ -34,10 +38,10 @@ They are not valid choices for new records.
 
 ## Scope rules
 
-- Department remains employee profile data; it does not grant PM access.
-- PM access comes only from explicit project ownership and project membership.
-- An employee shared across projects is visible to a PM only within projects
-  that PM owns.
+- Department remains employee profile data; it does not grant Manager access.
+- Manager access comes only from explicit project/team responsibility and membership.
+- An employee shared across projects is visible to a Manager only within projects
+  that Manager owns.
 - Admin and superadmin organisation access applies only to Phase 1 modules.
   Payroll, payslips, employee administration, Inbox, Performance, and legacy
   Reports remain unavailable.
@@ -50,7 +54,7 @@ They are not valid choices for new records.
 
 - `HRMS-005`: canonical roles, permission names, UI capability checks, and this matrix.
 - `HRMS-004`: database helper functions, RLS policies, and direct-client denial tests.
-- `HRMS-009`: explicit project PM and member assignments used for PM scope.
+- `HRMS-009`: explicit project Manager and member assignments used for Manager scope.
 - `HRMS-013`: immutable time-entry correction audit history.
 - `HRMS-034`: leave workflow correctness. Phase 1 keeps approvals superadmin-only
   unless the tracker is deliberately changed.

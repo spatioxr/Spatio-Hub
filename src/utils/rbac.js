@@ -1,6 +1,6 @@
 export const ROLES = Object.freeze({
   EMPLOYEE: 'employee',
-  PM: 'pm',
+  MANAGER: 'manager',
   ADMIN: 'admin',
   SUPERADMIN: 'superadmin',
 });
@@ -8,7 +8,7 @@ export const ROLES = Object.freeze({
 // Temporary read compatibility for pre-phase-1 records. New records must use
 // only the four canonical roles above.
 const LEGACY_ROLE_ALIASES = Object.freeze({
-  manager: ROLES.PM,
+  pm: ROLES.MANAGER,
   head: ROLES.ADMIN,
 });
 
@@ -43,7 +43,7 @@ const EMPLOYEE_PERMISSIONS = [
 
 const ROLE_PERMISSIONS = Object.freeze({
   [ROLES.EMPLOYEE]: new Set(EMPLOYEE_PERMISSIONS),
-  [ROLES.PM]: new Set([
+  [ROLES.MANAGER]: new Set([
     ...EMPLOYEE_PERMISSIONS,
     PERMISSIONS.VIEW_ASSIGNED_TEAM_TIMESHEETS,
     PERMISSIONS.MANAGE_OWNED_PROJECT_TEAM,
@@ -74,7 +74,7 @@ export const hasPermission = (user, permission) => {
 export const getTimesheetScope = (user) => {
   const role = getRole(user);
   if (role === ROLES.SUPERADMIN || role === ROLES.ADMIN) return 'organisation';
-  if (role === ROLES.PM) return 'assigned_projects';
+  if (role === ROLES.MANAGER) return 'assigned_projects';
   if (role === ROLES.EMPLOYEE) return 'own';
   return 'none';
 };
@@ -82,7 +82,7 @@ export const getTimesheetScope = (user) => {
 export const canManageProjectTeam = (user, project) => {
   const role = getRole(user);
   if (role === ROLES.SUPERADMIN || role === ROLES.ADMIN) return true;
-  return role === ROLES.PM && project?.pm_id === user?.id;
+  return role === ROLES.MANAGER && project?.manager_id === user?.id;
 };
 
 /**
@@ -105,7 +105,7 @@ export const isEmployeeManagedBy = (employee, user) => {
 
   const role = getRole(user);
   if (role === ROLES.SUPERADMIN || role === ROLES.ADMIN) return true;
-  if (role !== ROLES.PM) return false;
+  if (role !== ROLES.MANAGER) return false;
 
   return employee.reports_to === user.id
     || getManagedDepartments(user).includes(employee.department);

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.employees (
   department TEXT,
   designation TEXT,
   role TEXT NOT NULL DEFAULT 'employee'
-    CHECK (role IN ('superadmin', 'admin', 'pm', 'employee')),
+    CHECK (role IN ('superadmin', 'admin', 'manager', 'employee')),
   status TEXT NOT NULL DEFAULT 'Active'
     CHECK (status IN ('Active', 'On Leave', 'On Notice', 'Released')),
   date_of_joining DATE,

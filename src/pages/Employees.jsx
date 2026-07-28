@@ -254,8 +254,8 @@ const EmployeeModal = ({ onClose, onSave, initialData, user }) => {
               <label className="salary-field-label">Reports To (Optional)</label>
               <select className="salary-input" value={reportsTo} onChange={e => setReportsTo(e.target.value)}>
                 <option value="">-- No Direct Manager --</option>
-                {potentialManagers.filter(pm => pm.id !== initialData?.id).map(pm => (
-                  <option key={pm.id} value={pm.id}>{pm.name} ({pm.role})</option>
+                {potentialManagers.filter(manager => manager.id !== initialData?.id).map(manager => (
+                  <option key={manager.id} value={manager.id}>{manager.name} ({manager.role})</option>
                 ))}
               </select>
             </div>
