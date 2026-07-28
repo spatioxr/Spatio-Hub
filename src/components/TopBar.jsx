@@ -200,7 +200,11 @@ const TopBar = ({ title }) => {
                   style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--danger)', transition: 'background 0.2s', borderRadius: '6px' }}
                   onMouseOver={(e) => e.currentTarget.style.background = 'rgba(238,93,80,0.05)'}
                   onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                  onClick={() => { setDropdownOpen(false); logout(); navigate('/login'); }}
+                  onClick={async () => {
+                    setDropdownOpen(false);
+                    await logout();
+                    navigate('/login');
+                  }}
                 >
                   <i className="ri-logout-box-r-line"></i> Logout
                 </div>

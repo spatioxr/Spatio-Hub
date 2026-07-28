@@ -1,11 +1,11 @@
 import React, { useState, useContext } from 'react';
-import { Navigate, useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 
 const ResetPassword = () => {
-  const { user, updatePassword } = useContext(AuthContext);
+  const { user, loading: authLoading, updatePassword, isPasswordRecovery } = useContext(AuthContext);
   const navigate = useNavigate();
 
   // Logged-in state
@@ -15,7 +15,7 @@ const ResetPassword = () => {
   
   // Logged-out state
   const [email, setEmail] = useState('');
-  const [tempPasswordGenerated, setTempPasswordGenerated] = useState('');
+  const [recoveryEmailSent, setRecoveryEmailSent] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ message: '', type: '' });
@@ -29,45 +29,24 @@ const ResetPassword = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Check if email exists
-    const { data, error } = await supabase
-      .from('employees')
-      .select('*')
-      .eq('email', email.trim().toLowerCase())
-      .single();
-
-    if (error || !data) {
-      setLoading(false);
-      showToast('No account found with that email.', 'error');
-      return;
-    }
-
-    // Generate random temp password
-    const tempPass = Math.random().toString(36).slice(-8);
-
-    // Update password in DB
-    const { error: updateError } = await supabase
-      .from('employees')
-      .update({ password: tempPass })
-      .eq('id', data.id);
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      { redirectTo: `${window.location.origin}/reset-password` },
+    );
 
     setLoading(false);
 
-    if (updateError) {
-      showToast('Failed to reset password. Please try again.', 'error');
+    if (error) {
+      showToast(error.message || 'Failed to send recovery email. Please try again.', 'error');
     } else {
-      setTempPasswordGenerated(tempPass);
-      showToast('Password reset successful! Check your email.', 'success');
+      setRecoveryEmailSent(true);
+      showToast('If an account exists for that email, a recovery link has been sent.', 'success');
     }
   };
 
   const handleLoggedInSubmit = async (e) => {
     e.preventDefault();
 
-    if (currentPassword !== user.password) {
-      showToast('Current password is incorrect.', 'error');
-      return;
-    }
     if (newPassword.length < 6) {
       showToast('New password must be at least 6 characters.', 'error');
       return;
@@ -78,7 +57,7 @@ const ResetPassword = () => {
     }
 
     setLoading(true);
-    const result = await updatePassword(newPassword);
+    const result = await updatePassword({ currentPassword, newPassword });
     setLoading(false);
 
     if (result.success) {
@@ -92,7 +71,15 @@ const ResetPassword = () => {
     }
   };
 
-  // If NOT logged in, show "Forgot Password" UI
+  if (authLoading) {
+    return (
+      <div className="login-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Checking your session…</div>
+      </div>
+    );
+  }
+
+  // If NOT logged in, show "Forgot Password" UI.
   if (!user) {
     return (
       <div className="login-container">
@@ -109,23 +96,20 @@ const ResetPassword = () => {
                 <i className="ri-mail-send-line"></i>
               </div>
               <h2>Forgot Password?</h2>
-              <p>Enter your email to receive a temporary password.</p>
+              <p>Enter your email to receive a secure recovery link.</p>
             </div>
 
-            {tempPasswordGenerated ? (
+            {recoveryEmailSent ? (
               <div style={{
                 background: '#F0FFF8', border: '1px solid #00A884', borderRadius: 12,
                 padding: '1.5rem', textAlign: 'center', marginBottom: '2rem'
               }}>
                 <h3 style={{ color: '#00A884', marginBottom: '1rem' }}>Success!</h3>
                 <p style={{ color: '#2B3674', fontSize: '0.95rem', marginBottom: '1rem' }}>
-                  An email has been sent to <strong>{email}</strong> with your temporary password.
+                  If an account exists for <strong>{email}</strong>, a secure recovery link has been sent.
                 </p>
-                <div style={{ background: '#E2F8F0', padding: '1rem', borderRadius: 8, fontSize: '1.25rem', letterSpacing: '2px', fontWeight: 'bold', color: '#006D53' }}>
-                  {tempPasswordGenerated}
-                </div>
                 <p style={{ color: '#707EAE', fontSize: '0.8rem', marginTop: '1rem' }}>
-                  (This is displayed here for testing purposes since we don't have a real email server connected).
+                  Open the link in the same browser to choose a new password.
                 </p>
                 <Link to="/login" className="btn-signin" style={{ display: 'inline-block', textDecoration: 'none', marginTop: '1.5rem' }}>
                   Return to Login
@@ -144,7 +128,7 @@ const ResetPassword = () => {
                   />
                 </div>
                 <button type="submit" className="btn-signin" disabled={loading} style={{ marginTop: '1rem' }}>
-                  {loading ? 'Sending...' : 'Send Temporary Password'}
+                  {loading ? 'Sending...' : 'Send Recovery Link'}
                 </button>
                 <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
                   <Link to="/login" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
@@ -200,19 +184,21 @@ const ResetPassword = () => {
           </div>
 
           <form onSubmit={handleLoggedInSubmit}>
-            <div className="salary-field">
-              <label className="salary-field-label">
-                Current Password <span className="salary-required">*</span>
-              </label>
-              <input
-                className="salary-input"
-                type="password"
-                placeholder="Enter current password"
-                value={currentPassword}
-                onChange={e => setCurrentPassword(e.target.value)}
-                required
-              />
-            </div>
+            {!isPasswordRecovery && (
+              <div className="salary-field">
+                <label className="salary-field-label">
+                  Current Password <span className="salary-required">*</span>
+                </label>
+                <input
+                  className="salary-input"
+                  type="password"
+                  placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={e => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
+            )}
 
             <div className="salary-field">
               <label className="salary-field-label">

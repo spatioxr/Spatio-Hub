@@ -60,11 +60,12 @@ All other routes redirect to the dashboard.
 ## Project references
 
 - [Phase 1 scope and decisions](docs/PHASE_1.md)
+- [Supabase Auth setup](docs/AUTH_SETUP.md)
 - [Issue tracker](https://docs.google.com/spreadsheets/d/1LZCCncJ7yVvNWi6MN-k5rkCAItkkmtV6_76l7hVnFnE/edit?gid=0#gid=0)
 
 ## Important security status
 
-The existing authentication still uses application-managed passwords and database row-level security is not yet enabled. Do not treat the current build as production-safe until tracker items `HRMS-002`, `HRMS-003`, and `HRMS-004` are complete.
+Authentication uses Supabase Auth sessions, but database row-level security and removal of the legacy employee password column are still pending. Do not treat the current build as production-safe until tracker items `HRMS-003` and `HRMS-004` are complete.
 
 ## Continuing the project
 

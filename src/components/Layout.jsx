@@ -5,8 +5,9 @@ import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 
 const Layout = ({ children, title }) => {
-  const { user } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
   
+  if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
 
   return (

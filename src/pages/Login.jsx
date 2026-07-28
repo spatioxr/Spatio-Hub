@@ -1,10 +1,10 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import logoDark from '../assets/logo-dark.png';
 
 const Login = () => {
-  const { login, user } = useContext(AuthContext);
+  const { login, user, loading: authLoading, authError } = useContext(AuthContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -12,16 +12,25 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Load Remember Me credentials on mount
+  // Remember only the email address. Supabase manages the persisted session.
   React.useEffect(() => {
     const savedEmail = localStorage.getItem('spatio_remember_email');
-    const savedPassword = localStorage.getItem('spatio_remember_password');
-    if (savedEmail && savedPassword) {
+    localStorage.removeItem('spatio_remember_password');
+    localStorage.removeItem('hrms_user');
+
+    if (savedEmail) {
       setEmail(savedEmail);
-      setPassword(savedPassword);
       setRememberMe(true);
     }
   }, []);
+
+  if (authLoading) {
+    return (
+      <div className="login-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Restoring your session…</div>
+      </div>
+    );
+  }
 
   if (user) return <Navigate to="/" replace />;
 
@@ -34,10 +43,8 @@ const Login = () => {
     if (result.success) {
       if (rememberMe) {
         localStorage.setItem('spatio_remember_email', email);
-        localStorage.setItem('spatio_remember_password', password);
       } else {
         localStorage.removeItem('spatio_remember_email');
-        localStorage.removeItem('spatio_remember_password');
       }
       navigate('/');
     } else {
@@ -71,13 +78,13 @@ const Login = () => {
           </div>
 
           {/* Error */}
-          {error && (
+          {(error || authError) && (
             <div style={{
               background: '#FFF0F0', border: '1px solid #FFCDD2', borderRadius: 12,
               padding: '0.75rem 1rem', color: '#C62828', fontSize: '0.875rem',
               marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
             }}>
-              <i className="ri-error-warning-line" /> {error}
+              <i className="ri-error-warning-line" /> {error || authError}
             </div>
           )}
 
@@ -117,12 +124,9 @@ const Login = () => {
                 />
                 Remember me
               </label>
-              <a href="#" className="login-forgot" onClick={(e) => {
-                e.preventDefault();
-                alert('please reach out to -Hr@spatiotech.ai. For password change.');
-              }}>
+              <Link to="/reset-password" className="login-forgot">
                 Forgot Password?
-              </a>
+              </Link>
             </div>
 
             {/* Sign in button */}
