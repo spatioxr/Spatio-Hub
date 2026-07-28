@@ -15,24 +15,28 @@ The Supabase integration is connected to Vercel Production and Preview. Never co
 
 For a brand-new, empty Supabase project:
 
-1. Run `supabase_phase1_bootstrap.sql` once in the Supabase SQL editor.
-2. Confirm the six public tables exist: `employees`, `attendance`, `daily_reports`, `leaves`, `leave_balances`, and `holidays`.
-3. Confirm the seeded `STS001` employee is `jasim@spatiotech.ai` with role `superadmin`.
-4. Under Authentication, send an email invitation to `jasim@spatiotech.ai`.
-5. Set the Site URL to `https://spatio-hub.vercel.app`.
-6. Add `https://spatio-hub.vercel.app/reset-password` to the redirect allow list.
-7. Redeploy the Vercel Production environment so it reads the latest integration variables.
+1. Apply every file in `supabase/migrations` in filename order, preferably with
+   `supabase db push`.
+2. Run `supabase/verify/phase1_schema.sql` and confirm every boolean is true.
+3. Confirm the seeded `STS001` employee is `jasim@spatiotech.ai` with role
+   `superadmin`.
+4. Under Authentication, create or invite `jasim@spatiotech.ai`.
+5. If Auth was created after the schema, rerun migration 003's mapping
+   statement or sign in once so the app claims the matching profile.
+6. Set the Site URL to `https://spatio-hub.vercel.app`.
+7. Add `https://spatio-hub.vercel.app/reset-password` to the redirect allow
+   list.
+8. Redeploy the Vercel Production environment so it reads the latest
+   integration variables.
 
-For an already-bootstrapped project, run `supabase_rls_phase1.sql` to apply the
-latest current-table access policies, then run `supabase_rls_verify.sql`.
-
-The bootstrap deliberately contains no mock employee history and no
-application-managed password field. It includes the current-table HRMS-004 RLS
-policies; future schema migrations must add matching policies for their tables.
+The migrations deliberately contain no mock employee history and no
+application-managed password field. Schema and matching RLS policies are
+applied together.
 
 If Supabase falls back to the Site URL for an invitation or recovery link, the app detects that Auth flow and routes it to `/reset-password`.
 
-Do not run the bootstrap against an existing populated project. It is intended for a clean phase-1 environment.
+See `DATABASE_MIGRATIONS.md` for clean-project commands, verification, and safe
+rollback guidance.
 
 ## Adding employees
 

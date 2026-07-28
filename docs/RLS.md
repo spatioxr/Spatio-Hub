@@ -1,12 +1,12 @@
 # Phase 1 Row-Level Security
 
-`supabase_rls_phase1.sql` is the idempotent HRMS-004 policy migration for the
-six tables currently present in the clean cloud project. Run
-`supabase_rls_verify.sql` afterwards and confirm:
+The ordered migrations in `supabase/migrations` create the Phase 1 tables and
+their policies together. Run `supabase/verify/phase1_schema.sql` afterwards and
+confirm:
 
-- all six tables report `rls_enabled = true`
+- all 14 tables report `rls_enabled = true`
 - only the expected authenticated policies are present
-- `anon_can_select = false` for every table
+- anonymous SELECT is denied for every table
 - the signed-in superadmin reports organisation access
 
 ## Current enforcement
@@ -18,10 +18,13 @@ six tables currently present in the clean cloud project. Run
 | Daily reports | Own | Explicit reports, read-only | Organisation, read-only | Organisation |
 | Leave and balances | Own | Own | Own | Organisation |
 | Holidays | Read | Read | Read | Read/write |
+| Projects/assignments | Assigned | Assigned/managed | Organisation | Organisation |
+| Work entries/breaks | Own | Assigned teams/projects, read-only | Organisation, read-only | Organisation |
+| Audit history | Own | Assigned teams/projects | Organisation | Organisation |
+| BOS/EOD settings | Own, read-only | Own, read-only | Own, read-only | Organisation |
 
-Managers are temporarily scoped through the explicit `reports_to` relationship.
-HRMS-009 will replace/extend that scope with project Manager and project-member
-assignments. Department never grants Manager access.
+Managers are scoped through explicit `reports_to` relationships and assigned
+project teams. Department never grants Manager access.
 
 Attendance and daily-report corrections remain self-service or superadmin-only
 until HRMS-013 adds mandatory edit reasons and immutable audit history. This

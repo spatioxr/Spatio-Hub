@@ -62,6 +62,7 @@ All other routes redirect to the dashboard.
 - [Phase 1 scope and decisions](docs/PHASE_1.md)
 - [Phase 1 permission matrix](docs/PERMISSIONS.md)
 - [Phase 1 row-level security](docs/RLS.md)
+- [Database migrations and rollback](docs/DATABASE_MIGRATIONS.md)
 - [Supabase Auth setup](docs/AUTH_SETUP.md)
 - [Issue tracker](https://docs.google.com/spreadsheets/d/1LZCCncJ7yVvNWi6MN-k5rkCAItkkmtV6_76l7hVnFnE/edit?gid=0#gid=0)
 - Production: [spatio-hub.vercel.app](https://spatio-hub.vercel.app)
@@ -69,7 +70,13 @@ All other routes redirect to the dashboard.
 
 ## Important security status
 
-Authentication uses Supabase Auth sessions and the legacy employee password column has been retired. The six current phase-1 tables enforce scoped RLS for employee, manager, admin, and superadmin access. Every future schema issue must add matching RLS in the same migration that creates its tables.
+Authentication uses Supabase Auth sessions and the legacy employee password
+column has been retired. All 14 current Phase 1 tables enforce scoped RLS for
+employee, manager, admin, and superadmin access. Every future schema issue must
+add matching RLS in the same migration that creates its tables.
+
+The canonical database history is `supabase/migrations`. Do not provision an
+environment with the legacy root-level `supabase_updates*.sql` files.
 
 ## Continuing the project
 
