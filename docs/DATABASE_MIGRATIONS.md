@@ -17,6 +17,9 @@ environment.
 4. `20260729000100_project_invariants.sql` adds atomic project creation with
    initial manager ownership, active-manager guards, and controlled
    archive/restore operations.
+5. `20260729000200_activity_invariants.sql` adds controlled activity creation
+   and archive/restore operations, prevents authenticated hard deletion, and
+   preserves labels after work has been logged against an activity.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -69,6 +72,11 @@ activities, and overlap guards.
 Run `supabase/verify/hrms_007_projects.sql` for the rollback-only project model
 check. It creates and archives a temporary project inside a transaction, checks
 manager ownership and enforcement objects, then rolls everything back.
+
+Run `supabase/verify/hrms_008_activities.sql` for the rollback-only activity
+catalogue check. It creates and archives a temporary activity, confirms the
+five Phase 1 seeds remain selectable, verifies historical label retention and
+the archived-activity work-entry guard, then rolls everything back.
 
 ## Rollback
 
