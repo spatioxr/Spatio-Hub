@@ -865,7 +865,7 @@ const Timesheets = () => {
               <input
                 type="date"
                 value={selectedDate}
-                onChange={(event) => jumpToDate(event.target.value)}
+                onInput={(event) => jumpToDate(event.currentTarget.value)}
               />
             </label>
             <button type="button" className="btn btn-outline" onClick={goToCurrentWeek}>
