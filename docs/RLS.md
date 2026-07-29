@@ -4,7 +4,7 @@ The ordered migrations in `supabase/migrations` create the Phase 1 tables and
 their policies together. Run `supabase/verify/phase1_schema.sql` afterwards and
 confirm:
 
-- all 14 tables report `rls_enabled = true`
+- all 15 tables report `rls_enabled = true`
 - only the expected authenticated policies are present
 - anonymous SELECT is denied for every table
 - the signed-in superadmin reports organisation access
@@ -22,6 +22,7 @@ confirm:
 | Work entries/breaks | Own | Assigned teams/projects, read-only | Organisation, read-only | Organisation |
 | Audit history | Own | Assigned teams/projects | Organisation | Organisation |
 | BOS/EOD settings | Own, read-only | Own, read-only | Own, read-only | Organisation |
+| BOS/EOD setting history | — | — | — | Organisation |
 
 Managers are scoped through explicit project ownership and team membership.
 Neither `reports_to` nor department grants Manager access.
@@ -44,10 +45,16 @@ superadmin row scope, and a database trigger owns the corresponding submission
 timestamps. Per-employee BOS/EOD requirements are readable within their
 existing scope but may be changed only through the superadmin-controlled
 settings function; direct authenticated settings writes are denied.
+Each effective settings change records the previous and saved BOS/EOD values,
+the superadmin actor, and the shared change timestamp in immutable history.
+Unchanged saves do not create misleading audit events. Setting updates are
+published to signed-in affected employees so their timer refreshes the saved
+requirements without a page reload.
 
-Work-entry audit rows are inserted atomically by the correction functions.
-Authenticated clients have no insert, update, or delete privileges on audit
-history, and a database trigger also rejects audit updates and deletion.
+Work-entry and BOS/EOD-settings audit rows are inserted atomically by their
+controlled functions. Authenticated clients have no insert, update, or delete
+privileges on audit history, and database triggers also reject audit updates
+and deletion.
 
 `supabase/verify/hrms_004_role_access.sql` exercises the complete policy model
 as real Employee, Manager, Admin, and Superadmin Auth identities with the

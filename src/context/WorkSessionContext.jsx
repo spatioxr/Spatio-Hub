@@ -236,14 +236,43 @@ export const WorkSessionProvider = ({ children }) => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') refresh();
     };
+    const handleSettingsChange = (event) => {
+      if (!event.detail?.employeeId || event.detail.employeeId === user?.id) {
+        refresh();
+      }
+    };
 
     window.addEventListener('focus', refresh);
+    window.addEventListener('hrms:work-settings-changed', handleSettingsChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       window.removeEventListener('focus', refresh);
+      window.removeEventListener('hrms:work-settings-changed', handleSettingsChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [refresh]);
+  }, [refresh, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+
+    const channel = supabase
+      .channel(`employee-work-settings-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'employee_work_settings',
+          filter: `employee_id=eq.${user.id}`,
+        },
+        () => refresh(),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refresh, user?.id]);
 
   useEffect(() => {
     if (!snapshot.session || snapshot.breakEntry) {

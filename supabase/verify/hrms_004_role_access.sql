@@ -1190,7 +1190,7 @@ RESET ROLE;
 INSERT INTO hrms_004_results (check_name, check_value)
 SELECT
   'all_tables_rls_enabled',
-  count(*) = 14
+  count(*) = 15
   AND bool_and(c.relrowsecurity)
 FROM pg_class c
 JOIN pg_namespace n
@@ -1210,7 +1210,8 @@ WHERE n.nspname = 'public'
     'work_entries',
     'break_entries',
     'work_entry_audit',
-    'employee_work_settings'
+    'employee_work_settings',
+    'daily_report_settings_audit'
   );
 
 SELECT

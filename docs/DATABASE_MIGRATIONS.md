@@ -42,6 +42,10 @@ environment.
     and final End Day with BOS/EOD reports and attendance, preserves switching
     as a report-neutral session boundary, and routes authenticated clients
     through the enforced work-day operations.
+13. `20260729001000_daily_report_settings_audit.sql` adds immutable audit
+    history for per-employee BOS/EOD exceptions, keeps changes behind the
+    superadmin RPC, and publishes setting updates so an affected timer refreshes
+    its saved requirements immediately.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -87,8 +91,8 @@ first sign-in.
 ## Verification
 
 Run `supabase/verify/phase1_schema.sql` in the SQL editor after migrations.
-Every returned boolean must be `true`. This verifies all 14 current tables,
-RLS, anonymous denial, the 44 scoped policies, helper functions, seed
+Every returned boolean must be `true`. This verifies all 15 current tables,
+RLS, anonymous denial, the 45 scoped policies, helper functions, seed
 activities, and overlap guards.
 
 Run `supabase/verify/hrms_007_projects.sql` for the rollback-only project model
@@ -135,10 +139,15 @@ BOS/EOD work-day check. It verifies first-start BOS enforcement, report-neutral
 switching, break-safe final End Day, EOD enforcement, attendance integration,
 per-employee exemptions, and denial of the legacy bypass RPCs.
 
+Run `supabase/verify/hrms_019_daily_report_settings.sql` for the rollback-only
+BOS/EOD exception check. It verifies mandatory defaults, superadmin-only
+changes, immediate saved values, actor-stamped old/new audit snapshots,
+no-op handling, immutable history, and direct-write denial.
+
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager
 assigned-team scope, Admin organisation read scope, Superadmin-only leave and
-BOS/EOD controls, and direct-client write denial across all 14 Phase 1 tables.
+BOS/EOD controls, and direct-client write denial across all 15 Phase 1 tables.
 
 ## Rollback
 

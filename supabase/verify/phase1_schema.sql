@@ -17,7 +17,8 @@ WITH expected(table_name) AS (
     ('work_entries'),
     ('break_entries'),
     ('work_entry_audit'),
-    ('employee_work_settings')
+    ('employee_work_settings'),
+    ('daily_report_settings_audit')
 ),
 actual AS (
   SELECT
@@ -44,13 +45,13 @@ policies AS (
 ),
 results AS (
 SELECT
-  (SELECT count(*) = 14 AND bool_and(table_exists) FROM actual)
+  (SELECT count(*) = 15 AND bool_and(table_exists) FROM actual)
     AS all_tables_exist,
   (SELECT bool_and(rls_enabled) FROM actual)
     AS all_rls_enabled,
   (SELECT bool_and(anon_select_denied) FROM actual)
     AS anon_select_denied,
-  (SELECT count(*) = 44 FROM policies)
+  (SELECT count(*) = 45 FROM policies)
     AS expected_policy_count,
   (SELECT bool_and(roles = ARRAY['authenticated']::name[]) FROM policies)
     AS authenticated_only,
@@ -123,6 +124,13 @@ SELECT
       AND tgname = 'work_entry_audit_prevent_mutation'
       AND NOT tgisinternal
   ) AS work_entry_audit_immutable,
+  EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgrelid = 'public.daily_report_settings_audit'::regclass
+      AND tgname = 'daily_report_settings_audit_prevent_mutation'
+      AND NOT tgisinternal
+  ) AS daily_report_settings_audit_immutable,
   NOT has_table_privilege(
     'authenticated',
     'public.work_entry_audit',
@@ -138,6 +146,21 @@ SELECT
       'public.work_entry_audit',
       'DELETE'
     ) AS direct_work_entry_audit_writes_denied,
+  NOT has_table_privilege(
+    'authenticated',
+    'public.daily_report_settings_audit',
+    'INSERT'
+  )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.daily_report_settings_audit',
+      'UPDATE'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.daily_report_settings_audit',
+      'DELETE'
+    ) AS direct_daily_report_settings_audit_writes_denied,
   (
     SELECT count(*) = 5
     FROM public.activities
