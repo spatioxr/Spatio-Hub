@@ -10,6 +10,15 @@ import {
   PERMISSIONS,
   ROLES,
 } from '../utils/rbac';
+import {
+  appDateKey,
+  appDateTimeInputToIso,
+  appDayRange,
+  formatAppClock,
+  formatAppDate,
+  formatAppDateTime,
+  toAppDateTimeInput,
+} from '../utils/timezone';
 
 const SCOPE_COPY = {
   personal: {
@@ -33,26 +42,19 @@ const SCOPE_COPY = {
 };
 
 const startOfWeek = (date) => {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  const mondayOffset = (start.getDay() + 6) % 7;
-  start.setDate(start.getDate() - mondayOffset);
+  const start = new Date(`${appDateKey(date)}T12:00:00Z`);
+  const mondayOffset = (start.getUTCDay() + 6) % 7;
+  start.setUTCDate(start.getUTCDate() - mondayOffset);
   return start;
 };
 
 const addDays = (date, days) => {
   const next = new Date(date);
-  next.setDate(next.getDate() + days);
+  next.setUTCDate(next.getUTCDate() + days);
   return next;
 };
 
-const dateKey = (value) => {
-  const date = new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const dateKey = appDateKey;
 
 const formatDuration = (seconds) => {
   const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -62,26 +64,8 @@ const formatDuration = (seconds) => {
   return `${hours}h ${String(minutes).padStart(2, '0')}m`;
 };
 
-const formatClock = (value) => (
-  value
-    ? new Intl.DateTimeFormat('en-IN', {
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(new Date(value))
-    : 'Now'
-);
-
-const formatDateTime = (value) => (
-  value
-    ? new Intl.DateTimeFormat('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(new Date(value))
-    : 'Not recorded'
-);
+const formatClock = formatAppClock;
+const formatDateTime = formatAppDateTime;
 
 const formatAuditBreaks = (breaks) => {
   if (!Array.isArray(breaks) || breaks.length === 0) return 'No breaks';
@@ -132,16 +116,17 @@ const getAuditChanges = (historyItem) => AUDIT_FIELDS
 
 const formatWeekRange = (weekStart) => {
   const weekEnd = addDays(weekStart, 6);
-  const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
-  const start = new Intl.DateTimeFormat('en-IN', {
+  const sameMonth = weekStart.getUTCMonth() === weekEnd.getUTCMonth();
+  const start = formatAppDate(weekStart, {
     day: 'numeric',
     ...(sameMonth ? {} : { month: 'short' }),
-  }).format(weekStart);
-  const end = new Intl.DateTimeFormat('en-IN', {
+    year: undefined,
+  });
+  const end = formatAppDate(weekEnd, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-  }).format(weekEnd);
+  });
   return `${start} – ${end}`;
 };
 
@@ -149,12 +134,7 @@ const sortByLabel = (options) => (
   [...options].sort((left, right) => left.label.localeCompare(right.label))
 );
 
-const toLocalDateTimeInput = (value) => {
-  if (!value) return '';
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-};
+const toLocalDateTimeInput = toAppDateTimeInput;
 
 const defaultManualForm = (selectedDate) => ({
   context: '',
@@ -212,7 +192,7 @@ const Timesheets = () => {
     setLoading(true);
     setError('');
 
-    const rangeEnd = addDays(weekStart, 7);
+    const range = appDayRange(dateKey(weekStart), dateKey(addDays(weekStart, 6)));
     const [
       { data: entryData, error: entryError },
       { data: memberData, error: memberError },
@@ -220,8 +200,8 @@ const Timesheets = () => {
       { data: activityData, error: activityError },
     ] = await Promise.all([
       supabase.rpc('scoped_timesheet_entries', {
-        requested_start_at: weekStart.toISOString(),
-        requested_end_at: rangeEnd.toISOString(),
+        requested_start_at: range.start,
+        requested_end_at: range.end,
         requested_scope: scope,
         requested_employee_id: null,
       }),
@@ -425,7 +405,6 @@ const Timesheets = () => {
     breakSeconds: 0,
     sessionCount: 0,
   };
-  const selectedDateValue = new Date(`${selectedDate}T00:00:00`);
   const canCorrectTime = hasPermission(user, PERMISSIONS.CORRECT_SCOPED_TIME_ENTRIES);
   const canCorrectPersonal = [ROLES.ADMIN, ROLES.SUPERADMIN].includes(userRole);
   const canUseManualEditor = canCorrectTime && (scope !== 'personal' || canCorrectPersonal);
@@ -445,20 +424,20 @@ const Timesheets = () => {
   };
 
   const moveWeek = (offset) => {
-    const nextDate = addDays(new Date(`${selectedDate}T00:00:00`), offset * 7);
+    const nextDate = addDays(new Date(`${selectedDate}T12:00:00Z`), offset * 7);
     setWeekStart(startOfWeek(nextDate));
     setSelectedDate(dateKey(nextDate));
   };
 
   const moveDay = (offset) => {
-    const nextDate = addDays(new Date(`${selectedDate}T00:00:00`), offset);
+    const nextDate = addDays(new Date(`${selectedDate}T12:00:00Z`), offset);
     setWeekStart(startOfWeek(nextDate));
     setSelectedDate(dateKey(nextDate));
   };
 
   const jumpToDate = (value) => {
     if (!value) return;
-    const nextDate = new Date(`${value}T00:00:00`);
+    const nextDate = new Date(`${value}T12:00:00Z`);
     if (Number.isNaN(nextDate.getTime())) return;
     setWeekStart(startOfWeek(nextDate));
     setSelectedDate(dateKey(nextDate));
@@ -595,8 +574,8 @@ const Timesheets = () => {
       return;
     }
 
-    const startedAt = new Date(manualForm.startedAt);
-    const endedAt = new Date(manualForm.endedAt);
+    const startedAt = new Date(appDateTimeInputToIso(manualForm.startedAt));
+    const endedAt = new Date(appDateTimeInputToIso(manualForm.endedAt));
     if (
       Number.isNaN(startedAt.getTime())
       || Number.isNaN(endedAt.getTime())
@@ -607,8 +586,8 @@ const Timesheets = () => {
     }
 
     const parsedBreaks = manualForm.breaks.map((breakEntry) => ({
-      startedAt: new Date(breakEntry.startedAt),
-      endedAt: new Date(breakEntry.endedAt),
+      startedAt: new Date(appDateTimeInputToIso(breakEntry.startedAt)),
+      endedAt: new Date(appDateTimeInputToIso(breakEntry.endedAt)),
     }));
     if (parsedBreaks.some((breakEntry) => (
       Number.isNaN(breakEntry.startedAt.getTime())
@@ -910,8 +889,8 @@ const Timesheets = () => {
                     role="tab"
                     aria-selected={isSelected}
                   >
-                    <span>{day.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
-                    <strong>{day.getDate()}</strong>
+                    <span>{formatAppDate(day, { weekday: 'short', day: undefined, month: undefined, year: undefined })}</span>
+                    <strong>{day.getUTCDate()}</strong>
                     <b>{formatDuration(summary.workedSeconds)}</b>
                     <small>
                       {summary.sessionCount
@@ -933,10 +912,11 @@ const Timesheets = () => {
                   <div>
                     <span className="page-eyebrow">Day detail</span>
                     <h3>
-                      {selectedDateValue.toLocaleDateString('en-IN', {
+                      {formatAppDate(selectedDate, {
                         weekday: 'long',
                         day: 'numeric',
                         month: 'long',
+                        year: undefined,
                       })}
                     </h3>
                   </div>

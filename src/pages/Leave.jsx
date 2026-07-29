@@ -4,6 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { LeaveContext } from '../context/LeaveContext';
 import { supabase } from '../utils/supabaseClient';
 import AppState from '../components/AppState';
+import { formatAppDate } from '../utils/timezone';
 
 const LEAVE_TYPES = ['Sick Leave', 'Comp Off', 'Casual Leave'];
 
@@ -427,7 +428,7 @@ const Leave = () => {
                             <td>{row.to_date || row.to}</td>
                             <td><strong>{row.days}</strong></td>
                             <td>{statusBadge(row.status)}</td>
-                            <td style={{ color: '#A3AED0' }}>{new Date(row.created_at || row.appliedOn || new Date()).toLocaleDateString()}</td>
+                            <td style={{ color: '#A3AED0' }}>{formatAppDate(row.created_at || row.appliedOn || new Date())}</td>
                             <td>
                               <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <button

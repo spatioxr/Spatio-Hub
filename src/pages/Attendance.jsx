@@ -4,6 +4,12 @@ import Layout from '../components/Layout';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { getManagedDepartments } from '../utils/rbac';
+import {
+  addAppDays,
+  appDateKey,
+  formatAppDate,
+  formatAppTimeValue,
+} from '../utils/timezone';
 
 const DEPARTMENTS = ['Development', 'Design', 'Operations', 'Sales'];
 
@@ -88,14 +94,8 @@ const Attendance = () => {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth();
       
-      const firstDayDate = new Date(year, month, 1);
-      const lastDayDate = new Date(year, month + 1, 0);
-      
-      const offset1 = firstDayDate.getTimezoneOffset() * 60000;
-      const firstDay = new Date(firstDayDate.getTime() - offset1).toISOString().split('T')[0];
-      
-      const offset2 = lastDayDate.getTimezoneOffset() * 60000;
-      const lastDay = new Date(lastDayDate.getTime() - offset2).toISOString().split('T')[0];
+      const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      const lastDay = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
       
       const { data: attData } = await supabase
         .from('attendance')
@@ -161,11 +161,8 @@ const Attendance = () => {
       
       const leaveMap = {};
       (leavesData || []).forEach(lv => {
-        const d1 = new Date(lv.from_date);
-        const d2 = new Date(lv.to_date);
-        for (let d = new Date(d1); d <= d2; d.setDate(d.getDate() + 1)) {
-          const iso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-          leaveMap[iso] = lv;
+        for (let date = lv.from_date; date <= lv.to_date; date = addAppDays(date, 1)) {
+          leaveMap[date] = lv;
         }
       });
       
@@ -189,9 +186,7 @@ const Attendance = () => {
     let leaveDays = 0;
     let absentDays = 0;
     
-    const todayDate = new Date();
-    const todayOffset = todayDate.getTimezoneOffset() * 60000;
-    const todayStr = new Date(todayDate.getTime() - todayOffset).toISOString().split('T')[0];
+    const todayStr = appDateKey();
     
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -465,9 +460,7 @@ const Attendance = () => {
               const att = attendanceRecords[dateStr];
               const lv = leaveRecords[dateStr];
               
-              const todayDate = new Date();
-              const todayOffset = todayDate.getTimezoneOffset() * 60000;
-              const todayStr = new Date(todayDate.getTime() - todayOffset).toISOString().split('T')[0];
+              const todayStr = appDateKey();
               
               const isToday = todayStr === dateStr;
               const isClickable = !!att || !!lv || user?.role !== 'employee';
@@ -565,7 +558,7 @@ const Attendance = () => {
           <div className="salary-modal" style={{ maxWidth: 450 }} onClick={e => e.stopPropagation()}>
             <div className="salary-modal-header">
               <div>
-                <h3 className="salary-modal-title">Details for {new Date(selectedDateDetails.date + 'T00:00:00').toDateString()}</h3>
+                <h3 className="salary-modal-title">Details for {formatAppDate(selectedDateDetails.date, { weekday: 'long', month: 'long' })}</h3>
               </div>
               <button className="salary-modal-close" onClick={() => setSelectedDateDetails(null)}><i className="ri-close-line" /></button>
             </div>
@@ -611,14 +604,14 @@ const Attendance = () => {
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div style={{ background: '#F4F4F4', padding: '1rem', borderRadius: 8 }}>
                           <p style={{ fontSize: '0.8rem', color: '#646465', fontWeight: 600 }}>Check In</p>
-                          <p style={{ fontSize: '1.1rem', color: '#000000', fontWeight: 'bold' }}>{selectedDateDetails.att.check_in || '-'}</p>
+                          <p style={{ fontSize: '1.1rem', color: '#000000', fontWeight: 'bold' }}>{formatAppTimeValue(selectedDateDetails.att.check_in)}</p>
                           {selectedDateDetails.att.isLate && (
                             <span style={{ fontSize: '0.75rem', color: '#CA8A04', background: '#FEF3C7', padding: '2px 6px', borderRadius: 4, fontWeight: 'bold' }}>LATE</span>
                           )}
                         </div>
                         <div style={{ background: '#F4F4F4', padding: '1rem', borderRadius: 8 }}>
                           <p style={{ fontSize: '0.8rem', color: '#646465', fontWeight: 600 }}>Check Out</p>
-                          <p style={{ fontSize: '1.1rem', color: '#000000', fontWeight: 'bold' }}>{selectedDateDetails.att.check_out || '-'}</p>
+                          <p style={{ fontSize: '1.1rem', color: '#000000', fontWeight: 'bold' }}>{formatAppTimeValue(selectedDateDetails.att.check_out)}</p>
                           <span style={{ fontSize: '0.75rem', color: '#006742', background: '#E8F2EF', padding: '2px 6px', borderRadius: 4, fontWeight: 'bold' }}>
                             {selectedDateDetails.att.dayType.toUpperCase()}
                             {selectedDateDetails.att.durationHours ? ` (${selectedDateDetails.att.durationHours.toFixed(1)}h)` : ''}

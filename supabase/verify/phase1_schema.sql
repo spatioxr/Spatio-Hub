@@ -140,6 +140,15 @@ SELECT
       'public.end_work_day(uuid,text)'
     ) IS NOT NULL AS has_daily_report_workflow,
   to_regprocedure(
+    'public.app_current_date(timestamptz)'
+  ) IS NOT NULL
+    AND to_regprocedure(
+      'public.app_day_start(date)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.app_clock_time(timestamptz)'
+    ) IS NOT NULL AS has_kolkata_time_standard,
+  to_regprocedure(
     'public.set_daily_report_requirements(uuid,boolean,boolean)'
   ) IS NOT NULL AS has_daily_report_requirements_control,
   to_regprocedure(

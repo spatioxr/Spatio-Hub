@@ -7,6 +7,7 @@ import Layout from '../components/Layout';
 import LiveStatusBoard from '../components/LiveStatusBoard';
 import { supabase } from '../utils/supabaseClient';
 import { getManagedDepartments, hasPermission, PERMISSIONS } from '../utils/rbac';
+import { appDateKey, formatAppDate } from '../utils/timezone';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
@@ -41,7 +42,7 @@ const Dashboard = () => {
   // Fetch today's data from Supabase
   const fetchData = async () => {
     if (!user) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = appDateKey();
 
     if (user.role === 'admin' || user.role === 'manager' || user.role === 'head' || user.role === 'superadmin') {
       let countQuery = supabase.from('employees').select('id', { count: 'exact', head: true });
@@ -57,7 +58,7 @@ const Dashboard = () => {
       setTotalEmployees(totalCount || 0);
 
       // Fetch today's attendance counts
-      const today = new Date().toISOString().split('T')[0];
+      const today = appDateKey();
       let attQuery = supabase.from('attendance').select('employee_id').eq('date', today);
       
       if (user.role === 'admin' || user.role === 'manager') {
@@ -149,7 +150,7 @@ const Dashboard = () => {
             </div>
             <div className="card-info">
               <span className="card-label">Upcoming Holiday</span>
-              <span className="card-value">{holidays.filter(h => h.date >= new Date().toISOString().split('T')[0]).length}</span>
+              <span className="card-value">{holidays.filter(h => h.date >= appDateKey()).length}</span>
             </div>
           </div>
         </div>
@@ -190,7 +191,7 @@ const Dashboard = () => {
             </div>
             <div className="card-info">
               <span className="card-label">Upcoming Holiday</span>
-              <span className="card-value">{holidays.filter(h => h.date >= new Date().toISOString().split('T')[0]).length}</span>
+              <span className="card-value">{holidays.filter(h => h.date >= appDateKey()).length}</span>
             </div>
           </div>
         </div>
@@ -203,7 +204,7 @@ const Dashboard = () => {
 
   const isTodayBetween = (start, end) => {
     if (!start || !end) return false;
-    const today = new Date().toISOString().split('T')[0];
+    const today = appDateKey();
     return today >= start && today <= end;
   };
 
@@ -290,7 +291,7 @@ const Dashboard = () => {
               dailyLeaves.map(leave => {
                 const empName = leave.employees?.name || user.name || 'User';
                 const avatarInitials = empName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-                const fromDateObj = new Date(leave.from_date || leave.from);
+                const fromDate = leave.from_date || leave.from;
                 
                 return (
                   <div className="leave-item-custom" key={leave.id}>
@@ -303,8 +304,8 @@ const Dashboard = () => {
                       </div>
                     </div>
                     <div className="leave-item-date">
-                      {fromDateObj.getDate()}
-                      <span>{fromDateObj.toLocaleString('default', { month: 'short' })}</span>
+                      {formatAppDate(fromDate, { day: 'numeric', month: undefined, year: undefined })}
+                      <span>{formatAppDate(fromDate, { month: 'short', day: undefined, year: undefined })}</span>
                     </div>
                   </div>
                 );
@@ -442,15 +443,15 @@ const Dashboard = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
                 {holidays.map(h => {
-                  const d = new Date(h.date);
+                  const d = h.date;
                   return (
                     <div key={h.id} style={{ background: 'white', border: '1px solid #E8E8E8', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)' }}>
                       <div style={{ background: '#003B2C', color: 'white', padding: '0.5rem', textAlign: 'center', fontWeight: 600, fontSize: '0.9rem' }}>
-                        {d.toLocaleString('default', { month: 'short', year: 'numeric' })}
+                        {formatAppDate(d, { month: 'short', year: 'numeric', day: undefined })}
                       </div>
                       <div style={{ padding: '1rem', textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#000000', lineHeight: 1 }}>{d.getDate()}</div>
-                        <div style={{ fontSize: '0.85rem', color: '#646465', marginTop: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{d.toLocaleString('default', { weekday: 'short' })}</div>
+                        <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#000000', lineHeight: 1 }}>{formatAppDate(d, { day: 'numeric', month: undefined, year: undefined })}</div>
+                        <div style={{ fontSize: '0.85rem', color: '#646465', marginTop: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formatAppDate(d, { weekday: 'short', day: undefined, month: undefined, year: undefined })}</div>
                         <div style={{ marginTop: '0.75rem', fontWeight: 600, color: '#006742', fontSize: '0.95rem', minHeight: '2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{h.name}</div>
                       </div>
                     </div>

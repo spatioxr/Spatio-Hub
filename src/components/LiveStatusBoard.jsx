@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import {
+  appDateKey,
+  formatAppClock,
+  formatAppDate,
+} from '../utils/timezone';
 
 const STATUS_TABS = ['In', 'Break', 'Out'];
 
@@ -14,18 +19,14 @@ const initialsFor = (name) => name
 const formatStatusStart = (value) => {
   if (!value) return 'No work recorded';
 
-  const date = new Date(value);
-  const today = new Date();
-  const sameDay = date.toDateString() === today.toDateString();
-  const time = date.toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  const sameDay = appDateKey(value) === appDateKey();
+  const time = formatAppClock(value);
 
   if (sameDay) return `Since ${time}`;
-  return `Since ${date.toLocaleDateString([], {
+  return `Since ${formatAppDate(value, {
     day: 'numeric',
     month: 'short',
+    year: undefined,
   })}, ${time}`;
 };
 
@@ -201,7 +202,7 @@ const LiveStatusBoard = ({ refreshKey }) => {
 
       <div className="live-status-footer" aria-live="polite">
         {updatedAt
-          ? `Updated ${updatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+          ? `Updated ${formatAppClock(updatedAt)}`
           : 'Waiting for first update'}
       </div>
     </section>

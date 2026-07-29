@@ -76,6 +76,9 @@ environment.
 22. `20260729001900_activity_administration.sql` adds the Admin/Superadmin
     activity projection and definition-update function and denies direct
     authenticated activity writes.
+23. `20260730000100_kolkata_time_standard.sql` makes Asia/Kolkata the explicit
+    work-day boundary for BOS/EOD, attendance, sessions, and reports while
+    preserving UTC-safe timestamps.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -236,6 +239,11 @@ Run `supabase/verify/hrms_029_work_distribution.sql` for the rollback-only
 analytics-source check. It verifies organisation totals for worked and break
 time, project/activity separation, department and employee dimensions, and
 server-side denial of organisation scope to Employee and Manager roles.
+
+Run `supabase/verify/hrms_032_timezone_duration.sql` for the rollback-only
+timezone check. It verifies the Asia/Kolkata midnight boundary and clock
+conversion, fixed 24-hour report days, isolation from US daylight-saving
+changes, and explicit timezone configuration on BOS/EOD workflow functions.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

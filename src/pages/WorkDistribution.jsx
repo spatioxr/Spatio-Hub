@@ -12,29 +12,21 @@ import {
   buildWorkDistributionCsv,
   workDistributionCsvFilename,
 } from '../utils/workDistributionCsv';
+import {
+  addAppDays,
+  appDateDistance,
+  appDateKey,
+  appDayRange,
+  formatAppClock,
+  formatAppDate,
+} from '../utils/timezone';
 
-const REPORT_TIMEZONE_OFFSET = '+05:30';
 const MAX_RANGE_DAYS = 31;
 
-const dateKey = (value) => {
-  const date = new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const dateKey = appDateKey;
+const addDays = addAppDays;
 
-const addDays = (value, days) => {
-  const date = new Date(`${value}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return dateKey(date);
-};
-
-const rangeLength = (startDate, endDate) => {
-  const start = new Date(`${startDate}T00:00:00`);
-  const end = new Date(`${endDate}T00:00:00`);
-  return Math.round((end - start) / 86400000) + 1;
-};
+const rangeLength = (startDate, endDate) => appDateDistance(startDate, endDate) + 1;
 
 const formatDuration = (seconds) => {
   const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -45,28 +37,11 @@ const formatDuration = (seconds) => {
 };
 
 const formatRange = (startDate, endDate) => {
-  const formatter = new Intl.DateTimeFormat('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-  return `${formatter.format(new Date(`${startDate}T00:00:00`))} – ${formatter.format(new Date(`${endDate}T00:00:00`))}`;
+  return `${formatAppDate(startDate)} – ${formatAppDate(endDate)}`;
 };
 
-const formatEntryDate = (value) => new Intl.DateTimeFormat('en-IN', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-}).format(new Date(value));
-
-const formatClock = (value) => (
-  value
-    ? new Intl.DateTimeFormat('en-IN', {
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(new Date(value))
-    : 'Now'
-);
+const formatEntryDate = formatAppDate;
+const formatClock = formatAppClock;
 
 const uniqueOptions = (entries, keyForEntry, labelForEntry) => (
   [...new Map(entries.map((entry) => [
@@ -157,7 +132,7 @@ const DistributionChart = ({
 };
 
 const WorkDistribution = () => {
-  const today = dateKey(new Date());
+  const today = dateKey();
   const initialStart = addDays(today, -6);
   const [draftRange, setDraftRange] = useState({ start: initialStart, end: today });
   const [appliedRange, setAppliedRange] = useState({ start: initialStart, end: today });
@@ -177,9 +152,10 @@ const WorkDistribution = () => {
     setLoading(true);
     setError('');
 
+    const range = appDayRange(appliedRange.start, appliedRange.end);
     const { data, error: fetchError } = await supabase.rpc('scoped_timesheet_entries', {
-      requested_start_at: `${appliedRange.start}T00:00:00${REPORT_TIMEZONE_OFFSET}`,
-      requested_end_at: `${addDays(appliedRange.end, 1)}T00:00:00${REPORT_TIMEZONE_OFFSET}`,
+      requested_start_at: range.start,
+      requested_end_at: range.end,
       requested_scope: 'organisation',
       requested_employee_id: null,
     });

@@ -5,6 +5,7 @@ import { supabase } from '../utils/supabaseClient';
 import { isDepartmentManagedBy } from '../utils/rbac';
 import { useNavigate } from 'react-router-dom';
 import WorkTimerControl from './WorkTimerControl';
+import { formatAppDate } from '../utils/timezone';
 
 const TopBar = ({ title }) => {
   const { user, logout, updateUser } = useContext(AuthContext);
@@ -175,7 +176,7 @@ const TopBar = ({ title }) => {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748B' }}>Date of Joining</span>
-                  <span style={{ fontWeight: 500 }}>{user?.date_of_joining ? new Date(user.date_of_joining).toLocaleDateString() : 'N/A'}</span>
+                  <span style={{ fontWeight: 500 }}>{user?.date_of_joining ? formatAppDate(user.date_of_joining) : 'N/A'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748B' }}>Reports to</span>
