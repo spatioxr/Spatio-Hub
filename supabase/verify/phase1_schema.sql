@@ -97,6 +97,37 @@ SELECT
       'EXECUTE'
     ) AS has_admin_settings_boundary,
   to_regprocedure(
+    'public.activity_administration_overview()'
+  ) IS NOT NULL
+    AND to_regprocedure(
+      'public.update_activity_definition(uuid,text,text)'
+    ) IS NOT NULL
+    AND NOT has_function_privilege(
+      'anon',
+      'public.activity_administration_overview()',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.activity_administration_overview()',
+      'EXECUTE'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.activities',
+      'INSERT'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.activities',
+      'UPDATE'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.activities',
+      'DELETE'
+    ) AS has_controlled_activity_administration,
+  to_regprocedure(
     'public.switch_work_session(uuid,uuid,text)'
   ) IS NOT NULL AS has_atomic_work_session_switch,
   to_regprocedure(

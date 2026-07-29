@@ -3384,6 +3384,100 @@ td {
   }
 }
 
+/* ── Phase 1 Activity administration ──────────────────────────────────── */
+.activity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-row {
+  display: grid;
+  grid-template-columns: auto minmax(260px, 1fr) auto;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-row:last-child {
+  border-bottom: 0;
+}
+
+.activity-row--archived {
+  background: #fafbfa;
+}
+
+.activity-row-icon {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--soft-mint);
+  color: var(--primary);
+  font-size: 1.1rem;
+}
+
+.activity-row-copy {
+  min-width: 0;
+}
+
+.activity-row-copy p {
+  max-width: 720px;
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.activity-drawer {
+  display: flex;
+  width: min(520px, 100%);
+  flex-direction: column;
+  padding: 0;
+}
+
+.activity-form textarea {
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid #dbe3df;
+  border-radius: 10px;
+  background: white;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.82rem;
+  outline: none;
+  resize: vertical;
+}
+
+.activity-form textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 168, 126, 0.1);
+}
+
+@media (max-width: 640px) {
+  .activity-row {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .activity-row .project-row-actions {
+    flex-direction: row;
+  }
+
+  .activity-row .project-row-actions .people-action-button {
+    flex: 1;
+  }
+
+  .activity-drawer {
+    inset: auto 0 0;
+    max-height: 92dvh;
+    border-radius: 18px 18px 0 0;
+  }
+}
+
 /* ── Phase 1 Admin Settings ─────────────────────────────────────────────── */
 .admin-settings-intro {
   display: flex;

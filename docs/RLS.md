@@ -50,6 +50,13 @@ controlled-function and RLS boundaries, while BOS/EOD exceptions remain
 superadmin-only. Employee-profile functions also enforce that only a
 superadmin may grant or remove the `admin` or `superadmin` role.
 
+Activity administration is exposed through organisation-only projection,
+create, definition-update, and archive/restore functions. Direct authenticated
+inserts, updates, and deletes are denied. All authenticated employees retain
+read access so active activities can be selected for work and archived labels
+remain available to historical reports; work-entry functions continue to
+reject archived activities for new sessions.
+
 The company live-status board uses `live_work_status()` as a narrow
 authenticated projection. It exposes every active employee's name, employee
 code, current In/Break/Out state, and status-transition time. Activity context

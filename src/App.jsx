@@ -9,6 +9,7 @@ import Attendance from './pages/Attendance';
 import Leave from './pages/Leave';
 import People from './pages/People';
 import Projects from './pages/Projects';
+import Activities from './pages/Activities';
 import AdminSettings from './pages/AdminSettings';
 import Timesheets from './pages/Timesheets';
 import ResetPassword from './pages/ResetPassword';
@@ -79,6 +80,14 @@ const AppRoutes = () => (
               element={(
                 <PermissionRoute permission={PERMISSIONS.ACCESS_ADMIN_SETTINGS}>
                   <AdminSettings />
+                </PermissionRoute>
+              )}
+            />
+            <Route
+              path="/activities"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.MANAGE_ACTIVITIES}>
+                  <Activities />
                 </PermissionRoute>
               )}
             />

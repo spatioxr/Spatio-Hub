@@ -73,6 +73,9 @@ environment.
 21. `20260729001800_project_administration.sql` adds the Manager/Admin project
     administration projection, owned-project assignment candidate lookup, and
     controlled Admin/Superadmin project-definition edits.
+22. `20260729001900_activity_administration.sql` adds the Admin/Superadmin
+    activity projection and definition-update function and denies direct
+    authenticated activity writes.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -222,6 +225,12 @@ rollback-only assignment-boundary check. It verifies Manager add/remove only
 on owned projects, duplicate denial, project-setup denial, Admin override,
 Employee denial, hidden administration projection, and the membership primary
 key.
+
+Run `supabase/verify/hrms_028_activity_administration.sql` for the rollback-only
+activity-administration check. It verifies Admin and Superadmin create/edit/
+archive capability, Manager and Employee denial, controlled-function-only
+writes, active selection, archived historical reporting, stable historical
+labels, and the agreed seed catalogue.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

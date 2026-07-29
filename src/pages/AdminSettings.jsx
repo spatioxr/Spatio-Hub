@@ -27,7 +27,8 @@ const SETTING_AREAS = [
     icon: 'ri-list-check-3',
     title: 'Activities',
     description: 'The approved catalogue for internal, non-project work.',
-    detail: 'Activity administration is planned next',
+    detail: 'Manage activities',
+    href: '/activities',
   },
 ];
 
