@@ -10,6 +10,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
   const { user } = useContext(AuthContext);
   const {
     session,
+    dayState,
     startSession,
     switchSession,
   } = useContext(WorkSessionContext);
@@ -17,6 +18,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
   const [contextType, setContextType] = useState('project');
   const [contextId, setContextId] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
+  const [bosReport, setBosReport] = useState('');
   const [projects, setProjects] = useState([]);
   const [activities, setActivities] = useState([]);
   const [recentEntries, setRecentEntries] = useState([]);
@@ -119,7 +121,12 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
 
   const hasContext = Boolean(contextId);
   const hasTask = Boolean(taskDescription.trim());
-  const canSubmit = hasContext && hasTask && !loadingOptions && !submitting;
+  const needsBos = !isSwitch
+    && !dayState.hasWorkToday
+    && dayState.bosRequired
+    && !dayState.bosSubmitted;
+  const hasBos = !needsBos || Boolean(bosReport.trim());
+  const canSubmit = hasContext && hasTask && hasBos && !loadingOptions && !submitting;
 
   const chooseRecent = (choice) => {
     setContextType(choice.type);
@@ -144,6 +151,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
     try {
       const selectedOptions = contextType === 'project' ? projects : activities;
       const selectedOption = selectedOptions.find((option) => option.id === contextId);
+      if (!selectedOption) throw new Error('Select an available work context');
       const selectedLabel = contextType === 'project'
         ? `${selectedOption.code} · ${selectedOption.name}`
         : selectedOption.name;
@@ -153,6 +161,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
         projectId: contextType === 'project' ? contextId : null,
         activityId: contextType === 'activity' ? contextId : null,
         taskDescription: taskDescription.trim(),
+        bosReport: needsBos ? bosReport.trim() : null,
       });
       onComplete?.(selectedLabel);
       onClose();
@@ -191,7 +200,9 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
             <p>
               {isSwitch
                 ? 'Your current entry will close when the new one starts.'
-                : 'Choose one context and add a concise task description.'}
+                : needsBos
+                  ? 'Add today’s plan, then choose the context for your first session.'
+                  : 'Choose one context and add a concise task description.'}
             </p>
           </div>
           <button
@@ -298,10 +309,33 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
             />
           </label>
 
+          {needsBos && (
+            <label className="work-start-task">
+              <span className="work-start-label">
+                Beginning-of-day report <b aria-hidden="true">*</b>
+              </span>
+              <textarea
+                value={bosReport}
+                onChange={(event) => {
+                  setBosReport(event.target.value);
+                  setError('');
+                }}
+                placeholder="What do you plan to accomplish today?"
+                rows="4"
+                required
+              />
+              <small>Required once, before your first work session today.</small>
+            </label>
+          )}
+
           {error && <div className="work-start-error" role="alert">{error}</div>}
 
           <div className="work-start-footer">
-            <span>Select exactly one context and describe your task.</span>
+            <span>
+              {needsBos
+                ? 'Your BOS and first session will be saved together.'
+                : 'Select exactly one context and describe your task.'}
+            </span>
             <button type="submit" className="work-start-submit" disabled={!canSubmit}>
               <i className={isSwitch ? 'ri-swap-line' : 'ri-play-fill'} aria-hidden="true" />
               {submitting

@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { LeaveContext } from '../context/LeaveContext';
+import { WorkSessionContext } from '../context/WorkSessionContext';
 import Layout from '../components/Layout';
 import { supabase } from '../utils/supabaseClient';
 import { getManagedDepartments } from '../utils/rbac';
@@ -12,20 +13,16 @@ const Dashboard = () => {
   if (!user) return <Navigate to="/login" replace />;
   
   const { getLeaveHistory, getMyRequests } = useContext(LeaveContext);
+  const {
+    status: workStatus,
+    contextLabel,
+    dayState,
+  } = useContext(WorkSessionContext);
 
   const userKey = user.role;
 
   // Supabase State
   const [totalEmployees, setTotalEmployees] = useState(0);
-  const [attendanceStatus, setAttendanceStatus] = useState('not_checked_in');
-  const [checkInTime, setCheckInTime] = useState('');
-  const [checkOutTime, setCheckOutTime] = useState('');
-  
-  const [showBosModal, setShowBosModal] = useState(false);
-  const [bosReportText, setBosReportText] = useState('');
-  
-  const [showEodModal, setShowEodModal] = useState(false);
-  const [eodReportText, setEodReportText] = useState('');
 
   const [toastMessage, setToastMessage] = useState('');
 
@@ -34,7 +31,6 @@ const Dashboard = () => {
   const [newHolidayName, setNewHolidayName] = useState('');
   const [newHolidayDate, setNewHolidayDate] = useState('');
   const [attendanceCounts, setAttendanceCounts] = useState({ present: 0, absent: 0 });
-  const [elapsedTime, setElapsedTime] = useState('');
 
   const fetchHolidays = async () => {
     const { data } = await supabase.from('holidays').select('*').order('date', { ascending: true });
@@ -45,25 +41,6 @@ const Dashboard = () => {
   const fetchData = async () => {
     if (!user) return;
     const today = new Date().toISOString().split('T')[0];
-
-    // Fetch attendance
-    const { data: attData } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('employee_id', user.id)
-      .eq('date', today)
-      .maybeSingle();
-
-    if (attData) {
-      if (attData.check_in && !attData.check_out) {
-        setAttendanceStatus('checked_in');
-        setCheckInTime(attData.check_in);
-      } else if (attData.check_in && attData.check_out) {
-        setAttendanceStatus('attendance_complete');
-        setCheckInTime(attData.check_in);
-        setCheckOutTime(attData.check_out);
-      }
-    }
 
     if (user.role === 'admin' || user.role === 'manager' || user.role === 'head' || user.role === 'superadmin') {
       let countQuery = supabase.from('employees').select('id', { count: 'exact', head: true });
@@ -111,7 +88,7 @@ const Dashboard = () => {
   useEffect(() => {
     fetchData();
     fetchHolidays();
-  }, [user]);
+  }, [user, workStatus]);
 
   useEffect(() => {
     if (toastMessage) {
@@ -119,131 +96,6 @@ const Dashboard = () => {
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
-
-  // Running timer when checked in
-  useEffect(() => {
-    if (attendanceStatus !== 'checked_in' || !checkInTime) {
-      setElapsedTime('');
-      return;
-    }
-    const tick = () => {
-      const now = new Date();
-      const [h, m] = checkInTime.split(':').map(Number);
-      const start = new Date();
-      start.setHours(h, m, 0, 0);
-      const diff = Math.max(0, Math.floor((now - start) / 1000));
-      const hh = Math.floor(diff / 3600);
-      const mm = Math.floor((diff % 3600) / 60);
-      const ss = diff % 60;
-      setElapsedTime(`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`);
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [attendanceStatus, checkInTime]);
-
-  const handleCheckInClick = () => setShowBosModal(true);
-  const handleCheckOutClick = () => setShowEodModal(true);
-
-  const submitBosAndCheckIn = async (e) => {
-    e.preventDefault();
-    if (!bosReportText.trim()) return;
-
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const today = now.toISOString().split('T')[0];
-
-    // Attendance manual upsert
-    const { data: existingAtt } = await supabase.from('attendance').select('id, check_in').eq('employee_id', user.id).eq('date', today).maybeSingle();
-    
-    if (existingAtt && existingAtt.check_in) {
-      showToast('You have already checked in today!');
-      setShowBosModal(false);
-      return;
-    }
-
-    if (existingAtt) {
-      await supabase.from('attendance').update({
-        check_in: timeStr,
-        status: (now.getHours() > 10 || (now.getHours() === 10 && now.getMinutes() >= 30)) ? 'Late' : 'Present'
-      }).eq('id', existingAtt.id);
-    } else {
-      await supabase.from('attendance').insert({
-        employee_id: user.id,
-        date: today,
-        check_in: timeStr,
-        status: (now.getHours() > 10 || (now.getHours() === 10 && now.getMinutes() >= 30)) ? 'Late' : 'Present'
-      });
-    }
-
-    // Daily Reports manual upsert
-    const { data: existingRep } = await supabase.from('daily_reports').select('id, bos_submitted_at').eq('employee_id', user.id).eq('date', today).maybeSingle();
-    if (existingRep && existingRep.bos_submitted_at) {
-       // already submitted bos, skip
-    } else if (existingRep) {
-      await supabase.from('daily_reports').update({
-        bos_report: bosReportText,
-        bos_submitted_at: now.toISOString()
-      }).eq('id', existingRep.id);
-    } else {
-      await supabase.from('daily_reports').insert({
-        employee_id: user.id,
-        date: today,
-        bos_report: bosReportText,
-        bos_submitted_at: now.toISOString()
-      });
-    }
-
-    setShowBosModal(false);
-    setBosReportText('');
-    showToast('Checked in & BOS Report submitted!');
-    await fetchData();
-  };
-
-  const submitEodAndCheckOut = async (e) => {
-    e.preventDefault();
-    if (!eodReportText.trim()) return;
-
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const today = now.toISOString().split('T')[0];
-
-    // Attendance manual update
-    const { data: existingAtt } = await supabase.from('attendance').select('id, check_out').eq('employee_id', user.id).eq('date', today).maybeSingle();
-    
-    if (existingAtt && existingAtt.check_out) {
-      showToast('You have already checked out today!');
-      setShowEodModal(false);
-      return;
-    }
-
-    if (existingAtt) {
-      await supabase.from('attendance').update({ check_out: timeStr }).eq('id', existingAtt.id);
-    }
-
-    // Daily Reports manual upsert
-    const { data: existingRep } = await supabase.from('daily_reports').select('id, eod_submitted_at').eq('employee_id', user.id).eq('date', today).maybeSingle();
-    if (existingRep && existingRep.eod_submitted_at) {
-       // already submitted eod, skip
-    } else if (existingRep) {
-      await supabase.from('daily_reports').update({
-        eod_report: eodReportText,
-        eod_submitted_at: now.toISOString()
-      }).eq('id', existingRep.id);
-    } else {
-      await supabase.from('daily_reports').insert({
-        employee_id: user.id,
-        date: today,
-        eod_report: eodReportText,
-        eod_submitted_at: now.toISOString()
-      });
-    }
-
-    setShowEodModal(false);
-    setEodReportText('');
-    showToast('Checked out & EOD Report submitted!');
-    await fetchData();
-  };
 
   const handleAddHoliday = async (e) => {
     e.preventDefault();
@@ -378,56 +230,48 @@ const Dashboard = () => {
       {/* Main Grid: Shift Progress & Leaves Lists */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         
-        {/* Left Column: Attendance, BOS & EOD reports */}
+        {/* Left Column: Work-day status */}
         <div className="flex flex-col gap-6">
-          
-          {/* Attendance Section */}
           <div className="card">
-            <h3 className="font-bold mb-4" style={{ fontSize: '1.125rem', color: 'var(--text-main)' }}>Attendance</h3>
-            
-                {attendanceStatus === 'not_checked_in' && (
-                  <div>
-                    <div className="alert-banner warning">
-                      <i className="ri-error-warning-line alert-icon"></i>
-                      <div className="alert-content">
-                        <span className="alert-title">Action Required</span>
-                        <span className="alert-desc">Please check in to start your day</span>
-                      </div>
-                    </div>
-                    <button className="btn-teal" onClick={handleCheckInClick}>
-                      <i className="ri-time-line"></i> Check In (Submit BOS)
-                    </button>
-                  </div>
-                )}
-                {attendanceStatus === 'checked_in' && (
-                  <div>
-                    <div className="alert-banner info">
-                      <i className="ri-time-line alert-icon"></i>
-                      <div className="alert-content">
-                        <span className="alert-title">Currently Checked In</span>
-                        <span className="alert-desc">Check in time: {checkInTime || '-'}</span>
-                      </div>
-                      {elapsedTime && (
-                        <div style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: '0.7rem', color: '#646465', fontWeight: 600 }}>TIME ELAPSED</div>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#006742', fontFamily: 'monospace', letterSpacing: '0.05em' }}>{elapsedTime}</div>
-                        </div>
-                      )}
-                    </div>
-                    <button className="btn-outline-blue" onClick={handleCheckOutClick}>
-                      <i className="ri-time-line"></i> Check Out (Submit EOD)
-                    </button>
-                  </div>
-                )}
-                {attendanceStatus === 'attendance_complete' && (
-                  <div className="alert-banner success" style={{ marginBottom: 0 }}>
-                    <i className="ri-checkbox-circle-line alert-icon"></i>
-                    <div className="alert-content">
-                      <span className="alert-title">Attendance Complete</span>
-                      <span className="alert-desc">Check in: {checkInTime} | Check out: {checkOutTime}</span>
-                    </div>
-                  </div>
-                )}
+            <h3 className="font-bold mb-4" style={{ fontSize: '1.125rem', color: 'var(--text-main)' }}>Work day</h3>
+            <div
+              className={`alert-banner ${
+                workStatus === 'working'
+                  ? 'info'
+                  : workStatus === 'break'
+                    ? 'warning'
+                    : dayState.hasWorkToday ? 'success' : 'warning'
+              }`}
+              style={{ marginBottom: 0 }}
+            >
+              <i
+                className={`${
+                  workStatus === 'working'
+                    ? 'ri-time-line'
+                    : workStatus === 'break'
+                      ? 'ri-pause-circle-line'
+                      : dayState.hasWorkToday
+                        ? 'ri-checkbox-circle-line'
+                        : 'ri-play-circle-line'
+                } alert-icon`}
+              />
+              <div className="alert-content">
+                <span className="alert-title">
+                  {workStatus === 'working'
+                    ? 'Currently working'
+                    : workStatus === 'break'
+                      ? 'On break'
+                      : dayState.hasWorkToday ? 'Work day complete' : 'Ready to start'}
+                </span>
+                <span className="alert-desc">
+                  {workStatus === 'out'
+                    ? dayState.hasWorkToday
+                      ? 'Your final session is closed for today.'
+                      : 'Use Start work in the timer above. BOS is requested there when required.'
+                    : contextLabel}
+                </span>
+              </div>
+            </div>
           </div>
 
         </div> {/* End Left Column */}
@@ -545,72 +389,6 @@ const Dashboard = () => {
         <div className="toast-success-bottom">
           <i className="ri-checkbox-circle-fill" style={{ color: '#00A884', fontSize: '1.25rem' }}></i>
           {toastMessage}
-        </div>
-      )}
-
-      {/* BOS Modal */}
-      {showBosModal && (
-        <div className="salary-modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowBosModal(false)}>
-          <div className="salary-modal" style={{ maxWidth: 500 }}>
-            <div className="salary-modal-header">
-              <div>
-                <h3 className="salary-modal-title">Check In & BOS</h3>
-                <p className="salary-modal-sub">Submit your Beginning of Shift report</p>
-              </div>
-              <button className="salary-modal-close" onClick={() => setShowBosModal(false)}>
-                <i className="ri-close-line" />
-              </button>
-            </div>
-            <form onSubmit={submitBosAndCheckIn}>
-              <div className="salary-field">
-                <textarea
-                  className="salary-input"
-                  style={{ minHeight: 120, resize: 'none' }}
-                  placeholder="What are your plans for today?"
-                  value={bosReportText}
-                  onChange={e => setBosReportText(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="salary-modal-actions">
-                <button type="button" className="salary-cancel-btn" onClick={() => setShowBosModal(false)}>Cancel</button>
-                <button type="submit" className="salary-submit-btn" style={{ background: '#00A884' }}>Check In</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* EOD Modal */}
-      {showEodModal && (
-        <div className="salary-modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowEodModal(false)}>
-          <div className="salary-modal" style={{ maxWidth: 500 }}>
-            <div className="salary-modal-header">
-              <div>
-                <h3 className="salary-modal-title">Check Out & EOD</h3>
-                <p className="salary-modal-sub">Submit your End of Day report</p>
-              </div>
-              <button className="salary-modal-close" onClick={() => setShowEodModal(false)}>
-                <i className="ri-close-line" />
-              </button>
-            </div>
-            <form onSubmit={submitEodAndCheckOut}>
-              <div className="salary-field">
-                <textarea
-                  className="salary-input"
-                  style={{ minHeight: 120, resize: 'none' }}
-                  placeholder="What did you accomplish today?"
-                  value={eodReportText}
-                  onChange={e => setEodReportText(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="salary-modal-actions">
-                <button type="button" className="salary-cancel-btn" onClick={() => setShowEodModal(false)}>Cancel</button>
-                <button type="submit" className="salary-submit-btn" style={{ background: '#E57D3E' }}>Check Out</button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
 

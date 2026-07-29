@@ -70,6 +70,15 @@ SELECT
     'public.switch_work_session(uuid,uuid,text)'
   ) IS NOT NULL AS has_atomic_work_session_switch,
   to_regprocedure(
+    'public.current_work_day_requirements()'
+  ) IS NOT NULL
+    AND to_regprocedure(
+      'public.start_work_day(uuid,uuid,text,text)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.end_work_day(uuid,text)'
+    ) IS NOT NULL AS has_daily_report_workflow,
+  to_regprocedure(
     'public.set_daily_report_requirements(uuid,boolean,boolean)'
   ) IS NOT NULL AS has_daily_report_requirements_control,
   to_regprocedure(

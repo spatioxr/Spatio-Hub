@@ -503,6 +503,12 @@ td {
   color: var(--primary);
 }
 
+.work-timer-action--danger {
+  border: 1px solid rgba(180, 35, 24, 0.16);
+  background: #fff1f0;
+  color: #b42318;
+}
+
 .work-timer-action:hover {
   background: var(--primary-hover);
   transform: translateY(-1px);
@@ -510,6 +516,10 @@ td {
 
 .work-timer-action--secondary:hover {
   background: #dff3eb;
+}
+
+.work-timer-action--danger:hover {
+  background: #ffe1de;
 }
 
 .work-timer-action:focus-visible {
@@ -777,6 +787,12 @@ td {
   color: #94a3b8;
 }
 
+.work-start-task small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
 .work-start-error {
   padding: 0.7rem 0.8rem;
   border-radius: 10px;
@@ -824,6 +840,18 @@ td {
 .work-start-submit:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.work-end-day-modal {
+  width: min(520px, 100%);
+}
+
+.work-end-day-submit {
+  background: #b42318;
+}
+
+.work-end-day-submit:hover:not(:disabled) {
+  background: #912018;
 }
 
 @media (max-width: 560px) {

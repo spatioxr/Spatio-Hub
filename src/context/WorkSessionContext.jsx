@@ -11,6 +11,13 @@ import { supabase } from '../utils/supabaseClient';
 
 export const WorkSessionContext = createContext({
   status: 'out',
+  dayState: {
+    bosRequired: true,
+    eodRequired: true,
+    bosSubmitted: false,
+    eodSubmitted: false,
+    hasWorkToday: false,
+  },
   elapsedSeconds: 0,
   contextLabel: 'No active work',
   taskDescription: '',
@@ -21,9 +28,32 @@ export const WorkSessionContext = createContext({
   switchSession: async () => {},
   startBreak: async () => {},
   resumeSession: async () => {},
+  endDay: async () => {},
 });
 
 const firstRow = (data) => (Array.isArray(data) ? data[0] : data) || null;
+
+const emptyDayState = {
+  bosRequired: true,
+  eodRequired: true,
+  bosSubmitted: false,
+  eodSubmitted: false,
+  hasWorkToday: false,
+};
+
+const normaliseDayState = (data) => {
+  const state = firstRow(data);
+  if (!state) return emptyDayState;
+
+  return {
+    reportDate: state.report_date,
+    bosRequired: state.bos_required,
+    eodRequired: state.eod_required,
+    bosSubmitted: state.bos_submitted,
+    eodSubmitted: state.eod_submitted,
+    hasWorkToday: state.has_work_today,
+  };
+};
 
 const loadContextLabel = async (session) => {
   if (session.project_id) {
@@ -59,6 +89,7 @@ export const WorkSessionProvider = ({ children }) => {
     workedSeconds: 0,
     syncedAt: Date.now(),
     contextLabel: 'No active work',
+    dayState: emptyDayState,
   });
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -72,6 +103,7 @@ export const WorkSessionProvider = ({ children }) => {
         workedSeconds: 0,
         syncedAt: Date.now(),
         contextLabel: 'No active work',
+        dayState: emptyDayState,
       });
       setElapsedSeconds(0);
       setError('');
@@ -82,10 +114,18 @@ export const WorkSessionProvider = ({ children }) => {
     setError('');
 
     try {
-      const { data: sessionData, error: sessionError } = await supabase.rpc('current_work_session');
+      const [
+        { data: sessionData, error: sessionError },
+        { data: dayData, error: dayError },
+      ] = await Promise.all([
+        supabase.rpc('current_work_session'),
+        supabase.rpc('current_work_day_requirements'),
+      ]);
       if (sessionError) throw sessionError;
+      if (dayError) throw dayError;
 
       const session = firstRow(sessionData);
+      const dayState = normaliseDayState(dayData);
       if (!session) {
         setSnapshot({
           session: null,
@@ -93,6 +133,7 @@ export const WorkSessionProvider = ({ children }) => {
           workedSeconds: 0,
           syncedAt: Date.now(),
           contextLabel: 'No active work',
+          dayState,
         });
         setElapsedSeconds(0);
         return;
@@ -118,6 +159,7 @@ export const WorkSessionProvider = ({ children }) => {
         workedSeconds,
         syncedAt: Date.now(),
         contextLabel,
+        dayState,
       });
       setElapsedSeconds(workedSeconds);
     } catch (refreshError) {
@@ -132,11 +174,13 @@ export const WorkSessionProvider = ({ children }) => {
     projectId,
     activityId,
     taskDescription: nextTaskDescription,
+    bosReport,
   }) => {
-    const { error: startError } = await supabase.rpc('start_work_session', {
+    const { error: startError } = await supabase.rpc('start_work_day', {
       target_project_id: projectId,
       target_activity_id: activityId,
       session_task_description: nextTaskDescription,
+      beginning_of_day_report: bosReport || null,
     });
 
     if (startError) throw startError;
@@ -171,6 +215,18 @@ export const WorkSessionProvider = ({ children }) => {
     if (resumeError) throw resumeError;
     await refresh();
   }, [refresh]);
+
+  const endDay = useCallback(async ({ eodReport }) => {
+    if (!snapshot.session) throw new Error('Open work session not found');
+
+    const { error: endError } = await supabase.rpc('end_work_day', {
+      target_work_entry_id: snapshot.session.id,
+      end_of_day_report: eodReport || null,
+    });
+
+    if (endError) throw endError;
+    await refresh();
+  }, [refresh, snapshot.session]);
 
   useEffect(() => {
     refresh();
@@ -208,6 +264,7 @@ export const WorkSessionProvider = ({ children }) => {
   const value = useMemo(() => ({
     status: !snapshot.session ? 'out' : snapshot.breakEntry ? 'break' : 'working',
     session: snapshot.session,
+    dayState: snapshot.dayState,
     elapsedSeconds,
     contextLabel: snapshot.contextLabel,
     taskDescription: snapshot.session?.task_description || '',
@@ -218,8 +275,10 @@ export const WorkSessionProvider = ({ children }) => {
     switchSession,
     startBreak,
     resumeSession,
+    endDay,
   }), [
     elapsedSeconds,
+    endDay,
     error,
     loading,
     refresh,

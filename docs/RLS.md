@@ -26,9 +26,12 @@ confirm:
 Managers are scoped through explicit project ownership and team membership.
 Neither `reports_to` nor department grants Manager access.
 
-Authenticated clients read permitted work sessions through RLS and mutate their
-own live session only through the server-controlled start/end functions.
-Direct insert, update, and delete privileges on `work_entries` are denied.
+Authenticated clients read permitted work sessions through RLS and begin or
+finally end their own work day only through the server-controlled BOS/EOD
+workflow functions. Context switches remain atomic and report-neutral. The
+legacy session-only start/end functions are no longer executable by
+authenticated clients, and direct insert, update, and delete privileges on
+`work_entries` are denied.
 Managers, admins, and superadmins create or correct completed manual entries
 only through audited server functions. Managers are restricted to employees in
 their explicitly owned project teams, every change requires a reason, and

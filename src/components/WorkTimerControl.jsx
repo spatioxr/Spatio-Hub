@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { WorkSessionContext } from '../context/WorkSessionContext';
+import WorkEndDayModal from './WorkEndDayModal';
 import WorkStartModal from './WorkStartModal';
 
 const STATUS_LABELS = {
@@ -18,6 +19,7 @@ const formatElapsed = (totalSeconds) => {
 
 const WorkTimerControl = () => {
   const [modalMode, setModalMode] = useState(null);
+  const [endDayOpen, setEndDayOpen] = useState(false);
   const [confirmation, setConfirmation] = useState('');
   const [actionError, setActionError] = useState('');
   const [breakActionPending, setBreakActionPending] = useState(false);
@@ -123,6 +125,20 @@ const WorkTimerControl = () => {
                 : breakActionPending ? 'Resuming…' : 'Resume'}
           </span>
         </button>
+        {isWorking && (
+          <button
+            type="button"
+            className="work-timer-action work-timer-action--danger"
+            onClick={() => {
+              setActionError('');
+              setEndDayOpen(true);
+            }}
+            disabled={loading || breakActionPending}
+          >
+            <i className="ri-stop-circle-line" aria-hidden="true" />
+            <span>End Day</span>
+          </button>
+        )}
       </div>
       {modalMode && (
         <WorkStartModal
@@ -131,6 +147,12 @@ const WorkTimerControl = () => {
           onComplete={(label) => {
             if (modalMode === 'switch') setConfirmation(`Switched to ${label}`);
           }}
+        />
+      )}
+      {endDayOpen && (
+        <WorkEndDayModal
+          onClose={() => setEndDayOpen(false)}
+          onComplete={() => setConfirmation('Work day ended')}
         />
       )}
       {confirmation && (

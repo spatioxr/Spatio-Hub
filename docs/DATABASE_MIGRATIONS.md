@@ -38,6 +38,10 @@ environment.
 11. `20260729000800_work_session_switching.sql` adds an atomic context-switch
     operation that closes the current entry and starts its replacement at one
     shared timestamp while preserving break and assignment guards.
+12. `20260729000900_daily_report_workflow.sql` integrates the first work start
+    and final End Day with BOS/EOD reports and attendance, preserves switching
+    as a report-neutral session boundary, and routes authenticated clients
+    through the enforced work-day operations.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -125,6 +129,11 @@ Run `supabase/verify/hrms_016_work_switching.sql` for the rollback-only atomic
 work-switch check. It verifies shared session boundaries, separate automatic
 entries, project/activity transitions, input guards, break-state denial,
 break-excluded totals, and continued direct-write denial.
+
+Run `supabase/verify/hrms_018_daily_report_workflow.sql` for the rollback-only
+BOS/EOD work-day check. It verifies first-start BOS enforcement, report-neutral
+switching, break-safe final End Day, EOD enforcement, attendance integration,
+per-employee exemptions, and denial of the legacy bypass RPCs.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager
