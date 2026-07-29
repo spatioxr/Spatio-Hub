@@ -18,6 +18,7 @@ export const WorkSessionContext = createContext({
   error: '',
   refresh: async () => {},
   startSession: async () => {},
+  switchSession: async () => {},
 });
 
 const firstRow = (data) => (Array.isArray(data) ? data[0] : data) || null;
@@ -140,6 +141,21 @@ export const WorkSessionProvider = ({ children }) => {
     await refresh();
   }, [refresh]);
 
+  const switchSession = useCallback(async ({
+    projectId,
+    activityId,
+    taskDescription: nextTaskDescription,
+  }) => {
+    const { error: switchError } = await supabase.rpc('switch_work_session', {
+      target_project_id: projectId,
+      target_activity_id: activityId,
+      session_task_description: nextTaskDescription,
+    });
+
+    if (switchError) throw switchError;
+    await refresh();
+  }, [refresh]);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -175,6 +191,7 @@ export const WorkSessionProvider = ({ children }) => {
 
   const value = useMemo(() => ({
     status: !snapshot.session ? 'out' : snapshot.breakEntry ? 'break' : 'working',
+    session: snapshot.session,
     elapsedSeconds,
     contextLabel: snapshot.contextLabel,
     taskDescription: snapshot.session?.task_description || '',
@@ -182,7 +199,16 @@ export const WorkSessionProvider = ({ children }) => {
     error,
     refresh,
     startSession,
-  }), [elapsedSeconds, error, loading, refresh, snapshot, startSession]);
+    switchSession,
+  }), [
+    elapsedSeconds,
+    error,
+    loading,
+    refresh,
+    snapshot,
+    startSession,
+    switchSession,
+  ]);
 
   return (
     <WorkSessionContext.Provider value={value}>

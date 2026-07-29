@@ -6,9 +6,14 @@ import { supabase } from '../utils/supabaseClient';
 
 const optionKey = (type, id) => `${type}:${id}`;
 
-const WorkStartModal = ({ onClose }) => {
+const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
   const { user } = useContext(AuthContext);
-  const { startSession } = useContext(WorkSessionContext);
+  const {
+    session,
+    startSession,
+    switchSession,
+  } = useContext(WorkSessionContext);
+  const isSwitch = mode === 'switch';
   const [contextType, setContextType] = useState('project');
   const [contextId, setContextId] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
@@ -55,8 +60,12 @@ const WorkStartModal = ({ onClose }) => {
         return;
       }
 
-      const nextProjects = projectsResult.data || [];
-      const nextActivities = activitiesResult.data || [];
+      const nextProjects = (projectsResult.data || []).filter(
+        (project) => !isSwitch || project.id !== session?.project_id,
+      );
+      const nextActivities = (activitiesResult.data || []).filter(
+        (activity) => !isSwitch || activity.id !== session?.activity_id,
+      );
       setProjects(nextProjects);
       setActivities(nextActivities);
       setRecentEntries(recentResult.data || []);
@@ -71,7 +80,7 @@ const WorkStartModal = ({ onClose }) => {
     return () => {
       active = false;
     };
-  }, [user.id]);
+  }, [isSwitch, session?.activity_id, session?.project_id, user.id]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -133,15 +142,26 @@ const WorkStartModal = ({ onClose }) => {
     setError('');
 
     try {
-      await startSession({
+      const selectedOptions = contextType === 'project' ? projects : activities;
+      const selectedOption = selectedOptions.find((option) => option.id === contextId);
+      const selectedLabel = contextType === 'project'
+        ? `${selectedOption.code} · ${selectedOption.name}`
+        : selectedOption.name;
+      const submitSession = isSwitch ? switchSession : startSession;
+
+      await submitSession({
         projectId: contextType === 'project' ? contextId : null,
         activityId: contextType === 'activity' ? contextId : null,
         taskDescription: taskDescription.trim(),
       });
+      onComplete?.(selectedLabel);
       onClose();
-    } catch (startError) {
-      console.error('Unable to start work:', startError.message);
-      setError(startError.message || 'Unable to start work. Please try again.');
+    } catch (submitError) {
+      console.error(
+        isSwitch ? 'Unable to switch work context:' : 'Unable to start work:',
+        submitError.message,
+      );
+      setError(submitError.message || `Unable to ${isSwitch ? 'switch' : 'start work'}. Please try again.`);
     } finally {
       setSubmitting(false);
     }
@@ -162,16 +182,24 @@ const WorkStartModal = ({ onClose }) => {
       >
         <div className="work-start-header">
           <div>
-            <span className="work-start-eyebrow">Start work</span>
-            <h2 id="work-start-title">What are you working on?</h2>
-            <p>Choose one context and add a concise task description.</p>
+            <span className="work-start-eyebrow">
+              {isSwitch ? 'Switch context' : 'Start work'}
+            </span>
+            <h2 id="work-start-title">
+              {isSwitch ? 'What are you switching to?' : 'What are you working on?'}
+            </h2>
+            <p>
+              {isSwitch
+                ? 'Your current entry will close when the new one starts.'
+                : 'Choose one context and add a concise task description.'}
+            </p>
           </div>
           <button
             type="button"
             className="work-start-close"
             onClick={onClose}
             disabled={submitting}
-            aria-label="Close start work"
+            aria-label={`Close ${isSwitch ? 'switch context' : 'start work'}`}
           >
             <i className="ri-close-line" aria-hidden="true" />
           </button>
@@ -275,8 +303,10 @@ const WorkStartModal = ({ onClose }) => {
           <div className="work-start-footer">
             <span>Select exactly one context and describe your task.</span>
             <button type="submit" className="work-start-submit" disabled={!canSubmit}>
-              <i className="ri-play-fill" aria-hidden="true" />
-              {submitting ? 'Starting…' : 'Start work'}
+              <i className={isSwitch ? 'ri-swap-line' : 'ri-play-fill'} aria-hidden="true" />
+              {submitting
+                ? isSwitch ? 'Switching…' : 'Starting…'
+                : isSwitch ? 'Switch context' : 'Start work'}
             </button>
           </div>
         </form>

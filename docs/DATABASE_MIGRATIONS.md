@@ -35,6 +35,9 @@ environment.
 10. `20260729000700_work_entry_audit.sql` adds controlled manual time-entry
     creation and correction, mandatory reasons, atomic old/new audit snapshots,
     Manager project-team scope, and immutable audit history.
+11. `20260729000800_work_session_switching.sql` adds an atomic context-switch
+    operation that closes the current entry and starts its replacement at one
+    shared timestamp while preserving break and assignment guards.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -117,6 +120,11 @@ Run `supabase/verify/hrms_013_work_entry_audit.sql` for the rollback-only
 correction audit check. It verifies audited manual creation and correction,
 required reasons, old/new snapshots, Manager project-team scope, employee and
 out-of-scope denial, immutable audit rows, and continued direct-write denial.
+
+Run `supabase/verify/hrms_016_work_switching.sql` for the rollback-only atomic
+work-switch check. It verifies shared session boundaries, separate automatic
+entries, project/activity transitions, input guards, break-state denial,
+break-excluded totals, and continued direct-write denial.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

@@ -507,6 +507,28 @@ td {
   transform: none;
 }
 
+.work-timer-confirmation {
+  position: fixed;
+  top: 92px;
+  right: 2rem;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(360px, calc(100vw - 2rem));
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: #006742;
+  color: white;
+  box-shadow: 0 12px 30px rgba(0, 103, 66, 0.22);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.work-timer-confirmation i {
+  font-size: 1rem;
+}
+
 .work-start-backdrop {
   position: fixed;
   inset: 0;

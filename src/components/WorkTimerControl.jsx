@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import WorkStartModal from './WorkStartModal';
@@ -19,7 +19,8 @@ const formatElapsed = (totalSeconds) => {
 
 const WorkTimerControl = () => {
   const navigate = useNavigate();
-  const [startModalOpen, setStartModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState(null);
+  const [confirmation, setConfirmation] = useState('');
   const {
     status,
     elapsedSeconds,
@@ -31,6 +32,13 @@ const WorkTimerControl = () => {
 
   const statusLabel = loading ? 'Restoring' : error || STATUS_LABELS[status];
   const isOut = status === 'out';
+  const isWorking = status === 'working';
+
+  useEffect(() => {
+    if (!confirmation) return undefined;
+    const timerId = window.setTimeout(() => setConfirmation(''), 4000);
+    return () => window.clearTimeout(timerId);
+  }, [confirmation]);
 
   return (
     <section className="work-timer" aria-label="Current work status">
@@ -52,17 +60,36 @@ const WorkTimerControl = () => {
         className="work-timer-action"
         onClick={() => {
           if (isOut) {
-            setStartModalOpen(true);
+            setModalMode('start');
+          } else if (isWorking) {
+            setModalMode('switch');
           } else {
             navigate('/attendance');
           }
         }}
         disabled={loading}
       >
-        <i className={isOut ? 'ri-play-fill' : 'ri-arrow-right-line'} aria-hidden="true" />
-        <span>{isOut ? 'Start work' : 'View work'}</span>
+        <i
+          className={isOut ? 'ri-play-fill' : isWorking ? 'ri-swap-line' : 'ri-arrow-right-line'}
+          aria-hidden="true"
+        />
+        <span>{isOut ? 'Start work' : isWorking ? 'Switch' : 'View work'}</span>
       </button>
-      {startModalOpen && <WorkStartModal onClose={() => setStartModalOpen(false)} />}
+      {modalMode && (
+        <WorkStartModal
+          mode={modalMode}
+          onClose={() => setModalMode(null)}
+          onComplete={(label) => {
+            if (modalMode === 'switch') setConfirmation(`Switched to ${label}`);
+          }}
+        />
+      )}
+      {confirmation && (
+        <div className="work-timer-confirmation" role="status">
+          <i className="ri-checkbox-circle-fill" aria-hidden="true" />
+          {confirmation}
+        </div>
+      )}
     </section>
   );
 };

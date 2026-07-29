@@ -67,6 +67,9 @@ SELECT
   to_regprocedure('public.can_access_work_entry(uuid)') IS NOT NULL
     AS has_work_entry_scope,
   to_regprocedure(
+    'public.switch_work_session(uuid,uuid,text)'
+  ) IS NOT NULL AS has_atomic_work_session_switch,
+  to_regprocedure(
     'public.set_daily_report_requirements(uuid,boolean,boolean)'
   ) IS NOT NULL AS has_daily_report_requirements_control,
   to_regprocedure(
