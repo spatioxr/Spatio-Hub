@@ -169,6 +169,45 @@ SELECT
     AND to_regprocedure(
       'public.correct_work_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,text)'
     ) IS NOT NULL AS has_audited_work_entry_corrections,
+  to_regprocedure(
+    'public.manual_time_entry_contexts(uuid)'
+  ) IS NOT NULL
+    AND to_regprocedure(
+      'public.create_manual_time_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,jsonb,text)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.correct_manual_time_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,jsonb,text)'
+    ) IS NOT NULL
+    AND NOT has_function_privilege(
+      'anon',
+      'public.manual_time_entry_contexts(uuid)',
+      'EXECUTE'
+    )
+    AND NOT has_function_privilege(
+      'anon',
+      'public.create_manual_time_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,jsonb,text)',
+      'EXECUTE'
+    )
+    AND NOT has_function_privilege(
+      'anon',
+      'public.correct_manual_time_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,jsonb,text)',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.manual_time_entry_contexts(uuid)',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.create_manual_time_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,jsonb,text)',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.correct_manual_time_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,jsonb,text)',
+      'EXECUTE'
+    ) AS has_manual_time_entry_workflow,
   NOT EXISTS (
     SELECT 1
     FROM public.employees employee

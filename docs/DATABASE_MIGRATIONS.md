@@ -63,6 +63,10 @@ environment.
 18. `20260729001500_scoped_timesheets.sql` adds Personal, managed-project-team,
     and organisation timesheet projections with server-enforced role scope and
     permitted-employee selection.
+19. `20260729001600_manual_time_entries.sql` adds the role-scoped manual-entry
+    workflow for completed sessions, including project/activity, task, time
+    range, break replacement, mandatory reasons, overlap rejection, and atomic
+    immutable audit snapshots.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -188,6 +192,12 @@ role-scope check. It verifies Employee personal-only access, Manager
 project-assigned team access, Admin/Superadmin organisation access,
 out-of-scope employee denial, member visibility, and restricted function
 execution.
+
+Run `supabase/verify/hrms_023_manual_time_entries.sql` for the rollback-only
+manual-entry check. It verifies Admin organisation and Manager assigned-team
+creation, permitted context choices, session and break correction, mandatory
+reasons, overlap and invalid-break rejection, Employee and out-of-scope
+denial, atomic audit snapshots, and continued direct-write denial.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

@@ -79,6 +79,11 @@ Managers, admins, and superadmins create or correct completed manual entries
 only through audited server functions. Managers are restricted to employees in
 their explicitly owned project teams, every change requires a reason, and
 employees cannot correct time entries.
+The HRMS-023 manual-entry functions also validate the permitted project or
+activity, positive completed session ranges, non-overlapping employee time,
+and ordered non-overlapping breaks contained inside the session. Corrections
+replace the complete break list atomically and record old/new session and break
+snapshots in immutable audit history.
 Breaks follow the same pattern: authenticated clients use the break/resume
 functions, while direct writes to `break_entries` are denied.
 
