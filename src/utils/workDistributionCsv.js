@@ -58,7 +58,7 @@ export const buildWorkDistributionCsv = (entries, summary) => {
     '',
     '',
     '',
-    `${summary.sessions} sessions · ${summary.employees} active employees`,
+    `${summary.sessions} ${summary.sessions === 1 ? 'session' : 'sessions'} · ${summary.employees} active ${summary.employees === 1 ? 'employee' : 'employees'}`,
     '',
     '',
     formatDuration(summary.breakSeconds),
