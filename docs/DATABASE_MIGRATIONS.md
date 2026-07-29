@@ -26,6 +26,9 @@ environment.
 7. `20260729000400_work_sessions.sql` adds server-controlled start, current,
    and end operations for project/activity work sessions and denies direct
    authenticated session writes.
+8. `20260729000500_work_breaks.sql` adds server-controlled break/resume state,
+   break-excluded worked-duration calculation, and denies direct authenticated
+   break writes.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -93,6 +96,11 @@ Run `supabase/verify/hrms_010_work_sessions.sql` for the rollback-only
 session-model check. It verifies activity and project sessions, exactly-one
 target enforcement, ordered non-overlapping sessions, current-session lookup,
 department derivation, and denial of direct authenticated writes.
+
+Run `supabase/verify/hrms_011_work_breaks.sql` for the rollback-only simple
+break check. It verifies Working/Break transitions, repeated-click denial,
+current-break restoration, break-excluded duration, the overlap guard, and the
+absence of break categories.
 
 ## Rollback
 
