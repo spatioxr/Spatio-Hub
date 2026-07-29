@@ -2671,3 +2671,355 @@ td {
   flex: 1;
   min-width: 0;
 }
+
+/* Phase 1 live In / Break / Out board */
+.live-status-board {
+  margin-bottom: 1.5rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+.live-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.4rem 1.5rem 1rem;
+}
+
+.live-status-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.live-status-title-row h3 {
+  color: var(--text-main);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.live-status-header p {
+  color: #646465;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.live-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: #E5F8F1;
+  color: #006742;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.live-status-indicator > span {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: #00A87E;
+  box-shadow: 0 0 0 3px rgba(0, 168, 126, 0.14);
+}
+
+.live-status-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: min(100%, 290px);
+}
+
+.live-status-search i {
+  position: absolute;
+  left: 0.8rem;
+  color: #8B8B8B;
+}
+
+.live-status-search input {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.65rem 0.85rem 0.65rem 2.35rem;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #FAFBFC;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.live-status-search input:focus {
+  border-color: #00A87E;
+  box-shadow: 0 0 0 3px rgba(0, 168, 126, 0.12);
+}
+
+.live-status-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid #E8E8E8;
+}
+
+.live-status-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #646465;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.live-status-tabs button span {
+  min-width: 1.35rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: #F0F2F5;
+  color: #646465;
+  font-size: 0.7rem;
+}
+
+.live-status-tabs button.active {
+  border-bottom-color: #006742;
+  color: #006742;
+}
+
+.live-status-tabs button.active span {
+  background: #E5F8F1;
+  color: #006742;
+}
+
+.live-status-content {
+  min-height: 9rem;
+}
+
+.live-status-list {
+  display: grid;
+}
+
+.live-status-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.25fr) minmax(190px, 1fr) minmax(155px, 0.75fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #F0F2F5;
+}
+
+.live-status-row:last-child {
+  border-bottom: 0;
+}
+
+.live-status-row.stale {
+  background: #FFF8F0;
+  box-shadow: inset 3px 0 #F79009;
+}
+
+.live-status-person {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.live-status-avatar {
+  position: relative;
+  display: grid;
+  flex: 0 0 2.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #E5F8F1;
+  color: #006742;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.live-status-avatar .status-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+.status-dot.in {
+  background: #00A87E;
+}
+
+.status-dot.break {
+  background: #F79009;
+}
+
+.status-dot.out {
+  background: #98A2B3;
+}
+
+.live-status-person h4,
+.live-status-context strong {
+  overflow: hidden;
+  color: var(--text-main);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-status-person p,
+.live-status-context span {
+  display: block;
+  color: #8B8B8B;
+  font-size: 0.72rem;
+  margin-top: 0.15rem;
+}
+
+.live-status-context {
+  min-width: 0;
+}
+
+.live-status-context strong {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.live-status-since {
+  display: grid;
+  justify-items: start;
+  gap: 0.35rem;
+}
+
+.live-status-since time {
+  color: #646465;
+  font-size: 0.72rem;
+}
+
+.live-status-pill {
+  display: inline-flex;
+  min-width: 3.5rem;
+  justify-content: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.live-status-pill.in {
+  background: #E5F8F1;
+  color: #006742;
+}
+
+.live-status-pill.break {
+  background: #FFF0D9;
+  color: #B54708;
+}
+
+.live-status-pill.out {
+  background: #F0F2F5;
+  color: #667085;
+}
+
+.live-status-stale {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #B54708;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.live-status-empty,
+.live-status-error {
+  display: flex;
+  min-height: 9rem;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  color: #646465;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.live-status-error {
+  gap: 0.5rem;
+  color: #B42318;
+}
+
+.live-status-error button {
+  border: 0;
+  background: transparent;
+  color: #006742;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.live-status-footer {
+  padding: 0.6rem 1.5rem;
+  border-top: 1px solid #F0F2F5;
+  color: #8B8B8B;
+  font-size: 0.68rem;
+  text-align: right;
+}
+
+@media (max-width: 800px) {
+  .live-status-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .live-status-search {
+    width: 100%;
+  }
+
+  .live-status-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .live-status-context {
+    grid-column: 1;
+  }
+
+  .live-status-since {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .live-status-stale {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .live-status-tabs {
+    padding: 0 0.75rem;
+  }
+
+  .live-status-tabs button {
+    flex: 1;
+    justify-content: center;
+    padding-inline: 0.5rem;
+  }
+
+  .live-status-row {
+    padding: 1rem;
+  }
+
+  .live-status-context,
+  .live-status-since {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}

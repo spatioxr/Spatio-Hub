@@ -46,6 +46,10 @@ environment.
     history for per-employee BOS/EOD exceptions, keeps changes behind the
     superadmin RPC, and publishes setting updates so an affected timer refreshes
     its saved requirements immediately.
+14. `20260729001100_live_work_status.sql` adds the authenticated company
+    In/Break/Out projection, status-transition timestamps, permission-aware
+    project context, and a 24-hour stale-open-entry signal without widening
+    direct employee or work-entry RLS.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -143,6 +147,12 @@ Run `supabase/verify/hrms_019_daily_report_settings.sql` for the rollback-only
 BOS/EOD exception check. It verifies mandatory defaults, superadmin-only
 changes, immediate saved values, actor-stamped old/new audit snapshots,
 no-op handling, immutable history, and direct-write denial.
+
+Run `supabase/verify/hrms_020_live_work_status.sql` for the rollback-only live
+board check. It verifies Employee visibility of all active names and statuses,
+In/Break/Out transition timestamps, permitted activity context, hidden
+out-of-scope project context, the 24-hour stale flag, and anonymous/unlinked
+denial.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

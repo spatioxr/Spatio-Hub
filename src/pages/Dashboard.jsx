@@ -5,6 +5,7 @@ import { LeaveContext } from '../context/LeaveContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import Layout from '../components/Layout';
 import DailyReportSettings from '../components/DailyReportSettings';
+import LiveStatusBoard from '../components/LiveStatusBoard';
 import { supabase } from '../utils/supabaseClient';
 import { getManagedDepartments, hasPermission, PERMISSIONS } from '../utils/rbac';
 
@@ -129,6 +130,7 @@ const Dashboard = () => {
     user,
     PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS,
   );
+  const canViewLiveStatus = hasPermission(user, PERMISSIONS.VIEW_LIVE_STATUS);
 
   // Stats Card Configs
   const renderStats = () => {
@@ -325,6 +327,10 @@ const Dashboard = () => {
         )}
 
       </div>
+
+      {canViewLiveStatus && (
+        <LiveStatusBoard refreshKey={workStatus} />
+      )}
 
       {/* Bottom Row: Leaves Grid */}
       <div className="card" style={{ padding: '1.5rem' }}>

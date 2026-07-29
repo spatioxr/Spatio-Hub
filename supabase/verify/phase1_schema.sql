@@ -83,6 +83,19 @@ SELECT
     'public.set_daily_report_requirements(uuid,boolean,boolean)'
   ) IS NOT NULL AS has_daily_report_requirements_control,
   to_regprocedure(
+    'public.live_work_status()'
+  ) IS NOT NULL
+    AND NOT has_function_privilege(
+      'anon',
+      'public.live_work_status()',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.live_work_status()',
+      'EXECUTE'
+    ) AS has_scoped_live_work_status,
+  to_regprocedure(
     'public.create_manual_work_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,text)'
   ) IS NOT NULL
     AND to_regprocedure(
