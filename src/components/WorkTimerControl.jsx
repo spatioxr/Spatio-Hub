@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import WorkStartModal from './WorkStartModal';
 
@@ -18,9 +17,10 @@ const formatElapsed = (totalSeconds) => {
 };
 
 const WorkTimerControl = () => {
-  const navigate = useNavigate();
   const [modalMode, setModalMode] = useState(null);
   const [confirmation, setConfirmation] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [breakActionPending, setBreakActionPending] = useState(false);
   const {
     status,
     elapsedSeconds,
@@ -28,17 +28,46 @@ const WorkTimerControl = () => {
     taskDescription,
     loading,
     error,
+    startBreak,
+    resumeSession,
   } = useContext(WorkSessionContext);
 
   const statusLabel = loading ? 'Restoring' : error || STATUS_LABELS[status];
   const isOut = status === 'out';
   const isWorking = status === 'working';
+  const isOnBreak = status === 'break';
 
   useEffect(() => {
     if (!confirmation) return undefined;
     const timerId = window.setTimeout(() => setConfirmation(''), 4000);
     return () => window.clearTimeout(timerId);
   }, [confirmation]);
+
+  const handleBreakAction = async () => {
+    setBreakActionPending(true);
+    setActionError('');
+
+    try {
+      if (isOnBreak) {
+        await resumeSession();
+        setConfirmation('Work resumed');
+      } else {
+        await startBreak();
+        setConfirmation('Break started');
+      }
+    } catch (breakError) {
+      console.error(
+        isOnBreak ? 'Unable to resume work:' : 'Unable to start break:',
+        breakError.message,
+      );
+      setActionError(
+        breakError.message
+        || `Unable to ${isOnBreak ? 'resume work' : 'start break'}. Please try again.`,
+      );
+    } finally {
+      setBreakActionPending(false);
+    }
+  };
 
   return (
     <section className="work-timer" aria-label="Current work status">
@@ -55,26 +84,46 @@ const WorkTimerControl = () => {
           {contextLabel}
         </div>
       </div>
-      <button
-        type="button"
-        className="work-timer-action"
-        onClick={() => {
-          if (isOut) {
-            setModalMode('start');
-          } else if (isWorking) {
-            setModalMode('switch');
-          } else {
-            navigate('/attendance');
-          }
-        }}
-        disabled={loading}
-      >
-        <i
-          className={isOut ? 'ri-play-fill' : isWorking ? 'ri-swap-line' : 'ri-arrow-right-line'}
-          aria-hidden="true"
-        />
-        <span>{isOut ? 'Start work' : isWorking ? 'Switch' : 'View work'}</span>
-      </button>
+      <div className="work-timer-actions">
+        {isWorking && (
+          <button
+            type="button"
+            className="work-timer-action work-timer-action--secondary"
+            onClick={handleBreakAction}
+            disabled={loading || breakActionPending}
+          >
+            <i className="ri-pause-circle-line" aria-hidden="true" />
+            <span>{breakActionPending ? 'Starting…' : 'Start break'}</span>
+          </button>
+        )}
+        <button
+          type="button"
+          className="work-timer-action"
+          onClick={() => {
+            setActionError('');
+            if (isOut) {
+              setModalMode('start');
+            } else if (isWorking) {
+              setModalMode('switch');
+            } else {
+              handleBreakAction();
+            }
+          }}
+          disabled={loading || breakActionPending}
+        >
+          <i
+            className={isOut ? 'ri-play-fill' : isWorking ? 'ri-swap-line' : 'ri-play-circle-line'}
+            aria-hidden="true"
+          />
+          <span>
+            {isOut
+              ? 'Start work'
+              : isWorking
+                ? 'Switch'
+                : breakActionPending ? 'Resuming…' : 'Resume'}
+          </span>
+        </button>
+      </div>
       {modalMode && (
         <WorkStartModal
           mode={modalMode}
@@ -88,6 +137,12 @@ const WorkTimerControl = () => {
         <div className="work-timer-confirmation" role="status">
           <i className="ri-checkbox-circle-fill" aria-hidden="true" />
           {confirmation}
+        </div>
+      )}
+      {actionError && (
+        <div className="work-timer-confirmation work-timer-confirmation--error" role="alert">
+          <i className="ri-error-warning-fill" aria-hidden="true" />
+          {actionError}
         </div>
       )}
     </section>

@@ -472,6 +472,12 @@ td {
   white-space: nowrap;
 }
 
+.work-timer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .work-timer-action {
   display: inline-flex;
   align-items: center;
@@ -491,9 +497,19 @@ td {
   transition: var(--transition);
 }
 
+.work-timer-action--secondary {
+  border: 1px solid rgba(0, 103, 66, 0.14);
+  background: #eef8f4;
+  color: var(--primary);
+}
+
 .work-timer-action:hover {
   background: var(--primary-hover);
   transform: translateY(-1px);
+}
+
+.work-timer-action--secondary:hover {
+  background: #dff3eb;
 }
 
 .work-timer-action:focus-visible {
@@ -527,6 +543,11 @@ td {
 
 .work-timer-confirmation i {
   font-size: 1rem;
+}
+
+.work-timer-confirmation--error {
+  background: #b42318;
+  box-shadow: 0 12px 30px rgba(180, 35, 24, 0.2);
 }
 
 .work-start-backdrop {

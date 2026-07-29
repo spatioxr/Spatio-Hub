@@ -19,6 +19,8 @@ export const WorkSessionContext = createContext({
   refresh: async () => {},
   startSession: async () => {},
   switchSession: async () => {},
+  startBreak: async () => {},
+  resumeSession: async () => {},
 });
 
 const firstRow = (data) => (Array.isArray(data) ? data[0] : data) || null;
@@ -156,6 +158,20 @@ export const WorkSessionProvider = ({ children }) => {
     await refresh();
   }, [refresh]);
 
+  const startBreak = useCallback(async () => {
+    const { error: breakError } = await supabase.rpc('start_work_break');
+
+    if (breakError) throw breakError;
+    await refresh();
+  }, [refresh]);
+
+  const resumeSession = useCallback(async () => {
+    const { error: resumeError } = await supabase.rpc('resume_work_session');
+
+    if (resumeError) throw resumeError;
+    await refresh();
+  }, [refresh]);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -200,13 +216,17 @@ export const WorkSessionProvider = ({ children }) => {
     refresh,
     startSession,
     switchSession,
+    startBreak,
+    resumeSession,
   }), [
     elapsedSeconds,
     error,
     loading,
     refresh,
     snapshot,
+    startBreak,
     startSession,
+    resumeSession,
     switchSession,
   ]);
 
