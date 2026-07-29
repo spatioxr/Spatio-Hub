@@ -25,6 +25,10 @@ confirm:
 | BOS/EOD setting history | — | — | — | Organisation |
 
 Managers are scoped through explicit project ownership and team membership.
+HRMS-027 regression coverage exercises Manager add/remove only on owned
+projects, denies Manager project setup and outside-project changes, confirms
+Admin/Superadmin override, rejects duplicate membership, and denies Employee
+assignment operations at the server boundary.
 Neither `reports_to` nor department grants Manager access.
 
 The People directory uses the existing employee row scope, while UI access is

@@ -217,6 +217,12 @@ Manager-owned project visibility, assignment summaries, owned-project
 candidate lookup, denial outside Manager ownership, and restricted function
 availability.
 
+Run `supabase/verify/hrms_027_manager_assignment_boundaries.sql` for the
+rollback-only assignment-boundary check. It verifies Manager add/remove only
+on owned projects, duplicate denial, project-setup denial, Admin override,
+Employee denial, hidden administration projection, and the membership primary
+key.
+
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager
 assigned-team scope, Admin organisation read scope, Superadmin-only leave and
