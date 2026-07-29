@@ -71,6 +71,65 @@ const formatClock = (value) => (
     : 'Now'
 );
 
+const formatDateTime = (value) => (
+  value
+    ? new Intl.DateTimeFormat('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(value))
+    : 'Not recorded'
+);
+
+const formatAuditBreaks = (breaks) => {
+  if (!Array.isArray(breaks) || breaks.length === 0) return 'No breaks';
+  return breaks.map((breakEntry) => (
+    `${formatClock(breakEntry.started_at)} – ${formatClock(breakEntry.ended_at)}`
+  )).join(', ');
+};
+
+const AUDIT_FIELDS = [
+  {
+    key: 'context',
+    label: 'Project or activity',
+    value: (record) => record?.context_label || 'Not recorded',
+  },
+  {
+    key: 'task',
+    label: 'Task description',
+    value: (record) => record?.task_description || 'Not recorded',
+  },
+  {
+    key: 'start',
+    label: 'Start',
+    value: (record) => formatDateTime(record?.started_at),
+  },
+  {
+    key: 'end',
+    label: 'End',
+    value: (record) => formatDateTime(record?.ended_at),
+  },
+  {
+    key: 'breaks',
+    label: 'Breaks',
+    value: (record) => formatAuditBreaks(record?.breaks),
+  },
+];
+
+const getAuditChanges = (historyItem) => AUDIT_FIELDS
+  .map((field) => ({
+    ...field,
+    before: historyItem.change_kind === 'created'
+      ? 'No existing entry'
+      : field.value(historyItem.old_record),
+    after: field.value(historyItem.new_record),
+  }))
+  .filter((field) => (
+    historyItem.change_kind === 'created' || field.before !== field.after
+  ));
+
 const formatWeekRange = (weekStart) => {
   const weekEnd = addDays(weekStart, 6);
   const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
@@ -130,6 +189,10 @@ const Timesheets = () => {
   const [manualError, setManualError] = useState('');
   const [manualSaving, setManualSaving] = useState(false);
   const [manualContextsLoading, setManualContextsLoading] = useState(false);
+  const [historyViewer, setHistoryViewer] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
@@ -432,6 +495,37 @@ const Timesheets = () => {
     await loadTimesheet();
   };
 
+  const closeHistory = () => {
+    setHistoryViewer(null);
+    setHistory([]);
+    setHistoryError('');
+  };
+
+  const loadHistory = async (entry) => {
+    setHistoryLoading(true);
+    setHistoryError('');
+
+    const { data, error: historyFetchError } = await supabase.rpc(
+      'work_entry_change_history',
+      { target_work_entry_id: entry.work_entry_id },
+    );
+
+    if (historyFetchError) {
+      setHistory([]);
+      setHistoryError(
+        historyFetchError.message || 'Unable to load change history.',
+      );
+    } else {
+      setHistory(data || []);
+    }
+    setHistoryLoading(false);
+  };
+
+  const openHistory = (entry) => {
+    setHistoryViewer(entry);
+    void loadHistory(entry);
+  };
+
   return (
     <Layout
       title="Timesheets"
@@ -649,6 +743,14 @@ const Timesheets = () => {
                             {formatClock(entry.started_at)} – {formatClock(entry.ended_at)}
                           </span>
                           {!entry.ended_at && <span className="badge success">In progress</span>}
+                          <button
+                            type="button"
+                            className="timesheet-edit-button"
+                            onClick={() => openHistory(entry)}
+                          >
+                            <i className="ri-history-line" />
+                            History
+                          </button>
                           {canUseManualEditor && entry.ended_at && (
                             <button
                               type="button"
@@ -876,6 +978,126 @@ const Timesheets = () => {
                 </button>
               </footer>
             </form>
+          </aside>
+        </div>
+      )}
+
+      {historyViewer && (
+        <div className="timesheet-editor-overlay" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeHistory();
+        }}>
+          <aside
+            className="timesheet-editor timesheet-history"
+            aria-label="Time entry change history"
+          >
+            <header className="timesheet-editor-header">
+              <div>
+                <span className="page-eyebrow">Immutable audit trail</span>
+                <h2>Change history</h2>
+                <p>
+                  {historyViewer.context_label}
+                  {historyViewer.employee_name
+                    ? ` · ${historyViewer.employee_name}`
+                    : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="timesheet-editor-close"
+                onClick={closeHistory}
+                aria-label="Close change history"
+              >
+                <i className="ri-close-line" />
+              </button>
+            </header>
+
+            <div className="timesheet-history-body">
+              <div className="timesheet-history-notice">
+                <i className="ri-lock-2-line" />
+                <span>This history is read-only and cannot be edited or deleted.</span>
+              </div>
+
+              {historyLoading ? (
+                <AppState
+                  type="loading"
+                  title="Loading change history"
+                  message="Reading the entry’s immutable audit trail."
+                  compact
+                />
+              ) : historyError ? (
+                <AppState
+                  type="error"
+                  title="History unavailable"
+                  message={historyError}
+                  action={(
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => loadHistory(historyViewer)}
+                    >
+                      Try again
+                    </button>
+                  )}
+                  compact
+                />
+              ) : history.length === 0 ? (
+                <AppState
+                  type="empty"
+                  title="No manual changes"
+                  message="This entry has no manual additions or corrections."
+                  compact
+                />
+              ) : (
+                <ol className="timesheet-history-list">
+                  {history.map((historyItem) => (
+                    <li key={historyItem.audit_id}>
+                      <article className="timesheet-history-event">
+                        <header>
+                          <span className={`badge ${
+                            historyItem.change_kind === 'created'
+                              ? 'success'
+                              : 'warning'
+                          }`}
+                          >
+                            {historyItem.change_kind === 'created'
+                              ? 'Entry added'
+                              : 'Entry corrected'}
+                          </span>
+                          <time dateTime={historyItem.changed_at}>
+                            {formatDateTime(historyItem.changed_at)}
+                          </time>
+                        </header>
+                        <p className="timesheet-history-editor">
+                          <i className="ri-user-line" />
+                          {historyItem.editor_name} · {historyItem.editor_code}
+                        </p>
+                        <div className="timesheet-history-reason">
+                          <span>Reason</span>
+                          <p>{historyItem.change_reason}</p>
+                        </div>
+                        <div className="timesheet-history-changes">
+                          <div className="timesheet-history-change-head">
+                            <span>Field</span>
+                            <span>Before</span>
+                            <span>After</span>
+                          </div>
+                          {getAuditChanges(historyItem).map((change) => (
+                            <div
+                              className="timesheet-history-change"
+                              key={change.key}
+                            >
+                              <strong>{change.label}</strong>
+                              <span>{change.before}</span>
+                              <span>{change.after}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </article>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
           </aside>
         </div>
       )}

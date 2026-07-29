@@ -84,6 +84,12 @@ activity, positive completed session ranges, non-overlapping employee time,
 and ordered non-overlapping breaks contained inside the session. Corrections
 replace the complete break list atomically and record old/new session and break
 snapshots in immutable audit history.
+Timesheet change history is read through `work_entry_change_history()`, a
+read-only authenticated projection. Employees can read their own entry
+history, Managers can read employees assigned to projects they manage, and
+Admins/Superadmins can read organisation history. The projection adds editor
+identity and historical project/activity labels to the stored old/new
+snapshots without granting audit mutation privileges.
 Breaks follow the same pattern: authenticated clients use the break/resume
 functions, while direct writes to `break_entries` are denied.
 

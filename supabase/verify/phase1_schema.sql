@@ -208,6 +208,19 @@ SELECT
       'public.correct_manual_time_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,jsonb,text)',
       'EXECUTE'
     ) AS has_manual_time_entry_workflow,
+  to_regprocedure(
+    'public.work_entry_change_history(uuid)'
+  ) IS NOT NULL
+    AND NOT has_function_privilege(
+      'anon',
+      'public.work_entry_change_history(uuid)',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.work_entry_change_history(uuid)',
+      'EXECUTE'
+    ) AS has_scoped_change_history,
   NOT EXISTS (
     SELECT 1
     FROM public.employees employee

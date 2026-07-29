@@ -67,6 +67,9 @@ environment.
     workflow for completed sessions, including project/activity, task, time
     range, break replacement, mandatory reasons, overlap rejection, and atomic
     immutable audit snapshots.
+20. `20260729001700_work_entry_change_history.sql` adds a read-only,
+    role-scoped audit projection with editor identity, timestamp, reason, and
+    readable before/after snapshots for the Timesheets change-history drawer.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -198,6 +201,12 @@ manual-entry check. It verifies Admin organisation and Manager assigned-team
 creation, permitted context choices, session and break correction, mandatory
 reasons, overlap and invalid-break rejection, Employee and out-of-scope
 denial, atomic audit snapshots, and continued direct-write denial.
+
+Run `supabase/verify/hrms_024_change_history.sql` for the rollback-only
+change-history check. It verifies readable creation and correction snapshots,
+editor/timestamp/reason fields, Employee own, Manager assigned-team, and
+Admin/Superadmin organisation scope, out-of-scope denial, authenticated-only
+function execution, and continued audit immutability.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager
