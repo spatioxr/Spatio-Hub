@@ -46,6 +46,11 @@ Work-entry audit rows are inserted atomically by the correction functions.
 Authenticated clients have no insert, update, or delete privileges on audit
 history, and a database trigger also rejects audit updates and deletion.
 
+`supabase/verify/hrms_004_role_access.sql` exercises the complete policy model
+as real Employee, Manager, Admin, and Superadmin Auth identities with the
+database role set to `authenticated`. Its fixtures and permitted mutations are
+transactional and roll back after the positive and negative access assertions.
+
 ## Rule for future tables
 
 RLS must be enabled in the same migration that creates every project, activity,

@@ -118,6 +118,11 @@ correction audit check. It verifies audited manual creation and correction,
 required reasons, old/new snapshots, Manager project-team scope, employee and
 out-of-scope denial, immutable audit rows, and continued direct-write denial.
 
+Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
+authenticated-role RLS matrix. It verifies Employee self scope, Manager
+assigned-team scope, Admin organisation read scope, Superadmin-only leave and
+BOS/EOD controls, and direct-client write denial across all 14 Phase 1 tables.
+
 ## Rollback
 
 Production rollback should restore the pre-migration Supabase backup into a
