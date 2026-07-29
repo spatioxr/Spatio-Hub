@@ -54,6 +54,13 @@ the caller already passes `can_access_project`. It does not expose task text or
 widen direct `employees`, `work_entries`, or `break_entries` policies. Open
 sessions older than 24 hours are flagged by the projection for visible review.
 
+Personal timesheets use `personal_timesheet_entries()` as a self-only
+authenticated projection. It resolves the signed-in employee on the server and
+returns only that employee's sessions for a bounded date range, including
+project/activity labels, task descriptions, break detail, and break-excluded
+worked duration. Team and organisation timesheet scope is not exposed by this
+function.
+
 Authenticated clients read permitted work sessions through RLS and begin or
 finally end their own work day only through the server-controlled BOS/EOD
 workflow functions. Context switches remain atomic and report-neutral. The

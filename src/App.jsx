@@ -9,6 +9,7 @@ import Attendance from './pages/Attendance';
 import Leave from './pages/Leave';
 import People from './pages/People';
 import AdminSettings from './pages/AdminSettings';
+import Timesheets from './pages/Timesheets';
 import ResetPassword from './pages/ResetPassword';
 import { hasPermission, PERMISSIONS } from './utils/rbac';
 
@@ -47,6 +48,14 @@ const AppRoutes = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
+            <Route
+              path="/timesheets"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.VIEW_OWN_TIMESHEET}>
+                  <Timesheets />
+                </PermissionRoute>
+              )}
+            />
             <Route path="/leave" element={<ProtectedRoute><Leave /></ProtectedRoute>} />
             <Route
               path="/people"

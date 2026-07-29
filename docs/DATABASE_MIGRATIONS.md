@@ -57,6 +57,9 @@ environment.
 16. `20260729001300_admin_settings_boundary.sql` adds the authenticated
     Admin/Superadmin settings capability and restricts granting or removing
     privileged Admin and Superadmin roles to Superadmin.
+17. `20260729001400_personal_timesheet.sql` adds a self-only daily and weekly
+    timesheet projection with project/activity context, task descriptions,
+    break detail, and break-excluded worked durations.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -171,6 +174,11 @@ Run `supabase/verify/hrms_045_admin_settings.sql` for the rollback-only Admin
 Settings check. It verifies Employee and Manager denial, Admin access to
 standard People controls, denial of Admin privileged-role changes,
 Superadmin promotion/demotion authority, and restricted function execution.
+
+Run `supabase/verify/hrms_021_personal_timesheet.sql` for the rollback-only
+personal-timesheet check. It verifies self-only weekly scope, project and
+activity context, task descriptions, break detail, break-excluded totals,
+bounded ranges, and denial for anonymous or unlinked identities.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

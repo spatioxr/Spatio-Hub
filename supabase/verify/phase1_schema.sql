@@ -125,6 +125,19 @@ SELECT
       'EXECUTE'
     ) AS has_scoped_live_work_status,
   to_regprocedure(
+    'public.personal_timesheet_entries(timestamptz,timestamptz)'
+  ) IS NOT NULL
+    AND NOT has_function_privilege(
+      'anon',
+      'public.personal_timesheet_entries(timestamptz,timestamptz)',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.personal_timesheet_entries(timestamptz,timestamptz)',
+      'EXECUTE'
+    ) AS has_scoped_personal_timesheet,
+  to_regprocedure(
     'public.create_manual_work_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,text)'
   ) IS NOT NULL
     AND to_regprocedure(
