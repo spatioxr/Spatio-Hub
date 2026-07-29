@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Leave from './pages/Leave';
 import People from './pages/People';
+import Projects from './pages/Projects';
 import AdminSettings from './pages/AdminSettings';
 import Timesheets from './pages/Timesheets';
 import ResetPassword from './pages/ResetPassword';
@@ -62,6 +63,14 @@ const AppRoutes = () => (
               element={(
                 <PermissionRoute permission={PERMISSIONS.VIEW_PEOPLE}>
                   <People />
+                </PermissionRoute>
+              )}
+            />
+            <Route
+              path="/projects"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.MANAGE_OWNED_PROJECT_TEAM}>
+                  <Projects />
                 </PermissionRoute>
               )}
             />

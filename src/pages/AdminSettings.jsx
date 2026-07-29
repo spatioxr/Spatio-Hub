@@ -19,7 +19,8 @@ const SETTING_AREAS = [
     icon: 'ri-briefcase-4-line',
     title: 'Projects',
     description: 'Project definitions, managers and team assignments.',
-    detail: 'Project administration is planned next',
+    detail: 'Manage projects',
+    href: '/projects',
   },
   {
     key: 'activities',

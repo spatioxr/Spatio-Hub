@@ -12,6 +12,12 @@ const Sidebar = () => {
     { path: '/attendance', name: 'Work Tracking', icon: 'ri-calendar-check-line', permission: PERMISSIONS.TRACK_OWN_WORK },
     { path: '/timesheets', name: 'Timesheets', icon: 'ri-time-line', permission: PERMISSIONS.VIEW_OWN_TIMESHEET },
     { path: '/people', name: 'People', icon: 'ri-team-line', permission: PERMISSIONS.VIEW_PEOPLE },
+    {
+      path: '/projects',
+      name: 'Projects',
+      icon: 'ri-briefcase-4-line',
+      permission: PERMISSIONS.MANAGE_OWNED_PROJECT_TEAM,
+    },
     { path: '/leave', name: 'Leave', icon: 'ri-flight-takeoff-line', permission: PERMISSIONS.APPLY_OWN_LEAVE },
     {
       path: '/admin-settings',

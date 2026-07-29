@@ -70,6 +70,9 @@ environment.
 20. `20260729001700_work_entry_change_history.sql` adds a read-only,
     role-scoped audit projection with editor identity, timestamp, reason, and
     readable before/after snapshots for the Timesheets change-history drawer.
+21. `20260729001800_project_administration.sql` adds the Manager/Admin project
+    administration projection, owned-project assignment candidate lookup, and
+    controlled Admin/Superadmin project-definition edits.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -207,6 +210,12 @@ change-history check. It verifies readable creation and correction snapshots,
 editor/timestamp/reason fields, Employee own, Manager assigned-team, and
 Admin/Superadmin organisation scope, out-of-scope denial, authenticated-only
 function execution, and continued audit immutability.
+
+Run `supabase/verify/hrms_026_project_administration.sql` for the rollback-only
+project-administration check. It verifies controlled definition edits,
+Manager-owned project visibility, assignment summaries, owned-project
+candidate lookup, denial outside Manager ownership, and restricted function
+availability.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager
