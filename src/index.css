@@ -3825,10 +3825,17 @@ td {
   .sidebar-menu {
     display: grid;
     height: 100%;
-    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+    grid-auto-columns: minmax(52px, 1fr);
+    grid-auto-flow: column;
+    grid-template-columns: none;
     gap: 0.25rem;
     padding: 0.45rem max(0.5rem, env(safe-area-inset-right)) max(0.45rem, env(safe-area-inset-bottom));
-    overflow: visible;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .sidebar-menu::-webkit-scrollbar {
+    display: none;
   }
 
   .sidebar-link--separated {
