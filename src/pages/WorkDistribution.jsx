@@ -8,6 +8,10 @@ import React, {
 import AppState from '../components/AppState';
 import Layout from '../components/Layout';
 import { supabase } from '../utils/supabaseClient';
+import {
+  buildWorkDistributionCsv,
+  workDistributionCsvFilename,
+} from '../utils/workDistributionCsv';
 
 const REPORT_TIMEZONE_OFFSET = '+05:30';
 const MAX_RANGE_DAYS = 31;
@@ -339,6 +343,22 @@ const WorkDistribution = () => {
     });
   };
 
+  const exportCsv = () => {
+    if (visibleEntries.length === 0) return;
+
+    const csv = buildWorkDistributionCsv(visibleEntries, summary);
+    const downloadUrl = URL.createObjectURL(new Blob([csv], {
+      type: 'text/csv;charset=utf-8',
+    }));
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = workDistributionCsvFilename(appliedRange);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+  };
+
   const applyRange = (event) => {
     event.preventDefault();
     const days = rangeLength(draftRange.start, draftRange.end);
@@ -363,6 +383,20 @@ const WorkDistribution = () => {
       eyebrow="Organisation reporting"
       heading="Work distribution"
       description="Understand where team time is going across projects, internal activities, departments, and people."
+      actions={(
+        <button
+          type="button"
+          className="btn btn-outline analytics-export-button"
+          onClick={exportCsv}
+          disabled={loading || Boolean(error) || visibleEntries.length === 0}
+          title={visibleEntries.length > 0
+            ? `Export ${visibleEntries.length} filtered ${visibleEntries.length === 1 ? 'entry' : 'entries'}`
+            : 'No entries are available to export'}
+        >
+          <i className="ri-download-2-line" />
+          Export CSV
+        </button>
+      )}
     >
       <form className="card analytics-range-panel" onSubmit={applyRange}>
         <div className="analytics-range-copy">

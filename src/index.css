@@ -5646,6 +5646,16 @@ td {
 }
 
 /* ── Organisation work distribution ───────────────────────────────────── */
+.analytics-export-button {
+  min-height: 40px;
+  gap: 0.4rem;
+}
+
+.analytics-export-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .analytics-range-panel {
   display: flex;
   position: relative;

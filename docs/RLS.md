@@ -86,6 +86,8 @@ and Superadmin, while the projection independently rejects Employee and Manager
 organisation requests on the server.
 Analytics filters and chart drill-downs operate only on the rows returned by
 that server-scoped request; they never issue a broader client-side table read.
+CSV exports serialize only the same filtered in-memory rows and totals, so
+export cannot bypass the organisation projection or its role checks.
 
 Authenticated clients read permitted work sessions through RLS and begin or
 finally end their own work day only through the server-controlled BOS/EOD
