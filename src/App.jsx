@@ -12,6 +12,7 @@ import Projects from './pages/Projects';
 import Activities from './pages/Activities';
 import AdminSettings from './pages/AdminSettings';
 import Timesheets from './pages/Timesheets';
+import WorkDistribution from './pages/WorkDistribution';
 import ResetPassword from './pages/ResetPassword';
 import { hasPermission, PERMISSIONS } from './utils/rbac';
 
@@ -64,6 +65,14 @@ const AppRoutes = () => (
               element={(
                 <PermissionRoute permission={PERMISSIONS.VIEW_PEOPLE}>
                   <People />
+                </PermissionRoute>
+              )}
+            />
+            <Route
+              path="/analytics"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.VIEW_ORGANISATION_REPORTS}>
+                  <WorkDistribution />
                 </PermissionRoute>
               )}
             />

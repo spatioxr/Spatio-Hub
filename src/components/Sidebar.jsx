@@ -11,6 +11,12 @@ const Sidebar = () => {
     { path: '/', name: 'Dashboard', icon: 'ri-dashboard-line', permission: PERMISSIONS.ACCESS_PORTAL },
     { path: '/attendance', name: 'Work Tracking', icon: 'ri-calendar-check-line', permission: PERMISSIONS.TRACK_OWN_WORK },
     { path: '/timesheets', name: 'Timesheets', icon: 'ri-time-line', permission: PERMISSIONS.VIEW_OWN_TIMESHEET },
+    {
+      path: '/analytics',
+      name: 'Analytics',
+      icon: 'ri-bar-chart-box-line',
+      permission: PERMISSIONS.VIEW_ORGANISATION_REPORTS,
+    },
     { path: '/people', name: 'People', icon: 'ri-team-line', permission: PERMISSIONS.VIEW_PEOPLE },
     {
       path: '/projects',

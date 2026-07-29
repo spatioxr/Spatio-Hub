@@ -232,6 +232,11 @@ archive capability, Manager and Employee denial, controlled-function-only
 writes, active selection, archived historical reporting, stable historical
 labels, and the agreed seed catalogue.
 
+Run `supabase/verify/hrms_029_work_distribution.sql` for the rollback-only
+analytics-source check. It verifies organisation totals for worked and break
+time, project/activity separation, department and employee dimensions, and
+server-side denial of organisation scope to Employee and Manager roles.
+
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager
 assigned-team scope, Admin organisation read scope, Superadmin-only leave and

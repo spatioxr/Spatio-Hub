@@ -79,6 +79,11 @@ assigned to projects they manage, including those employees' project and
 activity sessions, but cannot select anyone outside that team. Admins and
 superadmins can use organisation scope. The requested scope and optional
 employee selection are validated on the server before any entries are returned.
+The organisation work-distribution dashboard reuses this projection with
+`organisation` scope and aggregates only the returned rows into project,
+activity, department, and employee totals. Its React route is limited to Admin
+and Superadmin, while the projection independently rejects Employee and Manager
+organisation requests on the server.
 
 Authenticated clients read permitted work sessions through RLS and begin or
 finally end their own work day only through the server-controlled BOS/EOD
