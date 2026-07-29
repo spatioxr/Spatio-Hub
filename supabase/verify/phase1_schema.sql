@@ -69,6 +69,12 @@ SELECT
   to_regprocedure(
     'public.set_daily_report_requirements(uuid,boolean,boolean)'
   ) IS NOT NULL AS has_daily_report_requirements_control,
+  to_regprocedure(
+    'public.create_manual_work_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,text)'
+  ) IS NOT NULL
+    AND to_regprocedure(
+      'public.correct_work_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,text)'
+    ) IS NOT NULL AS has_audited_work_entry_corrections,
   NOT EXISTS (
     SELECT 1
     FROM public.employees employee
@@ -98,6 +104,28 @@ SELECT
       AND tgname = 'daily_reports_guard_write'
       AND NOT tgisinternal
   ) AS daily_report_timestamp_guard,
+  EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgrelid = 'public.work_entry_audit'::regclass
+      AND tgname = 'work_entry_audit_prevent_mutation'
+      AND NOT tgisinternal
+  ) AS work_entry_audit_immutable,
+  NOT has_table_privilege(
+    'authenticated',
+    'public.work_entry_audit',
+    'INSERT'
+  )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.work_entry_audit',
+      'UPDATE'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.work_entry_audit',
+      'DELETE'
+    ) AS direct_work_entry_audit_writes_denied,
   (
     SELECT count(*) = 5
     FROM public.activities

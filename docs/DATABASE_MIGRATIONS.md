@@ -32,6 +32,9 @@ environment.
 9. `20260729000600_daily_reports.sql` enforces server-stamped BOS/EOD
    submissions, creates mandatory-default settings for every employee, and
    restricts requirement changes to a superadmin-controlled function.
+10. `20260729000700_work_entry_audit.sql` adds controlled manual time-entry
+    creation and correction, mandatory reasons, atomic old/new audit snapshots,
+    Manager project-team scope, and immutable audit history.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -109,6 +112,11 @@ Run `supabase/verify/hrms_012_daily_reports.sql` for the rollback-only daily
 report check. It verifies one row per employee/date, mandatory-default settings,
 server-controlled submission timestamps, automatic settings creation, and
 superadmin-only BOS/EOD exceptions.
+
+Run `supabase/verify/hrms_013_work_entry_audit.sql` for the rollback-only
+correction audit check. It verifies audited manual creation and correction,
+required reasons, old/new snapshots, Manager project-team scope, employee and
+out-of-scope denial, immutable audit rows, and continued direct-write denial.
 
 ## Rollback
 

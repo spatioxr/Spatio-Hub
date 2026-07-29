@@ -29,6 +29,10 @@ Neither `reports_to` nor department grants Manager access.
 Authenticated clients read permitted work sessions through RLS and mutate their
 own live session only through the server-controlled start/end functions.
 Direct insert, update, and delete privileges on `work_entries` are denied.
+Managers, admins, and superadmins create or correct completed manual entries
+only through audited server functions. Managers are restricted to employees in
+their explicitly owned project teams, every change requires a reason, and
+employees cannot correct time entries.
 Breaks follow the same pattern: authenticated clients use the break/resume
 functions, while direct writes to `break_entries` are denied.
 
@@ -38,9 +42,9 @@ timestamps. Per-employee BOS/EOD requirements are readable within their
 existing scope but may be changed only through the superadmin-controlled
 settings function; direct authenticated settings writes are denied.
 
-Attendance and daily-report corrections remain self-service or superadmin-only
-until HRMS-013 adds mandatory edit reasons and immutable audit history. This
-prevents a direct client from bypassing the future audit requirement.
+Work-entry audit rows are inserted atomically by the correction functions.
+Authenticated clients have no insert, update, or delete privileges on audit
+history, and a database trigger also rejects audit updates and deletion.
 
 ## Rule for future tables
 
