@@ -5,13 +5,6 @@ import { isEmployeeManagedBy } from '../utils/rbac';
 
 export const LeaveContext = createContext();
 
-function calcDays(from, to) {
-  const d1 = new Date(from);
-  const d2 = new Date(to);
-  const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
-  return diff > 0 ? diff : 1;
-}
-
 export const LeaveProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
 
@@ -69,115 +62,83 @@ export const LeaveProvider = ({ children }) => {
   }, [user]);
 
   // Apply for leave
-  const applyLeave = async ({ type, from, to, reason, days }) => {
-    if (!user) return;
-    const isAutoApproved = user.role === 'superadmin';
-    const status = isAutoApproved ? 'Approved' : 'Pending';
+  const applyLeave = async ({ type, from, to, reason, isHalfDay }) => {
+    if (!user) return { error: new Error('Sign in to apply for leave.') };
+    const { error } = await supabase.rpc('submit_leave_request', {
+      leave_type: type,
+      leave_from: from,
+      leave_to: to,
+      is_half_day: isHalfDay,
+      leave_reason: reason,
+    });
 
-    const { error } = await supabase.from('leaves').insert([{
-      employee_id: user.id,
-      type,
-      from_date: from,
-      to_date: to,
-      days,
-      reason,
-      status
-    }]);
-
-    if (!error) {
-      if (isAutoApproved) {
-        await deductBalance(user.id, type, days);
-      } else {
-        await fetchLeaveData();
-      }
-    } else {
-      console.error('Error applying leave:', error);
-    }
+    if (!error) await fetchLeaveData();
+    return { error };
   };
 
   // Update a pending leave request
-  const updateLeave = async ({ id, type, from, to, reason, days }) => {
-    if (!user) return;
-    const { error } = await supabase.from('leaves').update({
-      type,
-      from_date: from,
-      to_date: to,
-      days,
-      reason
-    }).eq('id', id).eq('employee_id', user.id);
+  const updateLeave = async ({ id, type, from, to, reason, isHalfDay }) => {
+    if (!user) return { error: new Error('Sign in to update leave.') };
+    const { error } = await supabase.rpc('update_pending_leave_request', {
+      target_leave_id: id,
+      leave_type: type,
+      leave_from: from,
+      leave_to: to,
+      is_half_day: isHalfDay,
+      leave_reason: reason,
+    });
 
-    if (!error) {
-      await fetchLeaveData();
-    } else {
-      console.error('Error updating leave:', error);
-    }
+    if (!error) await fetchLeaveData();
+    return { error };
   };
 
   // Approve a leave request (only superadmin)
-  const approveLeave = async (requestId, employeeId, type, days) => {
-    if (user?.role !== 'superadmin') return; // only superadmin can approve
-
-    const { error } = await supabase.from('leaves')
-      .update({ status: 'Approved' })
-      .eq('id', requestId);
-
-    if (!error) {
-      await deductBalance(employeeId, type, days);
+  const approveLeave = async (requestId) => {
+    if (user?.role !== 'superadmin') {
+      return { error: new Error('Only a superadmin can approve leave.') };
     }
+
+    const { error } = await supabase.rpc('decide_leave_request', {
+      target_leave_id: requestId,
+      approve: true,
+      decision_comment: null,
+    });
+    if (!error) await fetchLeaveData();
+    return { error };
   };
 
   // Reject a leave request (only superadmin)
   const rejectLeave = async (requestId, comment = '') => {
-    if (user?.role !== 'superadmin') return;
-
-    const { error } = await supabase.from('leaves')
-      .update({ status: 'Rejected', rejection_comment: comment })
-      .eq('id', requestId);
-
-    if (!error) {
-      await fetchLeaveData();
+    if (user?.role !== 'superadmin') {
+      return { error: new Error('Only a superadmin can reject leave.') };
     }
+
+    const { error } = await supabase.rpc('decide_leave_request', {
+      target_leave_id: requestId,
+      approve: false,
+      decision_comment: comment,
+    });
+    if (!error) await fetchLeaveData();
+    return { error };
   };
 
   // Grant Comp Off (Superadmin only)
   const grantCompOff = async (employeeId, daysToAdd) => {
-    if (user?.role !== 'superadmin') return;
-
-    const currentBal = balances[employeeId]?.['Comp Off'] || 0;
-    const { error } = await supabase.from('leave_balances')
-      .update({ comp_off: currentBal + daysToAdd })
-      .eq('employee_id', employeeId);
-      
-    if (!error) {
-      await fetchLeaveData();
-    }
-  };
-
-  // Deduct days from balance directly in DB
-  const deductBalance = async (employeeId, type, days) => {
-    const dbColumnMap = {
-      'Sick Leave': 'sick_leave',
-      'Casual Leave': 'casual_leave',
-      'Comp Off': 'comp_off'
-    };
-    const colName = dbColumnMap[type];
-    if (!colName) {
-      await fetchLeaveData();
-      return;
+    if (user?.role !== 'superadmin') {
+      return { error: new Error('Only a superadmin can grant Comp Off.') };
     }
 
-    const currentBal = balances[employeeId]?.[type] || 0;
-    const { error } = await supabase.from('leave_balances')
-      .update({ [colName]: Math.max(0, currentBal - days) })
-      .eq('employee_id', employeeId);
-
-    await fetchLeaveData();
+    const { error } = await supabase.rpc('grant_comp_off_balance', {
+      target_employee_id: employeeId,
+      days_to_add: daysToAdd,
+    });
+    if (!error) await fetchLeaveData();
+    return { error };
   };
 
   // Get balance for a given user
   const getUserBalance = (userId) => {
     const bal = balances[userId] || { 'Sick Leave': 0, 'Comp Off': 0, 'Casual Leave': 0 };
-    // Assuming 'bal' represents remaining days now because deductBalance decreases it in DB
     return {
       'Sick Leave': { remaining: bal['Sick Leave'] },
       'Comp Off': { remaining: bal['Comp Off'] },

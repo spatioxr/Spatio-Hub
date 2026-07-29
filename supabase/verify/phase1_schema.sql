@@ -149,6 +149,23 @@ SELECT
       'public.app_clock_time(timestamptz)'
     ) IS NOT NULL AS has_kolkata_time_standard,
   to_regprocedure(
+    'public.submit_leave_request(text,date,date,boolean,text)'
+  ) IS NOT NULL
+    AND to_regprocedure(
+      'public.update_pending_leave_request(uuid,text,date,date,boolean,text)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.decide_leave_request(uuid,boolean,text)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.grant_comp_off_balance(uuid,numeric)'
+    ) IS NOT NULL
+    AND NOT has_function_privilege(
+      'anon',
+      'public.decide_leave_request(uuid,boolean,text)',
+      'EXECUTE'
+    ) AS has_controlled_leave_balance_workflow,
+  to_regprocedure(
     'public.set_daily_report_requirements(uuid,boolean,boolean)'
   ) IS NOT NULL AS has_daily_report_requirements_control,
   to_regprocedure(

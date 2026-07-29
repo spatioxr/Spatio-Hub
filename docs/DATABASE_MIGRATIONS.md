@@ -79,6 +79,9 @@ environment.
 23. `20260730000100_kolkata_time_standard.sql` makes Asia/Kolkata the explicit
     work-day boundary for BOS/EOD, attendance, sessions, and reports while
     preserving UTC-safe timestamps.
+24. `20260730000200_leave_balance_workflow.sql` makes leave submission,
+    pending edits, approval/rejection, balance deduction, and Comp Off grants
+    controlled atomic operations and closes direct client balance mutations.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -244,6 +247,11 @@ Run `supabase/verify/hrms_032_timezone_duration.sql` for the rollback-only
 timezone check. It verifies the Asia/Kolkata midnight boundary and clock
 conversion, fixed 24-hour report days, isolation from US daylight-saving
 changes, and explicit timezone configuration on BOS/EOD workflow functions.
+
+Run `supabase/verify/hrms_033_leave_balances.sql` for the rollback-only leave
+correctness check. It verifies seeded remaining balances, edit/rejection
+neutrality, exactly-once approval deductions, exact half-day arithmetic,
+superadmin auto-approval, Comp Off grants, and direct-write denial.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

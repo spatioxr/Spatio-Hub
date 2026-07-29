@@ -1109,6 +1109,7 @@ DO $$
 DECLARE
   outside_id UUID;
   outside_entry_id UUID;
+  outside_leave_id UUID;
   settings_changed BOOLEAN := false;
   leave_approved BOOLEAN := false;
   direct_entry_write_denied BOOLEAN := false;
@@ -1120,6 +1121,9 @@ BEGIN
   SELECT work_entry_id INTO outside_entry_id
   FROM hrms_004_work_entries
   WHERE entry_name = 'outside';
+  SELECT id INTO outside_leave_id
+  FROM public.leaves
+  WHERE employee_id = outside_id;
 
   PERFORM public.set_daily_report_requirements(
     outside_id,
@@ -1132,9 +1136,11 @@ BEGIN
   FROM public.employee_work_settings
   WHERE employee_id = outside_id;
 
-  UPDATE public.leaves
-  SET status = 'Approved'
-  WHERE employee_id = outside_id;
+  PERFORM public.decide_leave_request(
+    outside_leave_id,
+    true,
+    NULL
+  );
 
   SELECT status = 'Approved'
   INTO leave_approved

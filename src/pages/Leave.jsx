@@ -5,6 +5,7 @@ import { LeaveContext } from '../context/LeaveContext';
 import { supabase } from '../utils/supabaseClient';
 import AppState from '../components/AppState';
 import { formatAppDate } from '../utils/timezone';
+import { calculateLeaveDays } from '../utils/leave';
 
 const LEAVE_TYPES = ['Sick Leave', 'Comp Off', 'Casual Leave'];
 
@@ -140,7 +141,7 @@ const Leave = () => {
       return;
     }
 
-    const days = form.isHalfDay ? 0.5 : Math.round((new Date(form.to) - new Date(form.from)) / (1000 * 60 * 60 * 24)) + 1;
+    const days = calculateLeaveDays(form.from, form.to, form.isHalfDay);
     const bal = balance[form.type];
     
     if (bal && days > bal.remaining && !(editingLeaveId)) {
@@ -170,18 +171,43 @@ const Leave = () => {
     }
 
     setSubmitting(true);
+    let result;
     if (editingLeaveId) {
-      await updateLeave({ id: editingLeaveId, type: form.type, from: form.from, to: form.to, reason: form.reason, days });
-      setFormMsg({ type: 'success', text: `Leave request updated successfully! (${days} day${days > 1 ? 's' : ''})` });
+      result = await updateLeave({
+        id: editingLeaveId,
+        type: form.type,
+        from: form.from,
+        to: form.to,
+        reason: form.reason,
+        isHalfDay: form.isHalfDay,
+      });
     } else {
-      await applyLeave({ type: form.type, from: form.from, to: form.to, reason: form.reason, days });
-      setFormMsg({
-        type: 'success',
-        text: isSuperAdmin
-          ? `Leave request submitted and auto-approved! (${days} day${days > 1 ? 's' : ''})`
-          : `Leave request submitted successfully! Awaiting approval. (${days} day${days > 1 ? 's' : ''})`,
+      result = await applyLeave({
+        type: form.type,
+        from: form.from,
+        to: form.to,
+        reason: form.reason,
+        isHalfDay: form.isHalfDay,
       });
     }
+
+    if (result?.error) {
+      setFormMsg({
+        type: 'error',
+        text: result.error.message || 'Unable to save the leave request.',
+      });
+      setSubmitting(false);
+      return;
+    }
+
+    setFormMsg({
+      type: 'success',
+      text: editingLeaveId
+        ? `Leave request updated successfully! (${days} day${days > 1 ? 's' : ''})`
+        : isSuperAdmin
+          ? `Leave request submitted and auto-approved! (${days} day${days > 1 ? 's' : ''})`
+          : `Leave request submitted successfully! Awaiting approval. (${days} day${days > 1 ? 's' : ''})`,
+    });
 
     setForm({ type: 'Sick Leave', from: '', to: '', reason: '', isHalfDay: false });
     setEditingLeaveId(null);
@@ -327,7 +353,7 @@ const Leave = () => {
               <div className="leave-days-preview">
                 <i className="ri-calendar-event-line" />
                 <strong>
-                  {form.isHalfDay ? '0.5' : Math.round((new Date(form.to) - new Date(form.from)) / (1000 * 60 * 60 * 24)) + 1} day(s)
+                  {calculateLeaveDays(form.from, form.to, form.isHalfDay)} day(s)
                 </strong> requested
               </div>
             )}
@@ -527,7 +553,7 @@ const Leave = () => {
                                     <>
                                       <button
                                         className="leave-action-approve"
-                                        onClick={() => approveLeave(row.id, row.employee_id, row.type, row.days)}
+                                        onClick={() => approveLeave(row.id)}
                                         title="Approve"
                                       >
                                         <i className="ri-check-line" /> Approve
