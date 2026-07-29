@@ -1,8 +1,31 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import AppState from '../components/AppState';
+import { AuthContext } from '../context/AuthContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import { supabase } from '../utils/supabaseClient';
+import { hasPermission, PERMISSIONS } from '../utils/rbac';
+
+const SCOPE_COPY = {
+  personal: {
+    label: 'Personal',
+    eyebrow: 'Personal',
+    heading: 'My timesheet',
+    description: 'A focused view of your tracked work, breaks, and daily context.',
+  },
+  managed: {
+    label: 'Managed by me',
+    eyebrow: 'Project teams',
+    heading: 'Team timesheets',
+    description: 'Weekly work for people assigned to projects you manage.',
+  },
+  organisation: {
+    label: 'Organisation',
+    eyebrow: 'Organisation',
+    heading: 'Organisation timesheets',
+    description: 'Company-wide weekly totals with a clear path to each person.',
+  },
+};
 
 const startOfWeek = (date) => {
   const start = new Date(date);
@@ -59,10 +82,24 @@ const formatWeekRange = (weekStart) => {
 };
 
 const Timesheets = () => {
+  const { user } = useContext(AuthContext);
   const { status: workStatus } = useContext(WorkSessionContext);
+  const availableScopes = useMemo(() => {
+    const scopes = ['personal'];
+    if (hasPermission(user, PERMISSIONS.VIEW_ASSIGNED_TEAM_TIMESHEETS)) {
+      scopes.push('managed');
+    }
+    if (hasPermission(user, PERMISSIONS.VIEW_ORGANISATION_TIMESHEETS)) {
+      return ['personal', 'organisation'];
+    }
+    return scopes;
+  }, [user]);
+  const [scope, setScope] = useState('personal');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('all');
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
   const [entries, setEntries] = useState([]);
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -76,19 +113,32 @@ const Timesheets = () => {
     setError('');
 
     const rangeEnd = addDays(weekStart, 7);
-    const { data, error: fetchError } = await supabase.rpc('personal_timesheet_entries', {
-      requested_start_at: weekStart.toISOString(),
-      requested_end_at: rangeEnd.toISOString(),
-    });
+    const [
+      { data: entryData, error: entryError },
+      { data: memberData, error: memberError },
+    ] = await Promise.all([
+      supabase.rpc('scoped_timesheet_entries', {
+        requested_start_at: weekStart.toISOString(),
+        requested_end_at: rangeEnd.toISOString(),
+        requested_scope: scope,
+        requested_employee_id: selectedEmployeeId === 'all' ? null : selectedEmployeeId,
+      }),
+      supabase.rpc('timesheet_scope_members', {
+        requested_scope: scope,
+      }),
+    ]);
 
+    const fetchError = entryError || memberError;
     if (fetchError) {
       setEntries([]);
+      setMembers([]);
       setError(fetchError.message || 'Unable to load your timesheet.');
     } else {
-      setEntries(data || []);
+      setEntries(entryData || []);
+      setMembers(memberData || []);
     }
     setLoading(false);
-  }, [weekStart]);
+  }, [scope, selectedEmployeeId, weekStart]);
 
   useEffect(() => {
     void loadTimesheet();
@@ -133,6 +183,9 @@ const Timesheets = () => {
     )
   ), [daySummaries]);
 
+  const selectedMember = members.find((member) => member.employee_id === selectedEmployeeId);
+  const scopeCopy = SCOPE_COPY[scope];
+  const isSharedScope = scope !== 'personal';
   const selectedEntries = entriesByDay[selectedDate] || [];
   const selectedSummary = daySummaries[selectedDate] || {
     workedSeconds: 0,
@@ -153,21 +206,65 @@ const Timesheets = () => {
     setSelectedDate(dateKey(today));
   };
 
+  const changeScope = (nextScope) => {
+    setScope(nextScope);
+    setSelectedEmployeeId('all');
+  };
+
   return (
     <Layout
       title="Timesheets"
-      eyebrow="Personal"
-      heading="My timesheet"
-      description="A focused view of your tracked work, breaks, and daily context."
+      eyebrow={scopeCopy.eyebrow}
+      heading={scopeCopy.heading}
+      description={scopeCopy.description}
       actions={(
         <button type="button" className="btn btn-outline timesheet-today" onClick={goToCurrentWeek}>
           Today
         </button>
       )}
     >
+      {(availableScopes.length > 1 || isSharedScope) && (
+        <section className="filter-bar timesheet-controls" aria-label="Timesheet scope">
+          {availableScopes.length > 1 && (
+            <div className="app-tabs">
+              {availableScopes.map((availableScope) => (
+                <button
+                  type="button"
+                  className={`app-tab${scope === availableScope ? ' active' : ''}`}
+                  key={availableScope}
+                  onClick={() => changeScope(availableScope)}
+                >
+                  {SCOPE_COPY[availableScope].label}
+                </button>
+              ))}
+            </div>
+          )}
+          {isSharedScope && (
+            <label className="timesheet-person-select">
+              <span>Person</span>
+              <select
+                value={selectedEmployeeId}
+                onChange={(event) => setSelectedEmployeeId(event.target.value)}
+              >
+                <option value="all">
+                  {scope === 'organisation' ? 'All people' : 'Entire managed team'}
+                </option>
+                {members.map((member) => (
+                  <option key={member.employee_id} value={member.employee_id}>
+                    {member.employee_name} ({member.employee_code})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </section>
+      )}
+
       <section className="timesheet-summary" aria-label="Weekly summary">
         <article className="timesheet-summary-card timesheet-summary-card--primary">
-          <span>Worked this week</span>
+          <span>
+            {selectedMember ? `${selectedMember.employee_name} · worked` : 'Worked this week'}
+          </span>
           <strong>{formatDuration(weeklySummary.workedSeconds)}</strong>
           <small>Break time is excluded</small>
         </article>
@@ -177,9 +274,13 @@ const Timesheets = () => {
           <small>Across {weeklySummary.sessionCount} session{weeklySummary.sessionCount === 1 ? '' : 's'}</small>
         </article>
         <article className="timesheet-summary-card">
-          <span>Active days</span>
-          <strong>{weeklySummary.activeDays}</strong>
-          <small>of 7 days in this week</small>
+          <span>{isSharedScope ? 'People in scope' : 'Active days'}</span>
+          <strong>{isSharedScope ? members.length : weeklySummary.activeDays}</strong>
+          <small>
+            {isSharedScope
+              ? selectedMember ? selectedMember.employee_code : 'Available for individual review'
+              : 'of 7 days in this week'}
+          </small>
         </article>
       </section>
 
@@ -200,7 +301,7 @@ const Timesheets = () => {
         {loading ? (
           <AppState
             type="loading"
-            title="Loading your week"
+            title={isSharedScope ? 'Loading scoped timesheets' : 'Loading your week'}
             message="Collecting sessions and break totals."
             compact
           />
@@ -274,8 +375,12 @@ const Timesheets = () => {
               {selectedEntries.length === 0 ? (
                 <AppState
                   type="empty"
-                  title="No work tracked"
-                  message="There are no sessions recorded for this day."
+                  title={isSharedScope ? 'No scoped work tracked' : 'No work tracked'}
+                  message={
+                    isSharedScope
+                      ? 'There are no permitted sessions for this selection and day.'
+                      : 'There are no sessions recorded for this day.'
+                  }
                   compact
                 />
               ) : (
@@ -288,6 +393,11 @@ const Timesheets = () => {
                       <div className="timesheet-session-body">
                         <div className="timesheet-session-heading">
                           <div>
+                            {isSharedScope && (
+                              <span className="timesheet-person">
+                                {entry.employee_name} · {entry.employee_code}
+                              </span>
+                            )}
                             <span className="timesheet-context-type">
                               {entry.context_type === 'project' ? 'Project' : 'Activity'}
                             </span>

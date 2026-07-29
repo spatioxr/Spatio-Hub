@@ -4167,6 +4167,40 @@ td {
 }
 
 /* ── Personal timesheet ─────────────────────────────────────────────────── */
+.timesheet-controls {
+  margin-bottom: 1rem;
+}
+
+.timesheet-person-select {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+
+.timesheet-person-select > span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.timesheet-person-select select {
+  min-width: 230px;
+  min-height: 38px;
+  padding: 0 2rem 0 0.75rem;
+  border: 1px solid #dbe3df;
+  border-radius: 9px;
+  background: white;
+  color: var(--text-main);
+  outline: none;
+  font-size: 0.75rem;
+}
+
+.timesheet-person-select select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 168, 126, 0.1);
+}
+
 .timesheet-summary {
   display: grid;
   grid-template-columns: 1.35fr repeat(2, minmax(0, 1fr));
@@ -4440,6 +4474,14 @@ td {
   text-transform: uppercase;
 }
 
+.timesheet-person {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--primary);
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
 .timesheet-session-heading h4 {
   color: var(--text-main);
   font-size: 0.9rem;
@@ -4516,6 +4558,30 @@ td {
 }
 
 @media (max-width: 680px) {
+  .timesheet-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .timesheet-controls .app-tabs {
+    width: 100%;
+  }
+
+  .timesheet-controls .app-tab {
+    flex: 1;
+  }
+
+  .timesheet-person-select {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+    margin-left: 0;
+  }
+
+  .timesheet-person-select select {
+    width: 100%;
+  }
+
   .timesheet-summary {
     grid-template-columns: 1fr;
   }

@@ -61,6 +61,14 @@ project/activity labels, task descriptions, break detail, and break-excluded
 worked duration. Team and organisation timesheet scope is not exposed by this
 function.
 
+Team and organisation timesheets use `timesheet_scope_members()` and
+`scoped_timesheet_entries()` as role-scoped authenticated projections.
+Employees remain personal-only. Managers can read employees explicitly
+assigned to projects they manage, including those employees' project and
+activity sessions, but cannot select anyone outside that team. Admins and
+superadmins can use organisation scope. The requested scope and optional
+employee selection are validated on the server before any entries are returned.
+
 Authenticated clients read permitted work sessions through RLS and begin or
 finally end their own work day only through the server-controlled BOS/EOD
 workflow functions. Context switches remain atomic and report-neutral. The

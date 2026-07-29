@@ -138,6 +138,32 @@ SELECT
       'EXECUTE'
     ) AS has_scoped_personal_timesheet,
   to_regprocedure(
+    'public.timesheet_scope_members(text)'
+  ) IS NOT NULL
+    AND to_regprocedure(
+      'public.scoped_timesheet_entries(timestamptz,timestamptz,text,uuid)'
+    ) IS NOT NULL
+    AND NOT has_function_privilege(
+      'anon',
+      'public.timesheet_scope_members(text)',
+      'EXECUTE'
+    )
+    AND NOT has_function_privilege(
+      'anon',
+      'public.scoped_timesheet_entries(timestamptz,timestamptz,text,uuid)',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.timesheet_scope_members(text)',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.scoped_timesheet_entries(timestamptz,timestamptz,text,uuid)',
+      'EXECUTE'
+    ) AS has_role_scoped_timesheets,
+  to_regprocedure(
     'public.create_manual_work_entry(uuid,uuid,uuid,text,timestamptz,timestamptz,text)'
   ) IS NOT NULL
     AND to_regprocedure(
