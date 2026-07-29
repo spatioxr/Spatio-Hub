@@ -4,7 +4,6 @@ import { AuthContext } from '../context/AuthContext';
 import { LeaveContext } from '../context/LeaveContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import Layout from '../components/Layout';
-import DailyReportSettings from '../components/DailyReportSettings';
 import LiveStatusBoard from '../components/LiveStatusBoard';
 import { supabase } from '../utils/supabaseClient';
 import { getManagedDepartments, hasPermission, PERMISSIONS } from '../utils/rbac';
@@ -19,7 +18,6 @@ const Dashboard = () => {
     status: workStatus,
     contextLabel,
     dayState,
-    refresh: refreshWorkSession,
   } = useContext(WorkSessionContext);
 
   const userKey = user.role;
@@ -126,10 +124,6 @@ const Dashboard = () => {
   const isEmployee = user.role === 'employee';
   const isSuperAdmin = user.role === 'superadmin';
   const isNormalAdmin = user.role === 'admin';
-  const canManageDailyReportSettings = hasPermission(
-    user,
-    PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS,
-  );
   const canViewLiveStatus = hasPermission(user, PERMISSIONS.VIEW_LIVE_STATUS);
 
   // Stats Card Configs
@@ -279,10 +273,6 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-
-          {canManageDailyReportSettings && (
-            <DailyReportSettings onSaved={refreshWorkSession} />
-          )}
 
         </div> {/* End Left Column */}
 

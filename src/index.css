@@ -367,6 +367,7 @@ td {
 }
 
 .sidebar-menu {
+  flex: 1;
   padding: 1.25rem 0.9rem;
   display: flex;
   flex-direction: column;
@@ -400,6 +401,13 @@ td {
   background: #00A884 !important;
   color: white !important;
   box-shadow: 0px 4px 15px rgba(0, 168, 132, 0.15) !important;
+}
+
+.sidebar-link--separated {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 10px 10px;
+  padding-top: 1rem;
 }
 
 .main-content {
@@ -3078,6 +3086,175 @@ td {
   }
 }
 
+/* ── Phase 1 Admin Settings ─────────────────────────────────────────────── */
+.admin-settings-intro {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #cfe2db;
+  border-radius: var(--radius);
+  background: var(--soft-mint);
+  color: var(--primary);
+}
+
+.admin-settings-intro > i {
+  font-size: 1.35rem;
+}
+
+.admin-settings-intro div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.admin-settings-intro strong {
+  font-size: 0.88rem;
+}
+
+.admin-settings-intro span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.admin-settings-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.admin-settings-section-heading h2 {
+  color: var(--text-main);
+  font-size: 1.15rem;
+  font-weight: 680;
+}
+
+.admin-settings-section-heading p {
+  max-width: 650px;
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.admin-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.admin-settings-card {
+  display: flex;
+  min-height: 132px;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: white;
+  box-shadow: var(--shadow);
+  color: var(--text-main);
+  text-decoration: none;
+}
+
+.admin-settings-card > i:last-child {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 1.05rem;
+}
+
+.admin-settings-card--active {
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.admin-settings-card--active:hover {
+  transform: translateY(-1px);
+  border-color: #b8d4ca;
+  box-shadow: var(--shadow-raised);
+}
+
+.admin-settings-card--planned,
+.admin-settings-card--locked {
+  background: #fafbfa;
+}
+
+.admin-settings-card--planned .admin-settings-card-icon,
+.admin-settings-card--locked .admin-settings-card-icon {
+  background: #eef1ef;
+  color: var(--text-muted);
+}
+
+.admin-settings-card-icon {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: var(--soft-mint);
+  color: var(--primary);
+  font-size: 1.15rem;
+}
+
+.admin-settings-card-copy {
+  min-width: 0;
+}
+
+.admin-settings-card-copy h3 {
+  font-size: 0.92rem;
+  font-weight: 680;
+}
+
+.admin-settings-card-copy p {
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.admin-settings-card-copy span {
+  display: inline-block;
+  margin-top: 0.65rem;
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 680;
+}
+
+.admin-settings-card--planned .admin-settings-card-copy span,
+.admin-settings-card--locked .admin-settings-card-copy span {
+  color: var(--text-muted);
+}
+
+.admin-settings-detail {
+  margin-top: 1.75rem;
+  scroll-margin-top: 1.5rem;
+}
+
+.admin-settings-detail > .card {
+  max-width: 760px;
+}
+
+.admin-settings-scope-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  color: var(--text-muted);
+  font-size: 0.73rem;
+}
+
+@media (max-width: 720px) {
+  .admin-settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Phase 1 application foundation ─────────────────────────────────────── */
 .page-header {
   display: flex;
@@ -3354,6 +3531,13 @@ td {
     gap: 0.25rem;
     padding: 0.45rem max(0.5rem, env(safe-area-inset-right)) max(0.45rem, env(safe-area-inset-bottom));
     overflow: visible;
+  }
+
+  .sidebar-link--separated {
+    margin-top: 0;
+    border-top: 0;
+    border-radius: 10px;
+    padding-top: 0.35rem;
   }
 
   .sidebar-link {

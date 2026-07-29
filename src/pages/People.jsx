@@ -64,7 +64,11 @@ const PersonDrawer = ({
   const isSuperadmin = getRole(currentUser) === ROLES.SUPERADMIN;
   const availableRoles = isSuperadmin
     ? ROLE_OPTIONS
-    : ROLE_OPTIONS.filter((option) => option.value !== 'superadmin');
+    : ROLE_OPTIONS.filter((option) => (
+      ['employee', 'manager'].includes(option.value)
+      || option.value === person?.role
+    ));
+  const roleLocked = !isSuperadmin && ['admin', 'superadmin'].includes(person?.role);
   const managerOptions = people.filter((candidate) => (
     candidate.status === 'Active' && candidate.id !== person?.id
   ));
@@ -171,11 +175,19 @@ const PersonDrawer = ({
           <div className="people-form-grid">
             <label className="people-field">
               <span>Application role *</span>
-              <select name="role" value={form.role} onChange={handleChange} disabled={readOnly}>
+              <select
+                name="role"
+                value={form.role}
+                onChange={handleChange}
+                disabled={readOnly || roleLocked}
+              >
                 {availableRoles.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
+              {!readOnly && roleLocked && (
+                <small>Only a superadmin can grant or remove privileged roles.</small>
+              )}
             </label>
             <label className="people-field">
               <span>Status *</span>

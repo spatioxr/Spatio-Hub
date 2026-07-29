@@ -35,8 +35,16 @@ assigned to projects they manage. Admins and superadmins use controlled
 `create_employee_profile` and `update_employee_profile` functions for employee
 ID, name, work email, department, designation, application role, reporting
 manager, joining date, and employment status. Direct authenticated inserts and
-deletes are denied. Admins cannot manage the superadmin role, and nobody can
-deactivate their own profile. Released profiles retain operational history.
+deletes are denied. Admins cannot grant or remove privileged roles or manage a
+superadmin profile, and nobody can deactivate their own profile. Released
+profiles retain operational history.
+
+Admin Settings is available only to active Admin and Superadmin profiles. The
+route groups existing Phase 1 administration controls without widening their
+underlying data access. Project and activity controls retain their existing
+controlled-function and RLS boundaries, while BOS/EOD exceptions remain
+superadmin-only. Employee-profile functions also enforce that only a
+superadmin may grant or remove the `admin` or `superadmin` role.
 
 The company live-status board uses `live_work_status()` as a narrow
 authenticated projection. It exposes every active employee's name, employee

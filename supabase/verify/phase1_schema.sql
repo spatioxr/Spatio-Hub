@@ -85,6 +85,17 @@ SELECT
       'public.employees',
       'DELETE'
     ) AS has_controlled_people_directory,
+  to_regprocedure('public.can_access_admin_settings()') IS NOT NULL
+    AND NOT has_function_privilege(
+      'anon',
+      'public.can_access_admin_settings()',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.can_access_admin_settings()',
+      'EXECUTE'
+    ) AS has_admin_settings_boundary,
   to_regprocedure(
     'public.switch_work_session(uuid,uuid,text)'
   ) IS NOT NULL AS has_atomic_work_session_switch,

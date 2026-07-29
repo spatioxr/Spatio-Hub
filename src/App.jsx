@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Leave from './pages/Leave';
 import People from './pages/People';
+import AdminSettings from './pages/AdminSettings';
 import ResetPassword from './pages/ResetPassword';
 import { hasPermission, PERMISSIONS } from './utils/rbac';
 
@@ -52,6 +53,14 @@ const AppRoutes = () => (
               element={(
                 <PermissionRoute permission={PERMISSIONS.VIEW_PEOPLE}>
                   <People />
+                </PermissionRoute>
+              )}
+            />
+            <Route
+              path="/admin-settings"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.ACCESS_ADMIN_SETTINGS}>
+                  <AdminSettings />
                 </PermissionRoute>
               )}
             />

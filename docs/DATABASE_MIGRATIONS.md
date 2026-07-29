@@ -54,6 +54,9 @@ environment.
     creation and editing, safe employment-status deactivation, superadmin role
     boundaries, Manager project-team visibility, and denial of direct employee
     inserts and deletes.
+16. `20260729001300_admin_settings_boundary.sql` adds the authenticated
+    Admin/Superadmin settings capability and restricts granting or removing
+    privileged Admin and Superadmin roles to Superadmin.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -163,6 +166,11 @@ People check. It verifies employee route denial, Manager project-team read-only
 scope, Admin create/edit/deactivate behavior, superadmin role boundaries,
 default leave/work settings, retained profiles, and denial of direct employee
 inserts and deletes.
+
+Run `supabase/verify/hrms_045_admin_settings.sql` for the rollback-only Admin
+Settings check. It verifies Employee and Manager denial, Admin access to
+standard People controls, denial of Admin privileged-role changes,
+Superadmin promotion/demotion authority, and restricted function execution.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

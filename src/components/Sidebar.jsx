@@ -12,6 +12,13 @@ const Sidebar = () => {
     { path: '/attendance', name: 'Work Tracking', icon: 'ri-calendar-check-line', permission: PERMISSIONS.TRACK_OWN_WORK },
     { path: '/people', name: 'People', icon: 'ri-team-line', permission: PERMISSIONS.VIEW_PEOPLE },
     { path: '/leave', name: 'Leave', icon: 'ri-flight-takeoff-line', permission: PERMISSIONS.APPLY_OWN_LEAVE },
+    {
+      path: '/admin-settings',
+      name: 'Admin Settings',
+      icon: 'ri-settings-3-line',
+      permission: PERMISSIONS.ACCESS_ADMIN_SETTINGS,
+      separated: true,
+    },
   ];
 
   const filteredMenu = menuItems.filter((item) => hasPermission(user, item.permission));
@@ -25,7 +32,9 @@ const Sidebar = () => {
         {filteredMenu.map(item => (
           <NavLink 
             to={item.path} 
-            className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}
+            className={({ isActive }) => (
+              `sidebar-link${item.separated ? ' sidebar-link--separated' : ''}${isActive ? ' active' : ''}`
+            )}
             key={item.path}
           >
             <i className={item.icon}></i>
