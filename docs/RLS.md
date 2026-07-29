@@ -84,6 +84,8 @@ The organisation work-distribution dashboard reuses this projection with
 activity, department, and employee totals. Its React route is limited to Admin
 and Superadmin, while the projection independently rejects Employee and Manager
 organisation requests on the server.
+Analytics filters and chart drill-downs operate only on the rows returned by
+that server-scoped request; they never issue a broader client-side table read.
 
 Authenticated clients read permitted work sessions through RLS and begin or
 finally end their own work day only through the server-controlled BOS/EOD

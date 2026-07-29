@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import AppState from '../components/AppState';
 import Layout from '../components/Layout';
 import { supabase } from '../utils/supabaseClient';
@@ -43,6 +49,30 @@ const formatRange = (startDate, endDate) => {
   return `${formatter.format(new Date(`${startDate}T00:00:00`))} – ${formatter.format(new Date(`${endDate}T00:00:00`))}`;
 };
 
+const formatEntryDate = (value) => new Intl.DateTimeFormat('en-IN', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+}).format(new Date(value));
+
+const formatClock = (value) => (
+  value
+    ? new Intl.DateTimeFormat('en-IN', {
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(value))
+    : 'Now'
+);
+
+const uniqueOptions = (entries, keyForEntry, labelForEntry) => (
+  [...new Map(entries.map((entry) => [
+    keyForEntry(entry),
+    { value: keyForEntry(entry), label: labelForEntry(entry) },
+  ])).values()]
+    .filter((option) => option.value)
+    .sort((left, right) => left.label.localeCompare(right.label))
+);
+
 const aggregateEntries = (entries, keyForEntry, labelForEntry) => {
   const groups = new Map();
 
@@ -63,7 +93,16 @@ const aggregateEntries = (entries, keyForEntry, labelForEntry) => {
   ));
 };
 
-const DistributionChart = ({ title, description, data, emptyMessage, accent }) => {
+const DistributionChart = ({
+  title,
+  description,
+  data,
+  emptyMessage,
+  accent,
+  dimension,
+  activeKey,
+  onSelect,
+}) => {
   const largestValue = data[0]?.seconds || 0;
 
   return (
@@ -86,10 +125,13 @@ const DistributionChart = ({ title, description, data, emptyMessage, accent }) =
           {data.map((item) => {
             const width = largestValue > 0 ? (item.seconds / largestValue) * 100 : 0;
             return (
-              <div
-                className="analytics-bar-row"
+              <button
+                type="button"
+                className={`analytics-bar-row${activeKey === item.key ? ' analytics-bar-row--active' : ''}`}
                 key={item.key}
                 aria-label={`${item.label}: ${formatDuration(item.seconds)}`}
+                aria-pressed={activeKey === item.key}
+                onClick={() => onSelect(dimension, item)}
               >
                 <div className="analytics-bar-label">
                   <span title={item.label}>{item.label}</span>
@@ -101,7 +143,7 @@ const DistributionChart = ({ title, description, data, emptyMessage, accent }) =
                     style={{ width: `${Math.max(width, 2)}%` }}
                   />
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -119,6 +161,13 @@ const WorkDistribution = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rangeError, setRangeError] = useState('');
+  const [filters, setFilters] = useState({
+    project: 'all',
+    activity: 'all',
+    department: 'all',
+    employee: 'all',
+  });
+  const entriesRef = useRef(null);
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -144,45 +193,151 @@ const WorkDistribution = () => {
     void fetchEntries();
   }, [fetchEntries]);
 
+  const filterOptions = useMemo(() => ({
+    projects: uniqueOptions(
+      entries.filter((entry) => entry.context_type === 'project'),
+      (entry) => entry.context_id,
+      (entry) => entry.context_label,
+    ),
+    activities: uniqueOptions(
+      entries.filter((entry) => entry.context_type === 'activity'),
+      (entry) => entry.context_id,
+      (entry) => entry.context_label,
+    ),
+    departments: uniqueOptions(
+      entries,
+      (entry) => entry.employee_department || 'not-assigned',
+      (entry) => entry.employee_department || 'Not assigned',
+    ),
+    employees: uniqueOptions(
+      entries,
+      (entry) => entry.employee_id,
+      (entry) => (
+        `${entry.employee_name || 'Unknown employee'}${entry.employee_code ? ` (${entry.employee_code})` : ''}`
+      ),
+    ),
+  }), [entries]);
+
+  const filteredEntries = useMemo(() => entries.filter((entry) => {
+    const employeeMatches = filters.employee === 'all'
+      || entry.employee_id === filters.employee;
+    const departmentMatches = filters.department === 'all'
+      || (entry.employee_department || 'not-assigned') === filters.department;
+    const projectFilterActive = filters.project !== 'all';
+    const activityFilterActive = filters.activity !== 'all';
+    const contextMatches = !projectFilterActive && !activityFilterActive
+      ? true
+      : (
+        (projectFilterActive
+          && entry.context_type === 'project'
+          && entry.context_id === filters.project)
+        || (activityFilterActive
+          && entry.context_type === 'activity'
+          && entry.context_id === filters.activity)
+      );
+
+    return employeeMatches && departmentMatches && contextMatches;
+  }), [entries, filters]);
+
+  const activeFilters = useMemo(() => {
+    const labels = {
+      project: 'Project',
+      activity: 'Activity',
+      department: 'Department',
+      employee: 'Employee',
+    };
+    const options = {
+      project: filterOptions.projects,
+      activity: filterOptions.activities,
+      department: filterOptions.departments,
+      employee: filterOptions.employees,
+    };
+
+    return Object.entries(filters)
+      .filter(([, value]) => value !== 'all')
+      .map(([key, value]) => ({
+        key,
+        label: labels[key],
+        value: options[key].find((option) => option.value === value)?.label || 'Selected',
+      }));
+  }, [filterOptions, filters]);
+
   const summary = useMemo(() => {
-    const workedSeconds = entries.reduce(
+    const workedSeconds = filteredEntries.reduce(
       (total, entry) => total + (Number(entry.worked_seconds) || 0),
       0,
     );
-    const breakSeconds = entries.reduce(
+    const breakSeconds = filteredEntries.reduce(
       (total, entry) => total + (Number(entry.break_seconds) || 0),
       0,
     );
     return {
       workedSeconds,
       breakSeconds,
-      sessions: entries.length,
-      employees: new Set(entries.map((entry) => entry.employee_id)).size,
+      sessions: filteredEntries.length,
+      employees: new Set(filteredEntries.map((entry) => entry.employee_id)).size,
     };
-  }, [entries]);
+  }, [filteredEntries]);
 
   const distributions = useMemo(() => ({
     projects: aggregateEntries(
-      entries.filter((entry) => entry.context_type === 'project'),
+      filteredEntries.filter((entry) => entry.context_type === 'project'),
       (entry) => entry.context_id || entry.context_label,
       (entry) => entry.context_label,
     ),
     activities: aggregateEntries(
-      entries.filter((entry) => entry.context_type === 'activity'),
+      filteredEntries.filter((entry) => entry.context_type === 'activity'),
       (entry) => entry.context_id || entry.context_label,
       (entry) => entry.context_label,
     ),
     departments: aggregateEntries(
-      entries,
+      filteredEntries,
       (entry) => entry.employee_department || 'not-assigned',
       (entry) => entry.employee_department || 'Not assigned',
     ),
     employees: aggregateEntries(
-      entries,
+      filteredEntries,
       (entry) => entry.employee_id,
       (entry) => entry.employee_name || entry.employee_code || 'Unknown employee',
     ),
-  }), [entries]);
+  }), [filteredEntries]);
+
+  const visibleEntries = useMemo(() => (
+    [...filteredEntries].sort((left, right) => (
+      new Date(right.started_at) - new Date(left.started_at)
+    ))
+  ), [filteredEntries]);
+
+  const clearFilters = () => setFilters({
+    project: 'all',
+    activity: 'all',
+    department: 'all',
+    employee: 'all',
+  });
+
+  const changeFilter = (key, value) => {
+    setFilters((current) => ({ ...current, [key]: value }));
+  };
+
+  const removeFilter = (key) => {
+    setFilters((current) => ({ ...current, [key]: 'all' }));
+  };
+
+  const drillIntoEntries = (dimension, item) => {
+    setFilters((current) => {
+      const nextValue = current[dimension] === item.key ? 'all' : item.key;
+      if (dimension === 'project') {
+        return { ...current, project: nextValue, activity: 'all' };
+      }
+      if (dimension === 'activity') {
+        return { ...current, activity: nextValue, project: 'all' };
+      }
+      return { ...current, [dimension]: nextValue };
+    });
+    window.requestAnimationFrame(() => {
+      entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   const applyRange = (event) => {
     event.preventDefault();
@@ -198,6 +353,7 @@ const WorkDistribution = () => {
     }
 
     setRangeError('');
+    clearFilters();
     setAppliedRange({ ...draftRange });
   };
 
@@ -267,6 +423,92 @@ const WorkDistribution = () => {
         />
       ) : (
         <>
+          <section className="card analytics-filter-panel" aria-label="Analytics filters">
+            <div className="analytics-filter-heading">
+              <div>
+                <span className="page-eyebrow">Filters</span>
+                <h2>Interpret this period</h2>
+                <p>Projects and activities combine; department and employee narrow the same result.</p>
+              </div>
+              {activeFilters.length > 0 && (
+                <button type="button" className="timesheet-clear-filters" onClick={clearFilters}>
+                  <i className="ri-filter-off-line" />
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            <div className="analytics-filter-grid">
+              <label className="timesheet-filter-field">
+                <span>Project</span>
+                <select
+                  value={filters.project}
+                  onChange={(event) => changeFilter('project', event.target.value)}
+                >
+                  <option value="all">All projects</option>
+                  {filterOptions.projects.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="timesheet-filter-field">
+                <span>Activity</span>
+                <select
+                  value={filters.activity}
+                  onChange={(event) => changeFilter('activity', event.target.value)}
+                >
+                  <option value="all">All activities</option>
+                  {filterOptions.activities.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="timesheet-filter-field">
+                <span>Department</span>
+                <select
+                  value={filters.department}
+                  onChange={(event) => changeFilter('department', event.target.value)}
+                >
+                  <option value="all">All departments</option>
+                  {filterOptions.departments.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="timesheet-filter-field">
+                <span>Employee</span>
+                <select
+                  value={filters.employee}
+                  onChange={(event) => changeFilter('employee', event.target.value)}
+                >
+                  <option value="all">All employees</option>
+                  {filterOptions.employees.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {activeFilters.length > 0 && (
+              <div className="analytics-active-filters" aria-label="Active analytics filters">
+                <span>{activeFilters.length} active</span>
+                {activeFilters.map((filter) => (
+                  <button
+                    type="button"
+                    className="analytics-filter-chip"
+                    key={filter.key}
+                    onClick={() => removeFilter(filter.key)}
+                    aria-label={`Remove ${filter.label} filter`}
+                  >
+                    <small>{filter.label}</small>
+                    <span>{filter.value}</span>
+                    <i className="ri-close-line" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section className="analytics-kpi-grid" aria-label="Reporting period totals">
             <article className="card analytics-kpi">
               <span className="analytics-kpi-icon analytics-kpi-icon--primary"><i className="ri-time-line" /></span>
@@ -292,37 +534,105 @@ const WorkDistribution = () => {
               title="No tracked work in this period"
               message="Choose another date range once employees have completed work sessions."
             />
+          ) : filteredEntries.length === 0 ? (
+            <AppState
+              type="empty"
+              title="No entries match these filters"
+              message="Remove one or more filters to restore matching work sessions."
+              action={<button type="button" className="btn btn-outline" onClick={clearFilters}>Clear filters</button>}
+            />
           ) : (
-            <div className="analytics-chart-grid">
-              <DistributionChart
-                title="Projects"
-                description="Client and delivery work"
-                data={distributions.projects}
-                emptyMessage="No project time was tracked in this period."
-                accent="green"
-              />
-              <DistributionChart
-                title="Internal activities"
-                description="Approved non-project work"
-                data={distributions.activities}
-                emptyMessage="No internal activity time was tracked in this period."
-                accent="amber"
-              />
-              <DistributionChart
-                title="Departments"
-                description="Worked time by organisation unit"
-                data={distributions.departments}
-                emptyMessage="No department time is available."
-                accent="blue"
-              />
-              <DistributionChart
-                title="Employees"
-                description="Individual contribution in the period"
-                data={distributions.employees}
-                emptyMessage="No employee time is available."
-                accent="violet"
-              />
-            </div>
+            <>
+              <div className="analytics-chart-grid">
+                <DistributionChart
+                  title="Projects"
+                  description="Client and delivery work · select a bar to drill down"
+                  data={distributions.projects}
+                  emptyMessage="No project time matches this view."
+                  accent="green"
+                  dimension="project"
+                  activeKey={filters.project}
+                  onSelect={drillIntoEntries}
+                />
+                <DistributionChart
+                  title="Internal activities"
+                  description="Approved non-project work · select a bar to drill down"
+                  data={distributions.activities}
+                  emptyMessage="No internal activity time matches this view."
+                  accent="amber"
+                  dimension="activity"
+                  activeKey={filters.activity}
+                  onSelect={drillIntoEntries}
+                />
+                <DistributionChart
+                  title="Departments"
+                  description="Worked time by organisation unit · select a bar to drill down"
+                  data={distributions.departments}
+                  emptyMessage="No department time matches this view."
+                  accent="blue"
+                  dimension="department"
+                  activeKey={filters.department}
+                  onSelect={drillIntoEntries}
+                />
+                <DistributionChart
+                  title="Employees"
+                  description="Individual contribution · select a bar to drill down"
+                  data={distributions.employees}
+                  emptyMessage="No employee time matches this view."
+                  accent="violet"
+                  dimension="employee"
+                  activeKey={filters.employee}
+                  onSelect={drillIntoEntries}
+                />
+              </div>
+
+              <section className="card analytics-entry-panel" ref={entriesRef}>
+                <div className="analytics-entry-heading">
+                  <div>
+                    <span className="page-eyebrow">Drill-down</span>
+                    <h2>Supporting entries</h2>
+                    <p>
+                      {activeFilters.length > 0
+                        ? 'Only work sessions matching the combined active filters are shown.'
+                        : 'All work sessions behind the current reporting period.'}
+                    </p>
+                  </div>
+                  <span>{visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'}</span>
+                </div>
+
+                <ol className="analytics-entry-list">
+                  {visibleEntries.map((entry) => (
+                    <li key={entry.work_entry_id} className="analytics-entry">
+                      <span className={`analytics-entry-icon analytics-entry-icon--${entry.context_type}`}>
+                        <i className={entry.context_type === 'project' ? 'ri-folder-3-line' : 'ri-flashlight-line'} />
+                      </span>
+                      <div className="analytics-entry-main">
+                        <div>
+                          <span className="analytics-entry-person">
+                            {entry.employee_name} · {entry.employee_code}
+                          </span>
+                          <strong>{entry.context_label}</strong>
+                          <small>
+                            {entry.context_type === 'project' ? 'Project' : 'Activity'}
+                            {' · '}
+                            {entry.employee_department || 'No department'}
+                          </small>
+                        </div>
+                        <p>{entry.task_description || 'No task description recorded.'}</p>
+                      </div>
+                      <div className="analytics-entry-time">
+                        <strong>{formatDuration(entry.worked_seconds)}</strong>
+                        <span>{formatEntryDate(entry.started_at)}</span>
+                        <small>{formatClock(entry.started_at)} – {formatClock(entry.ended_at)}</small>
+                        {Number(entry.break_seconds) > 0 && (
+                          <small>Break {formatDuration(entry.break_seconds)}</small>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            </>
           )}
         </>
       )}
