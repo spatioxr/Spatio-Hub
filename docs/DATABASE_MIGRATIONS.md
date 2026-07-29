@@ -29,6 +29,9 @@ environment.
 8. `20260729000500_work_breaks.sql` adds server-controlled break/resume state,
    break-excluded worked-duration calculation, and denies direct authenticated
    break writes.
+9. `20260729000600_daily_reports.sql` enforces server-stamped BOS/EOD
+   submissions, creates mandatory-default settings for every employee, and
+   restricts requirement changes to a superadmin-controlled function.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -101,6 +104,11 @@ Run `supabase/verify/hrms_011_work_breaks.sql` for the rollback-only simple
 break check. It verifies Working/Break transitions, repeated-click denial,
 current-break restoration, break-excluded duration, the overlap guard, and the
 absence of break categories.
+
+Run `supabase/verify/hrms_012_daily_reports.sql` for the rollback-only daily
+report check. It verifies one row per employee/date, mandatory-default settings,
+server-controlled submission timestamps, automatic settings creation, and
+superadmin-only BOS/EOD exceptions.
 
 ## Rollback
 

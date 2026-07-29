@@ -41,7 +41,8 @@ policies AS (
   FROM pg_policies
   WHERE schemaname = 'public'
     AND tablename IN (SELECT table_name FROM expected)
-)
+),
+results AS (
 SELECT
   (SELECT count(*) = 14 AND bool_and(table_exists) FROM actual)
     AS all_tables_exist,
@@ -65,6 +66,38 @@ SELECT
     AS has_project_management_scope,
   to_regprocedure('public.can_access_work_entry(uuid)') IS NOT NULL
     AS has_work_entry_scope,
+  to_regprocedure(
+    'public.set_daily_report_requirements(uuid,boolean,boolean)'
+  ) IS NOT NULL AS has_daily_report_requirements_control,
+  NOT EXISTS (
+    SELECT 1
+    FROM public.employees employee
+    LEFT JOIN public.employee_work_settings settings
+      ON settings.employee_id = employee.id
+    WHERE settings.employee_id IS NULL
+  ) AS all_employees_have_work_settings,
+  NOT has_table_privilege(
+    'authenticated',
+    'public.employee_work_settings',
+    'INSERT'
+  )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.employee_work_settings',
+      'UPDATE'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.employee_work_settings',
+      'DELETE'
+    ) AS direct_work_settings_writes_denied,
+  EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgrelid = 'public.daily_reports'::regclass
+      AND tgname = 'daily_reports_guard_write'
+      AND NOT tgisinternal
+  ) AS daily_report_timestamp_guard,
   (
     SELECT count(*) = 5
     FROM public.activities
@@ -87,6 +120,18 @@ SELECT
     FROM pg_constraint
     WHERE conrelid = 'public.break_entries'::regclass
       AND contype = 'x'
-  ) AS break_overlap_guard;
+  ) AS break_overlap_guard
+)
+SELECT
+  (
+    SELECT bool_and(check_value::boolean)
+    FROM results result
+    CROSS JOIN LATERAL jsonb_each_text(to_jsonb(result)) check_item(
+      check_name,
+      check_value
+    )
+  ) AS all_checks_pass,
+  to_jsonb(result) AS checks
+FROM results result;
 
 ROLLBACK;

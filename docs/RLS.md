@@ -32,6 +32,12 @@ Direct insert, update, and delete privileges on `work_entries` are denied.
 Breaks follow the same pattern: authenticated clients use the break/resume
 functions, while direct writes to `break_entries` are denied.
 
+BOS/EOD report text remains writable only within the existing own or
+superadmin row scope, and a database trigger owns the corresponding submission
+timestamps. Per-employee BOS/EOD requirements are readable within their
+existing scope but may be changed only through the superadmin-controlled
+settings function; direct authenticated settings writes are denied.
+
 Attendance and daily-report corrections remain self-service or superadmin-only
 until HRMS-013 adds mandatory edit reasons and immutable audit history. This
 prevents a direct client from bypassing the future audit requirement.
