@@ -223,14 +223,12 @@ const Dashboard = () => {
   const dailyLeaves = getDailyLeaves();
 
   return (
-    <Layout title="Dashboard">
-      {/* Hello Greeting Header */}
-      <div className="mb-6">
-        <h2 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          Hello {userFirstName}! 👋
-        </h2>
-        <p className="text-muted font-medium mt-1 text-sm">Good Morning</p>
-      </div>
+    <Layout
+      title="Dashboard"
+      eyebrow="Overview"
+      heading={`Hello ${userFirstName}`}
+      description="Here is what is happening across your work day."
+    >
 
       {/* Top Stats Row */}
       {renderStats()}

@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { AuthContext } from '../context/AuthContext';
 import { LeaveContext } from '../context/LeaveContext';
 import { supabase } from '../utils/supabaseClient';
+import AppState from '../components/AppState';
 
 const LEAVE_TYPES = ['Sick Leave', 'Comp Off', 'Casual Leave'];
 
@@ -213,14 +214,30 @@ const Leave = () => {
 
   if (loading) {
     return (
-      <Layout title="Leave Management">
-        <div style={{ padding: '2rem', textAlign: 'center' }}>Loading leaves...</div>
+      <Layout
+        title="Leave"
+        eyebrow="Time away"
+        heading="Leave"
+        description="Manage your balance, requests and approvals in one place."
+      >
+        <div className="card">
+          <AppState
+            type="loading"
+            title="Loading leave details"
+            message="Your balances and requests are being prepared."
+          />
+        </div>
       </Layout>
     );
   }
 
   return (
-    <Layout title="Leave Management">
+    <Layout
+      title="Leave"
+      eyebrow="Time away"
+      heading="Leave"
+      description="Manage your balance, requests and approvals in one place."
+    >
 
       {/* ── Balance Cards ── */}
       <div className="leave-balance-grid">
@@ -375,10 +392,12 @@ const Leave = () => {
                   <span className="text-muted text-sm">{myRequests.length} request{myRequests.length !== 1 ? 's' : ''}</span>
                 </div>
                 {myRequests.length === 0 ? (
-                  <div className="leave-empty">
-                    <i className="ri-calendar-2-line" />
-                    <p>No leave requests yet. Apply for a leave to get started.</p>
-                  </div>
+                  <AppState
+                    compact
+                    type="empty"
+                    title="No leave requests yet"
+                    message="Apply for leave above and your request will appear here."
+                  />
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table>
@@ -444,10 +463,12 @@ const Leave = () => {
                   <span className="text-muted text-sm">{pendingApprovals.length} pending</span>
                 </div>
                 {pendingApprovals.length === 0 ? (
-                  <div className="leave-empty">
-                    <i className="ri-checkbox-circle-line" />
-                    <p>No pending leave requests to review.</p>
-                  </div>
+                  <AppState
+                    compact
+                    type="success"
+                    title="You are all caught up"
+                    message="There are no pending leave requests to review."
+                  />
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table>
@@ -561,10 +582,12 @@ const Leave = () => {
                   </div>
                 </div>
                 {filteredHistory.length === 0 ? (
-                  <div className="leave-empty">
-                    <i className="ri-history-line" />
-                    <p>No leave history found for the selected filters.</p>
-                  </div>
+                  <AppState
+                    compact
+                    type="empty"
+                    title="No matching leave history"
+                    message="Adjust the month or department filter to see more results."
+                  />
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table>

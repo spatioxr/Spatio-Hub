@@ -16,11 +16,11 @@ const Sidebar = () => {
   const filteredMenu = menuItems.filter((item) => hasPermission(user, item.permission));
 
   return (
-    <div className="sidebar">
-      <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', padding: '1rem 1.5rem' }}>
-        <img src={logoDark} alt="Spatio Logo" style={{ height: '42px', objectFit: 'contain' }} />
+    <aside className="sidebar" aria-label="Primary navigation">
+      <div className="sidebar-logo">
+        <img src={logoDark} alt="Spatio" />
       </div>
-      <div className="sidebar-menu">
+      <nav className="sidebar-menu">
         {filteredMenu.map(item => (
           <NavLink 
             to={item.path} 
@@ -28,12 +28,11 @@ const Sidebar = () => {
             key={item.path}
           >
             <i className={item.icon}></i>
-            {item.name}
+            <span>{item.name}</span>
           </NavLink>
         ))}
-      </div>
-
-    </div>
+      </nav>
+    </aside>
   );
 };
 

@@ -3,8 +3,9 @@ import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
+import PageHeader from './PageHeader';
 
-const Layout = ({ children, title }) => {
+const Layout = ({ children, title, heading = title, eyebrow, description, actions }) => {
   const { user, loading } = useContext(AuthContext);
   
   if (loading) return null;
@@ -15,9 +16,17 @@ const Layout = ({ children, title }) => {
       <Sidebar />
       <div className="main-content">
         <TopBar title={title} />
-        <div className="content-area">
-          {children}
-        </div>
+        <main className="content-area">
+          <div className="content-inner">
+            <PageHeader
+              eyebrow={eyebrow}
+              title={heading}
+              description={description}
+              actions={actions}
+            />
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

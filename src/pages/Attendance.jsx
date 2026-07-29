@@ -335,10 +335,15 @@ const Attendance = () => {
   };
 
   return (
-    <Layout title="Live Attendance List">
+    <Layout
+      title="Work Tracking"
+      eyebrow="Attendance"
+      heading="Work tracking"
+      description="Review monthly attendance, work duration, leave and late arrivals."
+    >
       {/* Monthly Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: '1.25rem 1.5rem', boxShadow: 'var(--shadow)', borderTop: '4px solid #006742', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div className="attendance-summary-grid">
+        <div className="attendance-summary-card attendance-summary-card--present">
           <div style={{ width: 44, height: 44, background: '#E8F2EF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#006742', fontSize: '1.25rem', flexShrink: 0 }}>
             <i className="ri-checkbox-circle-line"></i>
           </div>
@@ -347,7 +352,7 @@ const Attendance = () => {
             <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#006742' }}>{monthStats.presentDays}</div>
           </div>
         </div>
-        <div style={{ background: '#fff', borderRadius: 16, padding: '1.25rem 1.5rem', boxShadow: 'var(--shadow)', borderTop: '4px solid #F97316', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="attendance-summary-card attendance-summary-card--half">
           <div style={{ width: 44, height: 44, background: '#FFEDD5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F97316', fontSize: '1.25rem', flexShrink: 0 }}>
             <i className="ri-pie-chart-2-line"></i>
           </div>
@@ -356,7 +361,7 @@ const Attendance = () => {
             <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#F97316' }}>{monthStats.halfDays}</div>
           </div>
         </div>
-        <div style={{ background: '#fff', borderRadius: 16, padding: '1.25rem 1.5rem', boxShadow: 'var(--shadow)', borderTop: '4px solid #494949', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="attendance-summary-card attendance-summary-card--absent">
           <div style={{ width: 44, height: 44, background: '#F2F2F2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#494949', fontSize: '1.25rem', flexShrink: 0 }}>
             <i className="ri-close-circle-line"></i>
           </div>
@@ -365,7 +370,7 @@ const Attendance = () => {
             <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#494949' }}>{monthStats.absentDays}</div>
           </div>
         </div>
-        <div style={{ background: '#fff', borderRadius: 16, padding: '1.25rem 1.5rem', boxShadow: 'var(--shadow)', borderTop: '4px solid #00A87E', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="attendance-summary-card attendance-summary-card--leave">
           <div style={{ width: 44, height: 44, background: '#E0F5EE', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00A87E', fontSize: '1.25rem', flexShrink: 0 }}>
             <i className="ri-flight-takeoff-line"></i>
           </div>
@@ -374,7 +379,7 @@ const Attendance = () => {
             <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#00A87E' }}>{monthStats.leaveDays}</div>
           </div>
         </div>
-        <div style={{ background: '#fff', borderRadius: 16, padding: '1.25rem 1.5rem', boxShadow: 'var(--shadow)', borderTop: '4px solid #CA8A04', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="attendance-summary-card attendance-summary-card--late">
           <div style={{ width: 44, height: 44, background: '#FEF3C7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#CA8A04', fontSize: '1.25rem', flexShrink: 0 }}>
             <i className="ri-time-line"></i>
           </div>

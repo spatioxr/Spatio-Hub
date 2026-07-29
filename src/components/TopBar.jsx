@@ -113,12 +113,15 @@ const TopBar = ({ title }) => {
   };
 
   return (
-    <div className="topbar">
-      <h1 className="page-title">{title}</h1>
+    <header className="topbar">
+      <div className="topbar-brand">
+        <span className="topbar-brand-mark" aria-hidden="true">S</span>
+        <h1 className="page-title">{title}</h1>
+      </div>
       <div className="topbar-actions">
         <WorkTimerControl />
-        <div className="user-profile" style={{ position: 'relative', cursor: 'pointer' }} ref={dropdownRef} onClick={() => setDropdownOpen(!dropdownOpen)}>
-          <div className="avatar" style={{ overflow: 'hidden' }}>
+        <div className="user-profile" ref={dropdownRef} onClick={() => setDropdownOpen(!dropdownOpen)}>
+          <div className="avatar user-profile-avatar">
             {localAvatar ? (
               <img src={localAvatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
@@ -132,12 +135,7 @@ const TopBar = ({ title }) => {
           <i className="ri-arrow-down-s-line text-muted ml-2"></i>
 
           {dropdownOpen && (
-            <div style={{
-              position: 'absolute', top: '120%', right: 0,
-              background: 'white', boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-              borderRadius: '12px', width: '320px', zIndex: 100, padding: '1.25rem',
-              display: 'flex', flexDirection: 'column', gap: '1rem', cursor: 'default'
-            }} onClick={e => e.stopPropagation()}>
+            <div className="profile-menu" onClick={e => e.stopPropagation()}>
               
               {/* Profile Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -262,7 +260,7 @@ const TopBar = ({ title }) => {
         </div>,
         document.body
       )}
-    </div>
+    </header>
   );
 };
 
