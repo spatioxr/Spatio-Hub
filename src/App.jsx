@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext, AuthProvider } from './context/AuthContext';
 import { LeaveProvider } from './context/LeaveContext';
+import { WorkSessionProvider } from './context/WorkSessionContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
@@ -47,9 +48,11 @@ const App = () => {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <LeaveProvider>
-          <AppRoutes />
-        </LeaveProvider>
+        <WorkSessionProvider>
+          <LeaveProvider>
+            <AppRoutes />
+          </LeaveProvider>
+        </WorkSessionProvider>
       </BrowserRouter>
     </AuthProvider>
   );

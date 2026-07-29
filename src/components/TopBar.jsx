@@ -4,6 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { isDepartmentManagedBy } from '../utils/rbac';
 import { useNavigate } from 'react-router-dom';
+import WorkTimerControl from './WorkTimerControl';
 
 const TopBar = ({ title }) => {
   const { user, logout, updateUser } = useContext(AuthContext);
@@ -115,7 +116,7 @@ const TopBar = ({ title }) => {
     <div className="topbar">
       <h1 className="page-title">{title}</h1>
       <div className="topbar-actions">
-
+        <WorkTimerControl />
         <div className="user-profile" style={{ position: 'relative', cursor: 'pointer' }} ref={dropdownRef} onClick={() => setDropdownOpen(!dropdownOpen)}>
           <div className="avatar" style={{ overflow: 'hidden' }}>
             {localAvatar ? (
