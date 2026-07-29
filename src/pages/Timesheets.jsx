@@ -145,6 +145,10 @@ const formatWeekRange = (weekStart) => {
   return `${start} – ${end}`;
 };
 
+const sortByLabel = (options) => (
+  [...options].sort((left, right) => left.label.localeCompare(right.label))
+);
+
 const toLocalDateTimeInput = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -177,10 +181,15 @@ const Timesheets = () => {
   }, [user]);
   const [scope, setScope] = useState('personal');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('all');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [selectedProjectId, setSelectedProjectId] = useState('all');
+  const [selectedActivityId, setSelectedActivityId] = useState('all');
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
   const [entries, setEntries] = useState([]);
   const [members, setMembers] = useState([]);
+  const [filterProjects, setFilterProjects] = useState([]);
+  const [filterActivities, setFilterActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [manualEditor, setManualEditor] = useState(null);
@@ -207,42 +216,173 @@ const Timesheets = () => {
     const [
       { data: entryData, error: entryError },
       { data: memberData, error: memberError },
+      { data: projectData, error: projectError },
+      { data: activityData, error: activityError },
     ] = await Promise.all([
       supabase.rpc('scoped_timesheet_entries', {
         requested_start_at: weekStart.toISOString(),
         requested_end_at: rangeEnd.toISOString(),
         requested_scope: scope,
-        requested_employee_id: selectedEmployeeId === 'all' ? null : selectedEmployeeId,
+        requested_employee_id: null,
       }),
       supabase.rpc('timesheet_scope_members', {
         requested_scope: scope,
       }),
+      supabase
+        .from('projects')
+        .select('id, code, name')
+        .order('name', { ascending: true }),
+      supabase
+        .from('activities')
+        .select('id, name')
+        .order('name', { ascending: true }),
     ]);
 
-    const fetchError = entryError || memberError;
+    const fetchError = entryError || memberError || projectError || activityError;
     if (fetchError) {
       setEntries([]);
       setMembers([]);
+      setFilterProjects([]);
+      setFilterActivities([]);
       setError(fetchError.message || 'Unable to load your timesheet.');
     } else {
       setEntries(entryData || []);
       setMembers(memberData || []);
+      setFilterProjects(projectData || []);
+      setFilterActivities(activityData || []);
     }
     setLoading(false);
-  }, [scope, selectedEmployeeId, weekStart]);
+  }, [scope, weekStart]);
 
   useEffect(() => {
     void loadTimesheet();
   }, [loadTimesheet, workStatus]);
 
+  const employeeOptions = useMemo(() => members.map((member) => ({
+    value: member.employee_id,
+    label: `${member.employee_name} (${member.employee_code})`,
+  })), [members]);
+
+  const departmentOptions = useMemo(() => sortByLabel(
+    Array.from(new Set(
+      members.map((member) => member.employee_department).filter(Boolean),
+    )).map((department) => ({ value: department, label: department })),
+  ), [members]);
+
+  const projectOptions = useMemo(() => sortByLabel(
+    Array.from(new Map(
+      [
+        ...filterProjects.map((project) => [
+          project.id,
+          { value: project.id, label: `${project.code} · ${project.name}` },
+        ]),
+        ...entries
+          .filter((entry) => entry.context_type === 'project')
+          .map((entry) => [
+            entry.context_id,
+            { value: entry.context_id, label: entry.context_label },
+          ]),
+      ],
+    ).values()),
+  ), [entries, filterProjects]);
+
+  const activityOptions = useMemo(() => sortByLabel(
+    Array.from(new Map(
+      [
+        ...filterActivities.map((activity) => [
+          activity.id,
+          { value: activity.id, label: activity.name },
+        ]),
+        ...entries
+          .filter((entry) => entry.context_type === 'activity')
+          .map((entry) => [
+            entry.context_id,
+            { value: entry.context_id, label: entry.context_label },
+          ]),
+      ],
+    ).values()),
+  ), [entries, filterActivities]);
+
+  const selectedMember = members.find(
+    (member) => member.employee_id === selectedEmployeeId,
+  );
+
+  const activeFilters = useMemo(() => {
+    const filters = [];
+    if (selectedEmployeeId !== 'all') {
+      filters.push({
+        key: 'employee',
+        label: 'Employee',
+        value: selectedMember
+          ? `${selectedMember.employee_name} (${selectedMember.employee_code})`
+          : 'Selected employee',
+      });
+    }
+    if (selectedDepartment !== 'all') {
+      filters.push({ key: 'department', label: 'Department', value: selectedDepartment });
+    }
+    if (selectedProjectId !== 'all') {
+      filters.push({
+        key: 'project',
+        label: 'Project',
+        value: projectOptions.find((option) => option.value === selectedProjectId)?.label
+          || 'Selected project',
+      });
+    }
+    if (selectedActivityId !== 'all') {
+      filters.push({
+        key: 'activity',
+        label: 'Activity',
+        value: activityOptions.find((option) => option.value === selectedActivityId)?.label
+          || 'Selected activity',
+      });
+    }
+    return filters;
+  }, [
+    activityOptions,
+    projectOptions,
+    selectedActivityId,
+    selectedDepartment,
+    selectedEmployeeId,
+    selectedMember,
+    selectedProjectId,
+  ]);
+
+  const filteredEntries = useMemo(() => entries.filter((entry) => {
+    const employeeMatches = selectedEmployeeId === 'all'
+      || entry.employee_id === selectedEmployeeId;
+    const departmentMatches = selectedDepartment === 'all'
+      || entry.employee_department === selectedDepartment;
+    const projectFilterActive = selectedProjectId !== 'all';
+    const activityFilterActive = selectedActivityId !== 'all';
+    const contextMatches = !projectFilterActive && !activityFilterActive
+      ? true
+      : (
+        (projectFilterActive
+          && entry.context_type === 'project'
+          && entry.context_id === selectedProjectId)
+        || (activityFilterActive
+          && entry.context_type === 'activity'
+          && entry.context_id === selectedActivityId)
+      );
+
+    return employeeMatches && departmentMatches && contextMatches;
+  }), [
+    entries,
+    selectedActivityId,
+    selectedDepartment,
+    selectedEmployeeId,
+    selectedProjectId,
+  ]);
+
   const entriesByDay = useMemo(() => {
     const grouped = Object.fromEntries(weekDays.map((day) => [dateKey(day), []]));
-    entries.forEach((entry) => {
+    filteredEntries.forEach((entry) => {
       const key = dateKey(entry.started_at);
       if (grouped[key]) grouped[key].push(entry);
     });
     return grouped;
-  }, [entries, weekDays]);
+  }, [filteredEntries, weekDays]);
 
   const daySummaries = useMemo(() => (
     Object.fromEntries(weekDays.map((day) => {
@@ -274,7 +414,9 @@ const Timesheets = () => {
     )
   ), [daySummaries]);
 
-  const selectedMember = members.find((member) => member.employee_id === selectedEmployeeId);
+  const visibleEmployeeCount = useMemo(() => (
+    new Set(filteredEntries.map((entry) => entry.employee_id)).size
+  ), [filteredEntries]);
   const scopeCopy = SCOPE_COPY[scope];
   const isSharedScope = scope !== 'personal';
   const selectedEntries = entriesByDay[selectedDate] || [];
@@ -295,10 +437,31 @@ const Timesheets = () => {
     }
     : selectedMember;
 
+  const clearFilters = () => {
+    setSelectedEmployeeId('all');
+    setSelectedDepartment('all');
+    setSelectedProjectId('all');
+    setSelectedActivityId('all');
+  };
+
   const moveWeek = (offset) => {
-    const nextWeek = addDays(weekStart, offset * 7);
-    setWeekStart(nextWeek);
-    setSelectedDate(dateKey(nextWeek));
+    const nextDate = addDays(new Date(`${selectedDate}T00:00:00`), offset * 7);
+    setWeekStart(startOfWeek(nextDate));
+    setSelectedDate(dateKey(nextDate));
+  };
+
+  const moveDay = (offset) => {
+    const nextDate = addDays(new Date(`${selectedDate}T00:00:00`), offset);
+    setWeekStart(startOfWeek(nextDate));
+    setSelectedDate(dateKey(nextDate));
+  };
+
+  const jumpToDate = (value) => {
+    if (!value) return;
+    const nextDate = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(nextDate.getTime())) return;
+    setWeekStart(startOfWeek(nextDate));
+    setSelectedDate(dateKey(nextDate));
   };
 
   const goToCurrentWeek = () => {
@@ -309,7 +472,7 @@ const Timesheets = () => {
 
   const changeScope = (nextScope) => {
     setScope(nextScope);
-    setSelectedEmployeeId('all');
+    clearFilters();
   };
 
   const closeManualEditor = () => {
@@ -546,9 +709,6 @@ const Timesheets = () => {
               Add time
             </button>
           )}
-          <button type="button" className="btn btn-outline timesheet-today" onClick={goToCurrentWeek}>
-            Today
-          </button>
         </div>
       )}
     >
@@ -568,26 +728,98 @@ const Timesheets = () => {
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      <section className="surface timesheet-filter-panel" aria-label="Timesheet filters">
+        <div className="timesheet-filter-heading">
+          <div>
+            <span className="page-eyebrow">Filters</span>
+            <h3>Focus this week</h3>
+            <p>Project and activity selections are combined; other filters narrow the result.</p>
+          </div>
+          {activeFilters.length > 0 && (
+            <button type="button" className="timesheet-clear-filters" onClick={clearFilters}>
+              <i className="ri-filter-off-line" />
+              Clear all
+            </button>
+          )}
+        </div>
+
+        <div className="timesheet-filter-grid">
           {isSharedScope && (
-            <label className="timesheet-person-select">
-              <span>Person</span>
+            <label className="timesheet-filter-field">
+              <span>Employee</span>
               <select
                 value={selectedEmployeeId}
                 onChange={(event) => setSelectedEmployeeId(event.target.value)}
+                disabled={loading}
               >
                 <option value="all">
                   {scope === 'organisation' ? 'All people' : 'Entire managed team'}
                 </option>
-                {members.map((member) => (
-                  <option key={member.employee_id} value={member.employee_id}>
-                    {member.employee_name} ({member.employee_code})
-                  </option>
+                {employeeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </label>
           )}
-        </section>
-      )}
+
+          <label className="timesheet-filter-field">
+            <span>Department</span>
+            <select
+              value={selectedDepartment}
+              onChange={(event) => setSelectedDepartment(event.target.value)}
+              disabled={loading}
+            >
+              <option value="all">All departments</option>
+              {departmentOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="timesheet-filter-field">
+            <span>Project</span>
+            <select
+              value={selectedProjectId}
+              onChange={(event) => setSelectedProjectId(event.target.value)}
+              disabled={loading}
+            >
+              <option value="all">All projects</option>
+              {projectOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="timesheet-filter-field">
+            <span>Activity</span>
+            <select
+              value={selectedActivityId}
+              onChange={(event) => setSelectedActivityId(event.target.value)}
+              disabled={loading}
+            >
+              <option value="all">All activities</option>
+              {activityOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {activeFilters.length > 0 && (
+          <div className="timesheet-active-filters" aria-label="Active timesheet filters">
+            <span>{activeFilters.length} active</span>
+            {activeFilters.map((filter) => (
+              <span className="timesheet-filter-chip" key={filter.key}>
+                <small>{filter.label}</small>
+                {filter.value}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="timesheet-summary" aria-label="Weekly summary">
         <article className="timesheet-summary-card timesheet-summary-card--primary">
@@ -603,11 +835,11 @@ const Timesheets = () => {
           <small>Across {weeklySummary.sessionCount} session{weeklySummary.sessionCount === 1 ? '' : 's'}</small>
         </article>
         <article className="timesheet-summary-card">
-          <span>{isSharedScope ? 'People in scope' : 'Active days'}</span>
-          <strong>{isSharedScope ? members.length : weeklySummary.activeDays}</strong>
+          <span>{isSharedScope ? 'People with entries' : 'Active days'}</span>
+          <strong>{isSharedScope ? visibleEmployeeCount : weeklySummary.activeDays}</strong>
           <small>
             {isSharedScope
-              ? selectedMember ? selectedMember.employee_code : 'Available for individual review'
+              ? `${members.length} available in this scope`
               : 'of 7 days in this week'}
           </small>
         </article>
@@ -615,16 +847,31 @@ const Timesheets = () => {
 
       <section className="surface timesheet-week">
         <div className="timesheet-week-toolbar">
-          <button type="button" className="timesheet-nav-button" onClick={() => moveWeek(-1)} aria-label="Previous week">
-            <i className="ri-arrow-left-s-line" />
-          </button>
-          <div>
-            <span className="page-eyebrow">Week</span>
-            <h3>{formatWeekRange(weekStart)}</h3>
+          <div className="timesheet-week-navigation">
+            <button type="button" className="timesheet-nav-button" onClick={() => moveWeek(-1)} aria-label="Previous week">
+              <i className="ri-arrow-left-s-line" />
+            </button>
+            <div>
+              <span className="page-eyebrow">Week</span>
+              <h3>{formatWeekRange(weekStart)}</h3>
+            </div>
+            <button type="button" className="timesheet-nav-button" onClick={() => moveWeek(1)} aria-label="Next week">
+              <i className="ri-arrow-right-s-line" />
+            </button>
           </div>
-          <button type="button" className="timesheet-nav-button" onClick={() => moveWeek(1)} aria-label="Next week">
-            <i className="ri-arrow-right-s-line" />
-          </button>
+          <div className="timesheet-week-jump">
+            <label>
+              <span>Jump to date</span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(event) => jumpToDate(event.target.value)}
+              />
+            </label>
+            <button type="button" className="btn btn-outline" onClick={goToCurrentWeek}>
+              This week
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -679,15 +926,23 @@ const Timesheets = () => {
 
             <div className="timesheet-detail">
               <div className="timesheet-detail-header">
-                <div>
-                  <span className="page-eyebrow">Day detail</span>
-                  <h3>
-                    {selectedDateValue.toLocaleDateString('en-IN', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                    })}
-                  </h3>
+                <div className="timesheet-detail-navigation">
+                  <button type="button" className="timesheet-nav-button" onClick={() => moveDay(-1)} aria-label="Previous day">
+                    <i className="ri-arrow-left-s-line" />
+                  </button>
+                  <div>
+                    <span className="page-eyebrow">Day detail</span>
+                    <h3>
+                      {selectedDateValue.toLocaleDateString('en-IN', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                      })}
+                    </h3>
+                  </div>
+                  <button type="button" className="timesheet-nav-button" onClick={() => moveDay(1)} aria-label="Next day">
+                    <i className="ri-arrow-right-s-line" />
+                  </button>
                 </div>
                 <div className="timesheet-day-totals">
                   <span>
@@ -704,12 +959,23 @@ const Timesheets = () => {
               {selectedEntries.length === 0 ? (
                 <AppState
                   type="empty"
-                  title={isSharedScope ? 'No scoped work tracked' : 'No work tracked'}
+                  title={
+                    activeFilters.length > 0
+                      ? 'No entries match these filters'
+                      : isSharedScope ? 'No scoped work tracked' : 'No work tracked'
+                  }
                   message={
-                    isSharedScope
+                    activeFilters.length > 0
+                      ? 'Try another day or clear the active filters to restore the full week.'
+                      : isSharedScope
                       ? 'There are no permitted sessions for this selection and day.'
                       : 'There are no sessions recorded for this day.'
                   }
+                  action={activeFilters.length > 0 ? (
+                    <button type="button" className="btn btn-outline" onClick={clearFilters}>
+                      Clear filters
+                    </button>
+                  ) : null}
                   compact
                 />
               ) : (
