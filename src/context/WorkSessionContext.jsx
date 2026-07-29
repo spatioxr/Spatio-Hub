@@ -17,6 +17,7 @@ export const WorkSessionContext = createContext({
   loading: false,
   error: '',
   refresh: async () => {},
+  startSession: async () => {},
 });
 
 const firstRow = (data) => (Array.isArray(data) ? data[0] : data) || null;
@@ -124,6 +125,21 @@ export const WorkSessionProvider = ({ children }) => {
     }
   }, [user]);
 
+  const startSession = useCallback(async ({
+    projectId,
+    activityId,
+    taskDescription: nextTaskDescription,
+  }) => {
+    const { error: startError } = await supabase.rpc('start_work_session', {
+      target_project_id: projectId,
+      target_activity_id: activityId,
+      session_task_description: nextTaskDescription,
+    });
+
+    if (startError) throw startError;
+    await refresh();
+  }, [refresh]);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -165,7 +181,8 @@ export const WorkSessionProvider = ({ children }) => {
     loading,
     error,
     refresh,
-  }), [elapsedSeconds, error, loading, refresh, snapshot]);
+    startSession,
+  }), [elapsedSeconds, error, loading, refresh, snapshot, startSession]);
 
   return (
     <WorkSessionContext.Provider value={value}>

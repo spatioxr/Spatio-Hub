@@ -1,6 +1,7 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WorkSessionContext } from '../context/WorkSessionContext';
+import WorkStartModal from './WorkStartModal';
 
 const STATUS_LABELS = {
   out: 'Out',
@@ -18,6 +19,7 @@ const formatElapsed = (totalSeconds) => {
 
 const WorkTimerControl = () => {
   const navigate = useNavigate();
+  const [startModalOpen, setStartModalOpen] = useState(false);
   const {
     status,
     elapsedSeconds,
@@ -48,12 +50,19 @@ const WorkTimerControl = () => {
       <button
         type="button"
         className="work-timer-action"
-        onClick={() => navigate('/attendance')}
+        onClick={() => {
+          if (isOut) {
+            setStartModalOpen(true);
+          } else {
+            navigate('/attendance');
+          }
+        }}
         disabled={loading}
       >
         <i className={isOut ? 'ri-play-fill' : 'ri-arrow-right-line'} aria-hidden="true" />
         <span>{isOut ? 'Start work' : 'View work'}</span>
       </button>
+      {startModalOpen && <WorkStartModal onClose={() => setStartModalOpen(false)} />}
     </section>
   );
 };

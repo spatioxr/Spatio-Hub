@@ -1,0 +1,289 @@
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { AuthContext } from '../context/AuthContext';
+import { WorkSessionContext } from '../context/WorkSessionContext';
+import { supabase } from '../utils/supabaseClient';
+
+const optionKey = (type, id) => `${type}:${id}`;
+
+const WorkStartModal = ({ onClose }) => {
+  const { user } = useContext(AuthContext);
+  const { startSession } = useContext(WorkSessionContext);
+  const [contextType, setContextType] = useState('project');
+  const [contextId, setContextId] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [projects, setProjects] = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [recentEntries, setRecentEntries] = useState([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+
+    const loadOptions = async () => {
+      setLoadingOptions(true);
+      setError('');
+
+      const [projectsResult, activitiesResult, recentResult] = await Promise.all([
+        supabase
+          .from('projects')
+          .select('id, code, name')
+          .is('archived_at', null)
+          .order('name', { ascending: true }),
+        supabase
+          .from('activities')
+          .select('id, name')
+          .is('archived_at', null)
+          .order('name', { ascending: true }),
+        supabase
+          .from('work_entries')
+          .select('project_id, activity_id, task_description, started_at')
+          .eq('employee_id', user.id)
+          .order('started_at', { ascending: false })
+          .limit(12),
+      ]);
+
+      if (!active) return;
+
+      const loadError = projectsResult.error || activitiesResult.error || recentResult.error;
+      if (loadError) {
+        console.error('Unable to load start-work choices:', loadError.message);
+        setError('Unable to load work choices. Please try again.');
+        setLoadingOptions(false);
+        return;
+      }
+
+      const nextProjects = projectsResult.data || [];
+      const nextActivities = activitiesResult.data || [];
+      setProjects(nextProjects);
+      setActivities(nextActivities);
+      setRecentEntries(recentResult.data || []);
+
+      if (nextProjects.length === 0 && nextActivities.length > 0) {
+        setContextType('activity');
+      }
+      setLoadingOptions(false);
+    };
+
+    loadOptions();
+    return () => {
+      active = false;
+    };
+  }, [user.id]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && !submitting) onClose();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, submitting]);
+
+  const recentChoices = useMemo(() => {
+    const projectMap = new Map(projects.map((project) => [
+      project.id,
+      `${project.code} · ${project.name}`,
+    ]));
+    const activityMap = new Map(activities.map((activity) => [activity.id, activity.name]));
+    const seen = new Set();
+
+    return recentEntries.reduce((choices, entry) => {
+      const type = entry.project_id ? 'project' : 'activity';
+      const id = entry.project_id || entry.activity_id;
+      const label = type === 'project' ? projectMap.get(id) : activityMap.get(id);
+      const key = optionKey(type, id);
+
+      if (!label || seen.has(key) || choices.length >= 4) return choices;
+      seen.add(key);
+      choices.push({
+        type,
+        id,
+        label,
+        taskDescription: entry.task_description,
+      });
+      return choices;
+    }, []);
+  }, [activities, projects, recentEntries]);
+
+  const hasContext = Boolean(contextId);
+  const hasTask = Boolean(taskDescription.trim());
+  const canSubmit = hasContext && hasTask && !loadingOptions && !submitting;
+
+  const chooseRecent = (choice) => {
+    setContextType(choice.type);
+    setContextId(choice.id);
+    setTaskDescription(choice.taskDescription);
+    setError('');
+  };
+
+  const handleContextTypeChange = (type) => {
+    setContextType(type);
+    setContextId('');
+    setError('');
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!canSubmit) return;
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      await startSession({
+        projectId: contextType === 'project' ? contextId : null,
+        activityId: contextType === 'activity' ? contextId : null,
+        taskDescription: taskDescription.trim(),
+      });
+      onClose();
+    } catch (startError) {
+      console.error('Unable to start work:', startError.message);
+      setError(startError.message || 'Unable to start work. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return createPortal(
+    <div
+      className="work-start-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !submitting) onClose();
+      }}
+    >
+      <section
+        className="work-start-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="work-start-title"
+      >
+        <div className="work-start-header">
+          <div>
+            <span className="work-start-eyebrow">Start work</span>
+            <h2 id="work-start-title">What are you working on?</h2>
+            <p>Choose one context and add a concise task description.</p>
+          </div>
+          <button
+            type="button"
+            className="work-start-close"
+            onClick={onClose}
+            disabled={submitting}
+            aria-label="Close start work"
+          >
+            <i className="ri-close-line" aria-hidden="true" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          {recentChoices.length > 0 && (
+            <div className="work-start-recents">
+              <span className="work-start-label">Recent</span>
+              <div className="work-start-recent-list">
+                {recentChoices.map((choice) => (
+                  <button
+                    type="button"
+                    key={optionKey(choice.type, choice.id)}
+                    className="work-start-recent"
+                    onClick={() => chooseRecent(choice)}
+                    title={`${choice.label} — ${choice.taskDescription}`}
+                  >
+                    <i
+                      className={choice.type === 'project' ? 'ri-briefcase-4-line' : 'ri-lightbulb-flash-line'}
+                      aria-hidden="true"
+                    />
+                    <span>{choice.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <fieldset className="work-start-fieldset">
+            <legend className="work-start-label">Work context</legend>
+            <div className="work-start-type-tabs">
+              <button
+                type="button"
+                className={contextType === 'project' ? 'active' : ''}
+                onClick={() => handleContextTypeChange('project')}
+                aria-pressed={contextType === 'project'}
+                disabled={loadingOptions || projects.length === 0}
+              >
+                <i className="ri-briefcase-4-line" aria-hidden="true" />
+                Project
+              </button>
+              <button
+                type="button"
+                className={contextType === 'activity' ? 'active' : ''}
+                onClick={() => handleContextTypeChange('activity')}
+                aria-pressed={contextType === 'activity'}
+                disabled={loadingOptions || activities.length === 0}
+              >
+                <i className="ri-lightbulb-flash-line" aria-hidden="true" />
+                Internal activity
+              </button>
+            </div>
+
+            <label className="work-start-select-label">
+              <span>
+                {contextType === 'project' ? 'Assigned project' : 'Internal activity'}
+                <b aria-hidden="true">*</b>
+              </span>
+              <select
+                value={contextId}
+                onChange={(event) => {
+                  setContextId(event.target.value);
+                  setError('');
+                }}
+                disabled={loadingOptions}
+                required
+              >
+                <option value="">
+                  {loadingOptions
+                    ? 'Loading choices…'
+                    : `Select ${contextType === 'project' ? 'a project' : 'an activity'}`}
+                </option>
+                {(contextType === 'project' ? projects : activities).map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {contextType === 'project' ? `${option.code} · ${option.name}` : option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </fieldset>
+
+          <label className="work-start-task">
+            <span className="work-start-label">
+              Task description <b aria-hidden="true">*</b>
+            </span>
+            <textarea
+              value={taskDescription}
+              onChange={(event) => {
+                setTaskDescription(event.target.value);
+                setError('');
+              }}
+              placeholder="What do you plan to complete?"
+              rows="3"
+              required
+            />
+          </label>
+
+          {error && <div className="work-start-error" role="alert">{error}</div>}
+
+          <div className="work-start-footer">
+            <span>Select exactly one context and describe your task.</span>
+            <button type="submit" className="work-start-submit" disabled={!canSubmit}>
+              <i className="ri-play-fill" aria-hidden="true" />
+              {submitting ? 'Starting…' : 'Start work'}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>,
+    document.body,
+  );
+};
+
+export default WorkStartModal;
