@@ -27,6 +27,17 @@ confirm:
 Managers are scoped through explicit project ownership and team membership.
 Neither `reports_to` nor department grants Manager access.
 
+The People directory uses the existing employee row scope, while UI access is
+limited to Manager, Admin, and Superadmin. Employees retain access to their own
+profile only for authentication and permitted self-profile updates; they cannot
+open the People directory. Managers can read their own profile and employees
+assigned to projects they manage. Admins and superadmins use controlled
+`create_employee_profile` and `update_employee_profile` functions for employee
+ID, name, work email, department, designation, application role, reporting
+manager, joining date, and employment status. Direct authenticated inserts and
+deletes are denied. Admins cannot manage the superadmin role, and nobody can
+deactivate their own profile. Released profiles retain operational history.
+
 The company live-status board uses `live_work_status()` as a narrow
 authenticated projection. It exposes every active employee's name, employee
 code, current In/Break/Out state, and status-transition time. Activity context

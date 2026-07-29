@@ -23,6 +23,8 @@ project or team.
 | --- | --- | --- | --- | --- |
 | Access the Phase 1 portal | Yes | Yes | Yes | Yes |
 | View company In/Break/Out status | Yes | Yes | Yes | Yes |
+| View People directory | No | Assigned project teams | Organisation | Organisation |
+| Add and edit People profiles | No | No | Organisation, except superadmin role | Organisation |
 | Update permitted own-profile fields | Own | Own | Own | Own |
 | Track work and submit BOS/EOD | Own | Own | Own | Own |
 | View timesheets | Own | Assigned project teams | Organisation | Organisation |
@@ -40,6 +42,11 @@ project or team.
 
 - Department remains employee profile data; it does not grant Manager access.
 - Manager access comes only from explicit project/team responsibility and membership.
+- People removal means changing the employment status to `Released`;
+  operational history is retained and employee profiles are not hard-deleted.
+- Admins can manage standard Phase 1 profile fields but cannot create, promote,
+  or edit a superadmin. Superadmins have the same capability without that role
+  boundary.
 - An employee shared across projects is visible to a Manager only within projects
   that Manager owns.
 - Admin and superadmin organisation access applies only to Phase 1 modules.
@@ -60,5 +67,7 @@ project or team.
   direct-client denial checks. See [Phase 1 Row-Level Security](RLS.md).
 - `HRMS-009`: explicit project Manager and member assignments used for Manager scope.
 - `HRMS-013`: immutable time-entry correction audit history.
+- `HRMS-044`: restricted People navigation, controlled profile changes, and
+  project-team read scope.
 - `HRMS-034`: leave workflow correctness. Phase 1 keeps approvals superadmin-only
   unless the tracker is deliberately changed.

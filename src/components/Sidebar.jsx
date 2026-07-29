@@ -10,6 +10,7 @@ const Sidebar = () => {
   const menuItems = [
     { path: '/', name: 'Dashboard', icon: 'ri-dashboard-line', permission: PERMISSIONS.ACCESS_PORTAL },
     { path: '/attendance', name: 'Work Tracking', icon: 'ri-calendar-check-line', permission: PERMISSIONS.TRACK_OWN_WORK },
+    { path: '/people', name: 'People', icon: 'ri-team-line', permission: PERMISSIONS.VIEW_PEOPLE },
     { path: '/leave', name: 'Leave', icon: 'ri-flight-takeoff-line', permission: PERMISSIONS.APPLY_OWN_LEAVE },
   ];
 

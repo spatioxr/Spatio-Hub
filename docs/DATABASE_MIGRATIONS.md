@@ -50,6 +50,10 @@ environment.
     In/Break/Out projection, status-transition timestamps, permission-aware
     project context, and a 24-hour stale-open-entry signal without widening
     direct employee or work-entry RLS.
+15. `20260729001200_people_directory.sql` adds controlled employee-profile
+    creation and editing, safe employment-status deactivation, superadmin role
+    boundaries, Manager project-team visibility, and denial of direct employee
+    inserts and deletes.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -96,7 +100,7 @@ first sign-in.
 
 Run `supabase/verify/phase1_schema.sql` in the SQL editor after migrations.
 Every returned boolean must be `true`. This verifies all 15 current tables,
-RLS, anonymous denial, the 45 scoped policies, helper functions, seed
+RLS, anonymous denial, the 43 scoped policies, helper functions, seed
 activities, and overlap guards.
 
 Run `supabase/verify/hrms_007_projects.sql` for the rollback-only project model
@@ -153,6 +157,12 @@ board check. It verifies Employee visibility of all active names and statuses,
 In/Break/Out transition timestamps, permitted activity context, hidden
 out-of-scope project context, the 24-hour stale flag, and anonymous/unlinked
 denial.
+
+Run `supabase/verify/hrms_044_people_directory.sql` for the rollback-only
+People check. It verifies employee route denial, Manager project-team read-only
+scope, Admin create/edit/deactivate behavior, superadmin role boundaries,
+default leave/work settings, retained profiles, and denial of direct employee
+inserts and deletes.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

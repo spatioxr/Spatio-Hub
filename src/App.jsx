@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Leave from './pages/Leave';
+import People from './pages/People';
 import ResetPassword from './pages/ResetPassword';
 import { hasPermission, PERMISSIONS } from './utils/rbac';
 
@@ -25,6 +26,15 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const PermissionRoute = ({ permission, children }) => {
+  const { user, loading } = useContext(AuthContext);
+
+  if (loading) return <SessionLoader />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!hasPermission(user, permission)) return <Navigate to="/" replace />;
+  return children;
+};
+
 const AppRoutes = () => (
   <AuthContext.Consumer>
     {({ isPasswordRecovery }) => (
@@ -37,6 +47,14 @@ const AppRoutes = () => (
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
             <Route path="/leave" element={<ProtectedRoute><Leave /></ProtectedRoute>} />
+            <Route
+              path="/people"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.VIEW_PEOPLE}>
+                  <People />
+                </PermissionRoute>
+              )}
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )

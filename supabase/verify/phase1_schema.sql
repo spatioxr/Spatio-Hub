@@ -51,7 +51,7 @@ SELECT
     AS all_rls_enabled,
   (SELECT bool_and(anon_select_denied) FROM actual)
     AS anon_select_denied,
-  (SELECT count(*) = 45 FROM policies)
+  (SELECT count(*) = 43 FROM policies)
     AS expected_policy_count,
   (SELECT bool_and(roles = ARRAY['authenticated']::name[]) FROM policies)
     AS authenticated_only,
@@ -67,6 +67,24 @@ SELECT
     AS has_project_management_scope,
   to_regprocedure('public.can_access_work_entry(uuid)') IS NOT NULL
     AS has_work_entry_scope,
+  to_regprocedure('public.can_view_people_directory()') IS NOT NULL
+    AND to_regprocedure('public.can_manage_people()') IS NOT NULL
+    AND to_regprocedure(
+      'public.create_employee_profile(text,text,text,text,text,text,uuid,date,text)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.update_employee_profile(uuid,text,text,text,text,text,text,uuid,date,text)'
+    ) IS NOT NULL
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.employees',
+      'INSERT'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.employees',
+      'DELETE'
+    ) AS has_controlled_people_directory,
   to_regprocedure(
     'public.switch_work_session(uuid,uuid,text)'
   ) IS NOT NULL AS has_atomic_work_session_switch,
