@@ -17,33 +17,49 @@ Salary, payslips, employee administration, Inbox, Performance, and the old Repor
 
 Requirements:
 
-- Node.js 18 or newer
+- Node.js 20 or newer
 - npm
 - a Supabase project
 
 ```bash
-npm install
+npm ci
 cp .env.example .env
 npm run dev
 ```
 
-Set these values in `.env`:
+Set the two public browser values in `.env` from Supabase Project Settings >
+API. Never use a service-role key in a `VITE_` variable.
 
 ```text
-VITE_SUPABASE_URL
-VITE_SUPABASE_PUBLISHABLE_KEY
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-or-anon-key
 ```
 
 Available commands:
 
 ```bash
 npm run dev
+npm run check
+npm test
 npm run build
 npm run lint
+npm run test:database
 npm run preview
 ```
 
-The lint configuration and automated tests are scheduled under phase-1 tracker issues `HRMS-038` and `HRMS-039`; they are not operational yet.
+`npm run check` is the application CI gate: lint, unit tests, and a production
+build. Database-rule tests require a Docker-compatible runtime and the local
+Supabase stack:
+
+```bash
+npx supabase start
+npx supabase db reset
+npm run test:database
+npx supabase stop --no-backup
+```
+
+See [Testing](docs/TESTING.md) for the critical-rule coverage and optional
+external PostgreSQL connection.
 
 ## Current routes
 
@@ -51,6 +67,11 @@ The lint configuration and automated tests are scheduled under phase-1 tracker i
 | --- | --- |
 | `/` | Dashboard |
 | `/attendance` | Current attendance view; being evolved into Work Tracking |
+| `/timesheets` | Personal, team, and organisation timesheets |
+| `/projects` | Project definitions and scoped team assignments |
+| `/activities` | Internal activity catalogue |
+| `/people` | Permission-scoped employee directory |
+| `/admin-settings` | Phase 1 administration and BOS/EOD exceptions |
 | `/leave` | Leave management |
 | `/login` | Current login |
 | `/reset-password` | Current password flow |

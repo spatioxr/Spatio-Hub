@@ -65,7 +65,7 @@ const GrantCompOffModal = ({ onClose, onGrant }) => {
         <div className="salary-modal-header">
           <div>
             <h3 className="salary-modal-title" id="grant-comp-off-title">Grant Comp Off</h3>
-            <p className="salary-modal-sub">Add Comp Off days to an employee's balance</p>
+            <p className="salary-modal-sub">Add Comp Off days to an employee&apos;s balance</p>
           </div>
           <button type="button" className="salary-modal-close" onClick={onClose} aria-label="Close Grant Comp Off"><i className="ri-close-line" aria-hidden="true" /></button>
         </div>

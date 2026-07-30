@@ -10,6 +10,7 @@
     "test:unit": "node --test src/utils/*.test.js",
     "test:database": "node scripts/run-database-tests.mjs",
     "test:ci": "npm run test:unit && npm run build",
+    "check": "npm run lint && npm run test:ci",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },

@@ -13,16 +13,13 @@ import useDialogFocus from '../hooks/useDialogFocus';
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
-  if (!user) return <Navigate to="/login" replace />;
-  
+
   const { getLeaveHistory, getMyRequests, getUserBalance } = useContext(LeaveContext);
   const {
     status: workStatus,
     contextLabel,
     dayState,
   } = useContext(WorkSessionContext);
-
-  const userKey = user.role;
 
   // Supabase State
   const [totalEmployees, setTotalEmployees] = useState(0);
@@ -47,7 +44,6 @@ const Dashboard = () => {
   // Fetch today's data from Supabase
   const fetchData = async () => {
     if (!user) return;
-    const today = appDateKey();
 
     if (user.role === 'admin' || user.role === 'manager' || user.role === 'head' || user.role === 'superadmin') {
       let countQuery = supabase.from('employees').select('id', { count: 'exact', head: true });
@@ -103,6 +99,8 @@ const Dashboard = () => {
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
+
+  if (!user) return <Navigate to="/login" replace />;
 
   const handleAddHoliday = async (e) => {
     e.preventDefault();

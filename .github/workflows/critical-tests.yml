@@ -19,7 +19,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run test:ci
+      - run: npm run check
 
   database:
     runs-on: ubuntu-latest
