@@ -8,7 +8,16 @@ SELECT id AS employee_id, auth_id
 FROM public.employees
 WHERE role = 'superadmin'
   AND status = 'Active'
+  AND auth_id IS NOT NULL
 LIMIT 1;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM hrms_026_actor) THEN
+    RAISE EXCEPTION 'An Auth-linked active superadmin is required';
+  END IF;
+END
+$$;
 
 SELECT set_config(
   'request.jwt.claims',
@@ -89,7 +98,13 @@ FROM hrms_026_owned project
 CROSS JOIN hrms_026_actor actor;
 
 CREATE TEMP TABLE hrms_026_manager_overview AS
-SELECT * FROM public.project_administration_overview();
+SELECT overview.*
+FROM public.project_administration_overview() overview
+WHERE overview.id IN (
+  SELECT id FROM hrms_026_owned
+  UNION ALL
+  SELECT id FROM hrms_026_other
+);
 
 CREATE TEMP TABLE hrms_026_manager_candidates AS
 SELECT candidate.*
@@ -115,28 +130,42 @@ BEGIN
 END
 $$;
 
+WITH checks AS (
+  SELECT
+    updated.code = 'HRMS026EDIT' AS definition_code_normalised,
+    updated.name = 'HRMS-026 Edited Project' AS definition_updated,
+    (
+      SELECT count(*) = 1
+      FROM hrms_026_manager_overview
+    ) AS manager_sees_only_owned_project,
+    (
+      SELECT jsonb_array_length(managers) >= 1
+        AND jsonb_array_length(members) = 1
+      FROM hrms_026_manager_overview
+    ) AS overview_includes_assignments,
+    (
+      SELECT count(*) >= 3
+      FROM hrms_026_manager_candidates
+    ) AS owned_project_candidates_visible,
+    to_regprocedure('public.project_administration_overview()') IS NOT NULL
+      AS overview_rpc_exists,
+    to_regprocedure('public.project_assignment_candidates(uuid)') IS NOT NULL
+      AS candidate_rpc_exists,
+    to_regprocedure(
+      'public.update_project_definition(uuid,text,text,text)'
+    ) IS NOT NULL AS update_rpc_exists
+  FROM hrms_026_updated updated
+)
 SELECT
-  updated.code = 'HRMS026EDIT' AS definition_code_normalised,
-  updated.name = 'HRMS-026 Edited Project' AS definition_updated,
   (
-    SELECT count(*) = 1
-    FROM hrms_026_manager_overview
-  ) AS manager_sees_only_owned_project,
-  (
-    SELECT jsonb_array_length(managers) >= 1
-      AND jsonb_array_length(members) = 1
-    FROM hrms_026_manager_overview
-  ) AS overview_includes_assignments,
-  (
-    SELECT count(*) >= 3
-    FROM hrms_026_manager_candidates
-  ) AS owned_project_candidates_visible,
-  to_regprocedure('public.project_administration_overview()') IS NOT NULL
-    AS overview_rpc_exists,
-  to_regprocedure('public.project_assignment_candidates(uuid)') IS NOT NULL
-    AS candidate_rpc_exists,
-  to_regprocedure('public.update_project_definition(uuid,text,text,text)') IS NOT NULL
-    AS update_rpc_exists
-FROM hrms_026_updated updated;
+    SELECT bool_and(check_value::boolean)
+    FROM checks result
+    CROSS JOIN LATERAL jsonb_each_text(to_jsonb(result)) item(
+      check_name,
+      check_value
+    )
+  ) AS all_checks_pass,
+  to_jsonb(checks) AS checks
+FROM checks;
 
 ROLLBACK;
