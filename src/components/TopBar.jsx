@@ -13,6 +13,7 @@ const TopBar = ({ title }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const profileButtonRef = useRef(null);
 
   const [localAvatar, setLocalAvatar] = useState(null);
   const [cropModal, setCropModal] = useState(null); // { objectUrl }
@@ -121,8 +122,19 @@ const TopBar = ({ title }) => {
       </div>
       <div className="topbar-actions">
         <WorkTimerControl />
-        <div className="user-profile-wrapper" ref={dropdownRef}>
+        <div
+          className="user-profile-wrapper"
+          ref={dropdownRef}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && dropdownOpen) {
+              event.preventDefault();
+              setDropdownOpen(false);
+              profileButtonRef.current?.focus();
+            }
+          }}
+        >
           <button
+            ref={profileButtonRef}
             type="button"
             className="user-profile"
             onClick={() => setDropdownOpen((current) => !current)}
