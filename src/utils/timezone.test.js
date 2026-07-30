@@ -5,6 +5,7 @@ import {
   appDateKey,
   appDateTimeInputToIso,
   appDayRange,
+  formatAppDate,
   formatAppClock,
   toAppDateTimeInput,
 } from './timezone.js';
@@ -32,4 +33,17 @@ test('manual entry values round-trip between IST inputs and safe UTC timestamps'
   const timestamp = appDateTimeInputToIso('2026-07-30T09:15');
   assert.equal(timestamp, '2026-07-30T03:45:00.000Z');
   assert.equal(toAppDateTimeInput(timestamp), '2026-07-30T09:15');
+});
+
+test('date-only holidays retain their intended India calendar date', () => {
+  assert.equal(formatAppDate('2026-01-26'), '26 Jan 2026');
+  assert.equal(
+    formatAppDate('2026-01-26', {
+      weekday: 'long',
+      day: undefined,
+      month: undefined,
+      year: undefined,
+    }),
+    'Monday',
+  );
 });

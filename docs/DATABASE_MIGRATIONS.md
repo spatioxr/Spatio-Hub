@@ -84,6 +84,8 @@ environment.
     controlled atomic operations and closes direct client balance mutations.
 25. `20260730000300_harden_leave_workflow.sql` rejects overlapping active
     leave requests at the database boundary for both submissions and edits.
+26. `20260730000400_comp_off_granularity.sql` restricts Comp Off grants to
+    positive whole-day or half-day units while preserving atomic increments.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -259,6 +261,11 @@ Run `supabase/verify/hrms_034_leave_workflow.sql` for the rollback-only core
 leave hardening check. It verifies Superadmin-only organisation review,
 Employee/Admin scope, half-day and reason handling, overlap rejection,
 approval/rejection status, and balance outcomes.
+
+Run `supabase/verify/hrms_035_holidays_comp_off.sql` for the rollback-only
+holiday and Comp Off check. It verifies authenticated holiday reads with exact
+date values, Superadmin-only grants, half-day grant granularity, single
+deduction on approval, and matching final balance and request data.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

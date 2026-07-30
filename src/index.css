@@ -1869,6 +1869,43 @@ td {
   font-weight: 500;
 }
 
+.leave-holiday-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.75rem;
+}
+
+.leave-holiday-item {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  background: #F8FAFC;
+}
+
+.leave-holiday-date {
+  min-width: 82px;
+  padding-right: 0.9rem;
+  border-right: 1px solid #E2E8F0;
+}
+
+.leave-holiday-date strong,
+.leave-holiday-date span {
+  display: block;
+}
+
+.leave-holiday-date strong {
+  color: #003B2C;
+}
+
+.leave-holiday-date span {
+  margin-top: 0.2rem;
+  color: #64748B;
+  font-size: 0.75rem;
+}
+
 /* Tab navigation */
 .leave-tabs {
   display: flex;

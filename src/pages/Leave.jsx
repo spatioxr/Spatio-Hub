@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { LeaveContext } from '../context/LeaveContext';
 import { supabase } from '../utils/supabaseClient';
 import AppState from '../components/AppState';
-import { formatAppDate } from '../utils/timezone';
+import { appDateKey, formatAppDate } from '../utils/timezone';
 import { calculateLeaveDays, canReviewLeave } from '../utils/leave';
 
 const LEAVE_TYPES = ['Sick Leave', 'Comp Off', 'Casual Leave'];
@@ -95,7 +95,7 @@ const Leave = () => {
   const {
     applyLeave, updateLeave, getUserBalance, getMyRequests, getPendingForApproval,
     approveLeave, rejectLeave, grantCompOff, getLeaveHistory, refreshLeaveData,
-    loading, loadError
+    holidays, loading, loadError
   } = useContext(LeaveContext);
 
   const [activeTab, setActiveTab] = useState('my');
@@ -117,6 +117,7 @@ const Leave = () => {
   const balance = user ? getUserBalance(user.id) : {};
   const myRequests = getMyRequests();
   const pendingApprovals = getPendingForApproval();
+  const upcomingHolidays = holidays.filter((holiday) => holiday.date >= appDateKey());
 
   const canApprove = canReviewLeave(user);
   const canViewApprovals = canApprove;
@@ -384,6 +385,46 @@ const Leave = () => {
             </div>
           );
         })}
+      </div>
+
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div className="leave-section-header">
+          <div>
+            <h3 className="font-bold">Upcoming Holidays</h3>
+            <p className="text-muted text-sm" style={{ marginTop: '0.25rem' }}>
+              Company holidays are shown in India Standard Time.
+            </p>
+          </div>
+          <span className="leave-tab-count">{upcomingHolidays.length}</span>
+        </div>
+        {upcomingHolidays.length === 0 ? (
+          <AppState
+            compact
+            type="empty"
+            title="No upcoming holidays"
+            message="New company holidays will appear here when they are added."
+          />
+        ) : (
+          <div className="leave-holiday-grid">
+            {upcomingHolidays.map((holiday) => (
+              <div className="leave-holiday-item" key={holiday.id}>
+                <div className="leave-holiday-date">
+                  <strong>{formatAppDate(holiday.date, { day: '2-digit' })}</strong>
+                  <span>{formatAppDate(holiday.date, {
+                    weekday: 'long',
+                    day: undefined,
+                    month: undefined,
+                    year: undefined,
+                  })}</span>
+                </div>
+                <div>
+                  <div className="font-bold">{holiday.name}</div>
+                  <div className="text-muted text-sm">{formatAppDate(holiday.date)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Main Content ── */}

@@ -14,7 +14,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   if (!user) return <Navigate to="/login" replace />;
   
-  const { getLeaveHistory, getMyRequests } = useContext(LeaveContext);
+  const { getLeaveHistory, getMyRequests, getUserBalance } = useContext(LeaveContext);
   const {
     status: workStatus,
     contextLabel,
@@ -126,6 +126,11 @@ const Dashboard = () => {
   const isSuperAdmin = user.role === 'superadmin';
   const isNormalAdmin = user.role === 'admin';
   const canViewLiveStatus = hasPermission(user, PERMISSIONS.VIEW_LIVE_STATUS);
+  const myLeaveRequests = getMyRequests();
+  const myLeaveBalance = getUserBalance(user.id);
+  const approvedDays = (type) => myLeaveRequests
+    .filter((request) => request.type === type && request.status === 'Approved')
+    .reduce((total, request) => total + Number(request.days || 0), 0);
 
   // Stats Card Configs
   const renderStats = () => {
@@ -339,11 +344,11 @@ const Dashboard = () => {
               <div className="leave-metric-values">
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Used</span>
-                  <span className="leave-metric-num">2</span>
+                  <span className="leave-metric-num">{approvedDays('Sick Leave')}</span>
                 </div>
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Available</span>
-                  <span className="leave-metric-num">8</span>
+                  <span className="leave-metric-num">{myLeaveBalance['Sick Leave']?.remaining ?? 0}</span>
                 </div>
               </div>
             </div>
@@ -358,11 +363,11 @@ const Dashboard = () => {
               <div className="leave-metric-values">
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Used</span>
-                  <span className="leave-metric-num">10</span>
+                  <span className="leave-metric-num">{approvedDays('Casual Leave')}</span>
                 </div>
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Available</span>
-                  <span className="leave-metric-num">20</span>
+                  <span className="leave-metric-num">{myLeaveBalance['Casual Leave']?.remaining ?? 0}</span>
                 </div>
               </div>
             </div>
@@ -377,11 +382,11 @@ const Dashboard = () => {
               <div className="leave-metric-values">
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Used</span>
-                  <span className="leave-metric-num">0</span>
+                  <span className="leave-metric-num">{approvedDays('Comp Off')}</span>
                 </div>
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Available</span>
-                  <span className="leave-metric-num">5</span>
+                  <span className="leave-metric-num">{myLeaveBalance['Comp Off']?.remaining ?? 0}</span>
                 </div>
               </div>
             </div>

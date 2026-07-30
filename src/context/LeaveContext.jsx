@@ -10,6 +10,7 @@ export const LeaveProvider = ({ children }) => {
 
   const [requests, setRequests] = useState([]);
   const [balances, setBalances] = useState({});
+  const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -17,6 +18,7 @@ export const LeaveProvider = ({ children }) => {
     if (!user) {
       setRequests([]);
       setBalances({});
+      setHolidays([]);
       setLoadError(null);
       setLoading(false);
       return { error: null };
@@ -63,7 +65,16 @@ export const LeaveProvider = ({ children }) => {
       setBalances(balMap);
     }
 
-    const error = leavesError || balanceError || null;
+    const { data: holidayData, error: holidayError } = await supabase
+      .from('holidays')
+      .select('id, name, date')
+      .order('date', { ascending: true });
+
+    if (!holidayError && holidayData) {
+      setHolidays(holidayData);
+    }
+
+    const error = leavesError || balanceError || holidayError || null;
     if (error && surfaceError) setLoadError(error);
     setLoading(false);
     return { error };
@@ -183,6 +194,7 @@ export const LeaveProvider = ({ children }) => {
   return (
     <LeaveContext.Provider value={{
       requests,
+      holidays,
       applyLeave,
       updateLeave,
       approveLeave,
