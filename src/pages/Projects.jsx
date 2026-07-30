@@ -4,6 +4,7 @@ import AppState from '../components/AppState';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { hasPermission, PERMISSIONS } from '../utils/rbac';
+import useDialogFocus from '../hooks/useDialogFocus';
 
 const EMPTY_FORM = {
   code: '',
@@ -32,6 +33,7 @@ const ProjectDrawer = ({
   onSave,
 }) => {
   const isCreate = !project;
+  const drawerRef = useDialogFocus(true, onClose, { closeDisabled: saving });
   const canEditDefinition = canManageDefinitions;
   const [form, setForm] = useState(() => (
     project
@@ -65,11 +67,18 @@ const ProjectDrawer = ({
 
   return (
     <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && onClose()}>
-      <aside className="drawer project-drawer" aria-label={isCreate ? 'Create project' : `Manage ${project.name}`}>
+      <aside
+        ref={drawerRef}
+        className="drawer project-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="project-drawer-title"
+        tabIndex="-1"
+      >
         <div className="people-drawer-header">
           <div>
             <span className="page-eyebrow">{isCreate ? 'Project setup' : 'Project administration'}</span>
-            <h2>{isCreate ? 'Create project' : project.name}</h2>
+            <h2 id="project-drawer-title">{isCreate ? 'Create project' : project.name}</h2>
             <p>
               {canEditDefinition
                 ? 'Keep the project definition and its explicit assignments together.'

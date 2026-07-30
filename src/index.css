@@ -74,6 +74,25 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 2000;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: var(--deep-green);
+  color: white;
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-150%);
+  transition: transform 0.15s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 h1,
 h2,
 h3,
@@ -1384,6 +1403,20 @@ td {
 .dashboard-card-custom:hover {
   transform: translateY(-2px);
   box-shadow: 0px 20px 45px rgba(112, 144, 176, 0.08);
+}
+
+.dashboard-card-custom--interactive {
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dashboard-section-link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
 }
 
 .dashboard-card-custom .card-chevron {
@@ -3747,11 +3780,40 @@ td {
   cursor: default;
 }
 
-.user-profile {
+.user-profile-wrapper {
   position: relative;
+}
+
+.user-profile {
   gap: 0.7rem;
   border: 1px solid var(--border);
   box-shadow: none;
+}
+
+.profile-menu-action {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+}
+
+.profile-menu-action:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.profile-menu-action--danger {
+  color: var(--danger);
+}
+
+.profile-menu-action--danger:hover {
+  background: rgba(238, 93, 80, 0.05);
 }
 
 .user-profile-avatar {
@@ -4599,6 +4661,30 @@ td {
     position: fixed;
     top: 60px;
     right: 0.75rem;
+  }
+
+  .salary-modal-overlay {
+    align-items: flex-end;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+
+  .salary-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - max(0.75rem, env(safe-area-inset-top)));
+    padding: 1.25rem;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .leave-tabs {
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    scrollbar-width: thin;
+  }
+
+  .leave-tab-btn {
+    flex: 0 0 auto;
+    min-height: 44px;
   }
 }
 

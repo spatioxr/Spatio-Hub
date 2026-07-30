@@ -13,10 +13,11 @@ const Layout = ({ children, title, heading = title, eyebrow, description, action
 
   return (
     <div className="app-container">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <Sidebar />
       <div className="main-content">
         <TopBar title={title} />
-        <main className="content-area">
+        <main className="content-area" id="main-content" tabIndex="-1">
           <div className="content-inner">
             <PageHeader
               eyebrow={eyebrow}

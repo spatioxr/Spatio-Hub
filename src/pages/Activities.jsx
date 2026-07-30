@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import AppState from '../components/AppState';
 import { supabase } from '../utils/supabaseClient';
+import useDialogFocus from '../hooks/useDialogFocus';
 
 const EMPTY_FORM = {
   name: '',
@@ -16,6 +17,7 @@ const ActivityDrawer = ({
   onSave,
 }) => {
   const isCreate = !activity;
+  const drawerRef = useDialogFocus(true, onClose, { closeDisabled: saving });
   const [form, setForm] = useState(() => (
     activity
       ? {
@@ -32,11 +34,18 @@ const ActivityDrawer = ({
 
   return (
     <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && onClose()}>
-      <aside className="drawer activity-drawer" aria-label={isCreate ? 'Create activity' : `Edit ${activity.name}`}>
+      <aside
+        ref={drawerRef}
+        className="drawer activity-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="activity-drawer-title"
+        tabIndex="-1"
+      >
         <div className="people-drawer-header">
           <div>
             <span className="page-eyebrow">Activity administration</span>
-            <h2>{isCreate ? 'Create activity' : activity.name}</h2>
+            <h2 id="activity-drawer-title">{isCreate ? 'Create activity' : activity.name}</h2>
             <p>
               {activity?.has_history
                 ? 'The name is locked because this activity has reported work. Its description can still be updated.'

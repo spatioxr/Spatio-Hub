@@ -4,6 +4,7 @@ import AppState from '../components/AppState';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { getRole, hasPermission, PERMISSIONS, ROLES } from '../utils/rbac';
+import useDialogFocus from '../hooks/useDialogFocus';
 
 const ROLE_OPTIONS = [
   { value: 'employee', label: 'Employee' },
@@ -45,6 +46,7 @@ const PersonDrawer = ({
   onSave,
 }) => {
   const readOnly = mode === 'view';
+  const drawerRef = useDialogFocus(true, onClose, { closeDisabled: saving });
   const [form, setForm] = useState(() => (
     person
       ? {
@@ -84,11 +86,18 @@ const PersonDrawer = ({
 
   return (
     <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && onClose()}>
-      <aside className="drawer people-drawer" aria-label={`${mode === 'create' ? 'Add' : readOnly ? 'View' : 'Edit'} person`}>
+      <aside
+        ref={drawerRef}
+        className="drawer people-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="person-drawer-title"
+        tabIndex="-1"
+      >
         <div className="people-drawer-header">
           <div>
             <span className="page-eyebrow">{readOnly ? 'Profile' : 'People management'}</span>
-            <h2>{mode === 'create' ? 'Add person' : readOnly ? person.name : `Edit ${person.name}`}</h2>
+            <h2 id="person-drawer-title">{mode === 'create' ? 'Add person' : readOnly ? person.name : `Edit ${person.name}`}</h2>
             <p>
               {readOnly
                 ? 'Project-team profile details are read-only.'

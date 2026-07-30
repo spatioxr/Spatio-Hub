@@ -8,6 +8,7 @@ import LiveStatusBoard from '../components/LiveStatusBoard';
 import { supabase } from '../utils/supabaseClient';
 import { getManagedDepartments, hasPermission, PERMISSIONS } from '../utils/rbac';
 import { appDateKey, formatAppDate } from '../utils/timezone';
+import useDialogFocus from '../hooks/useDialogFocus';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
@@ -33,6 +34,10 @@ const Dashboard = () => {
   const [newHolidayName, setNewHolidayName] = useState('');
   const [newHolidayDate, setNewHolidayDate] = useState('');
   const [attendanceCounts, setAttendanceCounts] = useState({ present: 0, absent: 0 });
+  const holidayDialogRef = useDialogFocus(
+    showHolidayModal,
+    () => setShowHolidayModal(false),
+  );
 
   const fetchHolidays = async () => {
     const { data } = await supabase.from('holidays').select('*').order('date', { ascending: true });
@@ -137,7 +142,7 @@ const Dashboard = () => {
     if (isEmployee) {
       return (
         <div className="dashboard-kpi-grid">
-          <div className="dashboard-card-custom orange-theme" style={{ cursor: 'pointer' }} onClick={() => navigate('/attendance')}>
+          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive orange-theme" onClick={() => navigate('/attendance')}>
             <i className="ri-arrow-right-s-line card-chevron"></i>
             <div className="card-icon-wrapper">
               <i className="ri-calendar-line"></i>
@@ -146,9 +151,9 @@ const Dashboard = () => {
               <span className="card-label">My Attendance</span>
               <span className="card-value" style={{ fontSize: '1rem', color: '#646465', fontWeight: 500 }}>View Calendar →</span>
             </div>
-          </div>
+          </button>
 
-          <div className="dashboard-card-custom blue-theme" style={{ cursor: 'pointer' }} onClick={() => setShowHolidayModal(true)}>
+          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive blue-theme" onClick={() => setShowHolidayModal(true)}>
             <i className="ri-arrow-right-s-line card-chevron"></i>
             <div className="card-icon-wrapper">
               <i className="ri-time-line"></i>
@@ -157,7 +162,7 @@ const Dashboard = () => {
               <span className="card-label">Upcoming Holiday</span>
               <span className="card-value">{holidays.filter(h => h.date >= appDateKey()).length}</span>
             </div>
-          </div>
+          </button>
         </div>
       );
     } else {
@@ -174,7 +179,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="dashboard-card-custom orange-theme" style={{ cursor: 'pointer' }} onClick={() => navigate('/attendance')}>
+          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive orange-theme" onClick={() => navigate('/attendance')}>
             <i className="ri-arrow-right-s-line card-chevron"></i>
             <div className="card-icon-wrapper">
               <i className="ri-calendar-line"></i>
@@ -187,9 +192,9 @@ const Dashboard = () => {
                 <span className="card-value" style={{ color: '#494949', fontSize: '1.5rem' }}>{attendanceCounts.absent} <span style={{ fontSize: '0.7rem', color: '#646465', fontWeight: 500 }}>Absent</span></span>
               </div>
             </div>
-          </div>
+          </button>
 
-          <div className="dashboard-card-custom blue-theme" style={{ cursor: 'pointer' }} onClick={() => setShowHolidayModal(true)}>
+          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive blue-theme" onClick={() => setShowHolidayModal(true)}>
             <i className="ri-arrow-right-s-line card-chevron"></i>
             <div className="card-icon-wrapper">
               <i className="ri-time-line"></i>
@@ -198,7 +203,7 @@ const Dashboard = () => {
               <span className="card-label">Upcoming Holiday</span>
               <span className="card-value">{holidays.filter(h => h.date >= appDateKey()).length}</span>
             </div>
-          </div>
+          </button>
         </div>
       );
     }
@@ -328,10 +333,10 @@ const Dashboard = () => {
 
       {/* Bottom Row: Leaves Grid */}
       <div className="card" style={{ padding: '1.5rem' }}>
-        <div className="flex justify-between items-center mb-5" style={{ cursor: 'pointer' }} onClick={() => navigate('/leave')}>
+        <button type="button" className="dashboard-section-link flex justify-between items-center mb-5" onClick={() => navigate('/leave')}>
           <h3 className="font-bold" style={{ fontSize: '1.125rem', color: 'var(--text-main)' }}>Leaves</h3>
           <i className="ri-arrow-right-s-line" style={{ color: '#A3AED0', fontSize: '1.25rem' }}></i>
-        </div>
+        </button>
         
         <div className="leaves-grid">
           
@@ -405,14 +410,22 @@ const Dashboard = () => {
       {/* Holiday Modal */}
       {showHolidayModal && (
         <div className="salary-modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowHolidayModal(false)}>
-          <div className="salary-modal" style={{ maxWidth: 650, boxSizing: 'border-box' }}>
+          <div
+            ref={holidayDialogRef}
+            className="salary-modal"
+            style={{ maxWidth: 650, boxSizing: 'border-box' }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="holiday-dialog-title"
+            tabIndex="-1"
+          >
             <div className="salary-modal-header" style={{ marginBottom: '1.5rem' }}>
               <div>
-                <h3 className="salary-modal-title">Upcoming Holidays</h3>
+                <h3 className="salary-modal-title" id="holiday-dialog-title">Upcoming Holidays</h3>
                 <p className="salary-modal-sub">View company holidays</p>
               </div>
-              <button className="salary-modal-close" onClick={() => setShowHolidayModal(false)}>
-                <i className="ri-close-line" />
+              <button type="button" className="salary-modal-close" onClick={() => setShowHolidayModal(false)} aria-label="Close upcoming holidays">
+                <i className="ri-close-line" aria-hidden="true" />
               </button>
             </div>
             

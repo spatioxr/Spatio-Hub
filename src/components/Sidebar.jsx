@@ -50,7 +50,7 @@ const Sidebar = () => {
             )}
             key={item.path}
           >
-            <i className={item.icon}></i>
+            <i className={item.icon} aria-hidden="true"></i>
             <span>{item.name}</span>
           </NavLink>
         ))}

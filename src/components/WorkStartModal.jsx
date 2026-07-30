@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AuthContext } from '../context/AuthContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import { supabase } from '../utils/supabaseClient';
+import useDialogFocus from '../hooks/useDialogFocus';
 
 const optionKey = (type, id) => `${type}:${id}`;
 
@@ -25,6 +26,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const dialogRef = useDialogFocus(true, onClose, { closeDisabled: submitting });
 
   useEffect(() => {
     let active = true;
@@ -83,15 +85,6 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
       active = false;
     };
   }, [isSwitch, session?.activity_id, session?.project_id, user.id]);
-
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !submitting) onClose();
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, submitting]);
 
   const recentChoices = useMemo(() => {
     const projectMap = new Map(projects.map((project) => [
@@ -184,10 +177,12 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
       }}
     >
       <section
+        ref={dialogRef}
         className="work-start-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="work-start-title"
+        tabIndex="-1"
       >
         <div className="work-start-header">
           <div>

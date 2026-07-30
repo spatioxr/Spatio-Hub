@@ -19,6 +19,7 @@ import {
   formatAppDateTime,
   toAppDateTimeInput,
 } from '../utils/timezone';
+import useDialogFocus from '../hooks/useDialogFocus';
 
 const SCOPE_COPY = {
   personal: {
@@ -680,6 +681,13 @@ const Timesheets = () => {
     void loadHistory(entry);
   };
 
+  const manualEditorRef = useDialogFocus(
+    Boolean(manualEditor),
+    closeManualEditor,
+    { closeDisabled: manualSaving },
+  );
+  const historyViewerRef = useDialogFocus(Boolean(historyViewer), closeHistory);
+
   return (
     <Layout
       title="Timesheets"
@@ -1071,13 +1079,20 @@ const Timesheets = () => {
         <div className="timesheet-editor-overlay" onMouseDown={(event) => {
           if (event.target === event.currentTarget) closeManualEditor();
         }}>
-          <aside className="timesheet-editor" aria-label="Manual time entry">
+          <aside
+            ref={manualEditorRef}
+            className="timesheet-editor"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="manual-entry-title"
+            tabIndex="-1"
+          >
             <header className="timesheet-editor-header">
               <div>
                 <span className="page-eyebrow">
                   {manualEditor.mode === 'edit' ? 'Correction' : 'Manual entry'}
                 </span>
-                <h2>
+                <h2 id="manual-entry-title">
                   {manualEditor.mode === 'edit' ? 'Correct time entry' : 'Add time entry'}
                 </h2>
                 <p>
@@ -1269,13 +1284,17 @@ const Timesheets = () => {
           if (event.target === event.currentTarget) closeHistory();
         }}>
           <aside
+            ref={historyViewerRef}
             className="timesheet-editor timesheet-history"
-            aria-label="Time entry change history"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="timesheet-history-title"
+            tabIndex="-1"
           >
             <header className="timesheet-editor-header">
               <div>
                 <span className="page-eyebrow">Immutable audit trail</span>
-                <h2>Change history</h2>
+                <h2 id="timesheet-history-title">Change history</h2>
                 <p>
                   {historyViewer.context_label}
                   {historyViewer.employee_name

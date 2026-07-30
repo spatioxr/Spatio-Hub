@@ -121,22 +121,32 @@ const TopBar = ({ title }) => {
       </div>
       <div className="topbar-actions">
         <WorkTimerControl />
-        <div className="user-profile" ref={dropdownRef} onClick={() => setDropdownOpen(!dropdownOpen)}>
-          <div className="avatar user-profile-avatar">
-            {localAvatar ? (
-              <img src={localAvatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              user?.name?.charAt(0)
-            )}
-          </div>
-          <div className="flex-col">
-            <span className="font-bold text-sm" style={{ color: 'var(--text-main)' }}>{user?.name}</span>
-            <span className="text-xs text-muted" style={{ textTransform: 'capitalize' }}>{user?.role}</span>
-          </div>
-          <i className="ri-arrow-down-s-line text-muted ml-2"></i>
+        <div className="user-profile-wrapper" ref={dropdownRef}>
+          <button
+            type="button"
+            className="user-profile"
+            onClick={() => setDropdownOpen((current) => !current)}
+            aria-expanded={dropdownOpen}
+            aria-haspopup="menu"
+            aria-controls="profile-menu"
+            aria-label={`Open profile menu for ${user?.name || 'current user'}`}
+          >
+            <span className="avatar user-profile-avatar">
+              {localAvatar ? (
+                <img src={localAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                user?.name?.charAt(0)
+              )}
+            </span>
+            <span className="flex-col">
+              <span className="font-bold text-sm" style={{ color: 'var(--text-main)' }}>{user?.name}</span>
+              <span className="text-xs text-muted" style={{ textTransform: 'capitalize' }}>{user?.role}</span>
+            </span>
+            <i className="ri-arrow-down-s-line text-muted ml-2" aria-hidden="true"></i>
+          </button>
 
           {dropdownOpen && (
-            <div className="profile-menu" onClick={e => e.stopPropagation()}>
+            <div className="profile-menu" id="profile-menu" role="menu">
               
               {/* Profile Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -149,11 +159,13 @@ const TopBar = ({ title }) => {
                     )}
                   </div>
                   <button 
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); fileInputRef.current.click(); }}
                     style={{ position: 'absolute', bottom: -5, right: -5, background: '#4318FF', color: 'white', border: '2px solid white', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}
                     title="Change Picture"
+                    aria-label="Change profile picture"
                   >
-                    <i className="ri-pencil-fill" style={{ fontSize: '0.8rem' }}></i>
+                    <i className="ri-pencil-fill" style={{ fontSize: '0.8rem' }} aria-hidden="true"></i>
                   </button>
                 </div>
                 <div>
@@ -188,26 +200,26 @@ const TopBar = ({ title }) => {
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <div
-                  style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)', transition: 'background 0.2s', borderRadius: '6px' }}
-                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.03)'}
-                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                <button
+                  type="button"
+                  className="profile-menu-action"
+                  role="menuitem"
                   onClick={() => { setDropdownOpen(false); navigate('/reset-password'); }}
                 >
-                  <i className="ri-lock-password-line"></i> Reset Password
-                </div>
-                <div
-                  style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--danger)', transition: 'background 0.2s', borderRadius: '6px' }}
-                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(238,93,80,0.05)'}
-                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                  <i className="ri-lock-password-line" aria-hidden="true"></i> Reset Password
+                </button>
+                <button
+                  type="button"
+                  className="profile-menu-action profile-menu-action--danger"
+                  role="menuitem"
                   onClick={async () => {
                     setDropdownOpen(false);
                     await logout();
                     navigate('/login');
                   }}
                 >
-                  <i className="ri-logout-box-r-line"></i> Logout
-                </div>
+                  <i className="ri-logout-box-r-line" aria-hidden="true"></i> Logout
+                </button>
               </div>
             </div>
           )}

@@ -16,6 +16,7 @@ import {
   formatAppDate,
   formatAppTimeValue,
 } from '../utils/timezone';
+import useDialogFocus from '../hooks/useDialogFocus';
 
 const DEPARTMENTS = ['Development', 'Design', 'Operations', 'Sales'];
 
@@ -38,6 +39,11 @@ const Attendance = () => {
   const [editAttForm, setEditAttForm] = useState({ check_in: '', check_out: '', bos_report: '', eod_report: '' });
   const [savingAtt, setSavingAtt] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const detailDialogRef = useDialogFocus(
+    Boolean(selectedDateDetails),
+    () => setSelectedDateDetails(null),
+    { closeDisabled: savingAtt },
+  );
 
   // Month Navigation
   const handlePrevMonth = () => {
@@ -631,12 +637,21 @@ const Attendance = () => {
       {/* Date Detail Modal */}
       {selectedDateDetails && (
         <div className="salary-modal-overlay" onClick={() => setSelectedDateDetails(null)}>
-          <div className="salary-modal" style={{ maxWidth: 450 }} onClick={e => e.stopPropagation()}>
+          <div
+            ref={detailDialogRef}
+            className="salary-modal"
+            style={{ maxWidth: 450 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="attendance-detail-title"
+            tabIndex="-1"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="salary-modal-header">
               <div>
-                <h3 className="salary-modal-title">Details for {formatAppDate(selectedDateDetails.date, { weekday: 'long', month: 'long' })}</h3>
+                <h3 className="salary-modal-title" id="attendance-detail-title">Details for {formatAppDate(selectedDateDetails.date, { weekday: 'long', month: 'long' })}</h3>
               </div>
-              <button className="salary-modal-close" onClick={() => setSelectedDateDetails(null)}><i className="ri-close-line" /></button>
+              <button type="button" className="salary-modal-close" onClick={() => setSelectedDateDetails(null)} aria-label="Close attendance details"><i className="ri-close-line" aria-hidden="true" /></button>
             </div>
             <div style={{ padding: '0 0 1rem' }}>
               
@@ -650,21 +665,21 @@ const Attendance = () => {
                   )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#646465', marginBottom: '0.25rem', display: 'block' }}>Check In</label>
-                      <input type="time" className="salary-input" value={editAttForm.check_in} onChange={e => setEditAttForm(prev => ({...prev, check_in: e.target.value}))} />
+                      <label htmlFor="attendance-check-in" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#646465', marginBottom: '0.25rem', display: 'block' }}>Check In</label>
+                      <input id="attendance-check-in" type="time" className="salary-input" value={editAttForm.check_in} onChange={e => setEditAttForm(prev => ({...prev, check_in: e.target.value}))} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#646465', marginBottom: '0.25rem', display: 'block' }}>Check Out</label>
-                      <input type="time" className="salary-input" value={editAttForm.check_out} onChange={e => setEditAttForm(prev => ({...prev, check_out: e.target.value}))} />
+                      <label htmlFor="attendance-check-out" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#646465', marginBottom: '0.25rem', display: 'block' }}>Check Out</label>
+                      <input id="attendance-check-out" type="time" className="salary-input" value={editAttForm.check_out} onChange={e => setEditAttForm(prev => ({...prev, check_out: e.target.value}))} />
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#006742', marginBottom: '0.25rem', display: 'block' }}>BOS Report</label>
-                    <textarea className="salary-input" style={{ minHeight: '80px', resize: 'vertical' }} value={editAttForm.bos_report} onChange={e => setEditAttForm(prev => ({...prev, bos_report: e.target.value}))} placeholder="Enter Beginning of Shift report..."></textarea>
+                    <label htmlFor="attendance-bos" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#006742', marginBottom: '0.25rem', display: 'block' }}>BOS Report</label>
+                    <textarea id="attendance-bos" className="salary-input" style={{ minHeight: '80px', resize: 'vertical' }} value={editAttForm.bos_report} onChange={e => setEditAttForm(prev => ({...prev, bos_report: e.target.value}))} placeholder="Enter Beginning of Shift report..."></textarea>
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#00A87E', marginBottom: '0.25rem', display: 'block' }}>EOD Report</label>
-                    <textarea className="salary-input" style={{ minHeight: '80px', resize: 'vertical' }} value={editAttForm.eod_report} onChange={e => setEditAttForm(prev => ({...prev, eod_report: e.target.value}))} placeholder="Enter End of Day report..."></textarea>
+                    <label htmlFor="attendance-eod" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#00A87E', marginBottom: '0.25rem', display: 'block' }}>EOD Report</label>
+                    <textarea id="attendance-eod" className="salary-input" style={{ minHeight: '80px', resize: 'vertical' }} value={editAttForm.eod_report} onChange={e => setEditAttForm(prev => ({...prev, eod_report: e.target.value}))} placeholder="Enter End of Day report..."></textarea>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
                     <button className="salary-cancel-btn" onClick={() => setIsEditingAtt(false)}>Cancel</button>

@@ -1,6 +1,7 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { WorkSessionContext } from '../context/WorkSessionContext';
+import useDialogFocus from '../hooks/useDialogFocus';
 
 const WorkEndDayModal = ({ onClose, onComplete }) => {
   const { dayState, endDay } = useContext(WorkSessionContext);
@@ -9,15 +10,7 @@ const WorkEndDayModal = ({ onClose, onComplete }) => {
   const [error, setError] = useState('');
   const needsEod = dayState.eodRequired && !dayState.eodSubmitted;
   const canSubmit = (!needsEod || Boolean(eodReport.trim())) && !submitting;
-
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !submitting) onClose();
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, submitting]);
+  const dialogRef = useDialogFocus(true, onClose, { closeDisabled: submitting });
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -46,10 +39,12 @@ const WorkEndDayModal = ({ onClose, onComplete }) => {
       }}
     >
       <section
+        ref={dialogRef}
         className="work-start-modal work-end-day-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="work-end-day-title"
+        tabIndex="-1"
       >
         <div className="work-start-header">
           <div>

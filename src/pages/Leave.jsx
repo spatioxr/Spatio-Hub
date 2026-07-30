@@ -6,6 +6,7 @@ import { supabase } from '../utils/supabaseClient';
 import AppState from '../components/AppState';
 import { appDateKey, formatAppDate } from '../utils/timezone';
 import { calculateLeaveDays, canReviewLeave } from '../utils/leave';
+import useDialogFocus from '../hooks/useDialogFocus';
 
 const LEAVE_TYPES = ['Sick Leave', 'Comp Off', 'Casual Leave'];
 
@@ -27,6 +28,7 @@ const GrantCompOffModal = ({ onClose, onGrant }) => {
   const [days, setDays] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const dialogRef = useDialogFocus(true, onClose, { closeDisabled: submitting });
 
   useEffect(() => {
     supabase.from('employees').select('id, name').order('name').then(({ data, error: loadError }) => {
@@ -52,13 +54,20 @@ const GrantCompOffModal = ({ onClose, onGrant }) => {
 
   return (
     <div className="salary-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="salary-modal">
+      <div
+        ref={dialogRef}
+        className="salary-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="grant-comp-off-title"
+        tabIndex="-1"
+      >
         <div className="salary-modal-header">
           <div>
-            <h3 className="salary-modal-title">Grant Comp Off</h3>
+            <h3 className="salary-modal-title" id="grant-comp-off-title">Grant Comp Off</h3>
             <p className="salary-modal-sub">Add Comp Off days to an employee's balance</p>
           </div>
-          <button className="salary-modal-close" onClick={onClose}><i className="ri-close-line" /></button>
+          <button type="button" className="salary-modal-close" onClick={onClose} aria-label="Close Grant Comp Off"><i className="ri-close-line" aria-hidden="true" /></button>
         </div>
         <form onSubmit={handleSubmit}>
           {error && (
@@ -68,15 +77,15 @@ const GrantCompOffModal = ({ onClose, onGrant }) => {
             </div>
           )}
           <div className="salary-field">
-            <label className="salary-field-label">Employee <span className="salary-required">*</span></label>
-            <select className="salary-input" value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} required>
+            <label className="salary-field-label" htmlFor="comp-off-employee">Employee <span className="salary-required">*</span></label>
+            <select id="comp-off-employee" className="salary-input" value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} required>
               <option value="">-- Select Employee --</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>
           </div>
           <div className="salary-field">
-            <label className="salary-field-label">Days to Add <span className="salary-required">*</span></label>
-            <input className="salary-input" type="number" min="0.5" step="0.5" value={days} onChange={e => setDays(e.target.value)} required />
+            <label className="salary-field-label" htmlFor="comp-off-days">Days to Add <span className="salary-required">*</span></label>
+            <input id="comp-off-days" className="salary-input" type="number" min="0.5" step="0.5" value={days} onChange={e => setDays(e.target.value)} required />
           </div>
           <div className="salary-modal-actions">
             <button type="button" className="salary-cancel-btn" onClick={onClose} disabled={submitting}>Cancel</button>
@@ -113,6 +122,15 @@ const Leave = () => {
   const [rejectError, setRejectError] = useState('');
   const [actionId, setActionId] = useState(null);
   const [actionMsg, setActionMsg] = useState(null);
+  const reasonDialogRef = useDialogFocus(
+    Boolean(selectedLeaveReason),
+    () => setSelectedLeaveReason(null),
+  );
+  const rejectDialogRef = useDialogFocus(
+    Boolean(rejectTarget),
+    () => setRejectTarget(null),
+    { closeDisabled: rejecting },
+  );
 
   const balance = user ? getUserBalance(user.id) : {};
   const myRequests = getMyRequests();
@@ -463,8 +481,8 @@ const Leave = () => {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-4 gap-4">
               <div className="input-group">
-                <label>Leave Type</label>
-                <select name="type" value={form.type} onChange={handleFormChange}>
+                <label htmlFor="leave-type">Leave Type</label>
+                <select id="leave-type" name="type" value={form.type} onChange={handleFormChange}>
                   {LEAVE_TYPES.map(t => (
                     <option key={t} value={t}>
                       {t} ({(balance[t]?.remaining ?? 0)} days left)
@@ -473,20 +491,21 @@ const Leave = () => {
                 </select>
               </div>
               <div className="input-group">
-                <label>From</label>
-                <input type="date" name="from" value={form.from} onChange={handleFormChange} required />
+                <label htmlFor="leave-from">From</label>
+                <input id="leave-from" type="date" name="from" value={form.from} onChange={handleFormChange} required />
               </div>
               <div className="input-group">
-                <label>To</label>
-                <input type="date" name="to" value={form.to} onChange={handleFormChange} required disabled={form.isHalfDay} />
+                <label htmlFor="leave-to">To</label>
+                <input id="leave-to" type="date" name="to" value={form.to} onChange={handleFormChange} required disabled={form.isHalfDay} />
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
                   <input type="checkbox" name="isHalfDay" checked={form.isHalfDay} onChange={handleFormChange} />
                   Half Day (0.5 days)
                 </label>
               </div>
               <div className="input-group">
-                <label>Reason</label>
+                <label htmlFor="leave-reason">Reason</label>
                 <input
+                  id="leave-reason"
                   type="text"
                   name="reason"
                   value={form.reason}
@@ -853,13 +872,22 @@ const Leave = () => {
       {/* Reason View Modal */}
       {selectedLeaveReason && (
         <div className="salary-modal-overlay" onClick={() => setSelectedLeaveReason(null)}>
-          <div className="salary-modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+          <div
+            ref={reasonDialogRef}
+            className="salary-modal"
+            style={{ maxWidth: 420 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="leave-details-title"
+            tabIndex="-1"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="salary-modal-header">
               <div>
-                <h3 className="salary-modal-title">Leave Details</h3>
+                <h3 className="salary-modal-title" id="leave-details-title">Leave Details</h3>
                 <p className="salary-modal-sub" style={{ textTransform: 'capitalize' }}>{selectedLeaveReason.type}</p>
               </div>
-              <button className="salary-modal-close" onClick={() => setSelectedLeaveReason(null)}><i className="ri-close-line" /></button>
+              <button type="button" className="salary-modal-close" onClick={() => setSelectedLeaveReason(null)} aria-label="Close leave details"><i className="ri-close-line" aria-hidden="true" /></button>
             </div>
             <div style={{ padding: '0 0 1rem' }}>
               <p style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: '0.25rem', fontWeight: 600 }}>Reason</p>
@@ -878,17 +906,27 @@ const Leave = () => {
       {/* Reject with Comment Modal */}
       {rejectTarget && (
         <div className="salary-modal-overlay" onClick={() => setRejectTarget(null)}>
-          <div className="salary-modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+          <div
+            ref={rejectDialogRef}
+            className="salary-modal"
+            style={{ maxWidth: 420 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reject-leave-title"
+            tabIndex="-1"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="salary-modal-header">
               <div>
-                <h3 className="salary-modal-title">Reject Leave Request</h3>
+                <h3 className="salary-modal-title" id="reject-leave-title">Reject Leave Request</h3>
                 <p className="salary-modal-sub">Add a comment for {rejectTarget.employees?.name}</p>
               </div>
-              <button className="salary-modal-close" onClick={() => setRejectTarget(null)}><i className="ri-close-line" /></button>
+              <button type="button" className="salary-modal-close" onClick={() => setRejectTarget(null)} aria-label="Close reject leave dialog"><i className="ri-close-line" aria-hidden="true" /></button>
             </div>
             <div className="salary-field">
-              <label className="salary-field-label">Rejection Comment <span style={{ color: '#A3AED0', fontWeight: 400 }}>(optional)</span></label>
+              <label className="salary-field-label" htmlFor="rejection-comment">Rejection Comment <span style={{ color: '#A3AED0', fontWeight: 400 }}>(optional)</span></label>
               <textarea
+                id="rejection-comment"
                 className="salary-input"
                 style={{ minHeight: 100, resize: 'none' }}
                 placeholder="Explain why the leave is being rejected..."
