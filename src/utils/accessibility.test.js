@@ -8,12 +8,15 @@ test('the application shell exposes keyboard navigation landmarks', () => {
   const layout = read('../components/Layout.jsx');
   const sidebar = read('../components/Sidebar.jsx');
   const topBar = read('../components/TopBar.jsx');
+  const timer = read('../components/WorkTimerControl.jsx');
 
   assert.match(layout, /href="#main-content"/);
   assert.match(layout, /id="main-content"/);
   assert.match(sidebar, /aria-label="Primary navigation"/);
   assert.match(topBar, /aria-haspopup="menu"/);
   assert.match(topBar, /role="menuitem"/);
+  assert.match(timer, /aria-label="End work day"/);
+  assert.match(timer, /'Start work'/);
 });
 
 test('core dialogs share focus trapping, Escape handling, and focus restoration', () => {

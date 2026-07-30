@@ -93,6 +93,7 @@ const WorkTimerControl = () => {
             className="work-timer-action work-timer-action--secondary"
             onClick={handleBreakAction}
             disabled={loading || breakActionPending}
+            aria-label={breakActionPending ? 'Starting break' : 'Start break'}
           >
             <i className="ri-pause-circle-line" aria-hidden="true" />
             <span>{breakActionPending ? 'Starting…' : 'Start break'}</span>
@@ -112,6 +113,13 @@ const WorkTimerControl = () => {
             }
           }}
           disabled={loading || breakActionPending}
+          aria-label={
+            isOut
+              ? 'Start work'
+              : isWorking
+                ? 'Switch work context'
+                : breakActionPending ? 'Resuming work' : 'Resume work'
+          }
         >
           <i
             className={isOut ? 'ri-play-fill' : isWorking ? 'ri-swap-line' : 'ri-play-circle-line'}
@@ -134,6 +142,7 @@ const WorkTimerControl = () => {
               setEndDayOpen(true);
             }}
             disabled={loading || breakActionPending}
+            aria-label="End work day"
           >
             <i className="ri-stop-circle-line" aria-hidden="true" />
             <span>End Day</span>
