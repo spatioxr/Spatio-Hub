@@ -7,6 +7,79 @@ import {
   PERMISSIONS,
 } from './rbac.js';
 
+test('launch navigation and actions match the complete four-role matrix', () => {
+  const expected = {
+    employee: {
+      timesheetScope: 'own',
+      people: false,
+      projects: false,
+      adminSettings: false,
+      organisationReports: false,
+      approveLeave: false,
+    },
+    manager: {
+      timesheetScope: 'assigned_projects',
+      people: true,
+      projects: true,
+      adminSettings: false,
+      organisationReports: false,
+      approveLeave: false,
+    },
+    admin: {
+      timesheetScope: 'organisation',
+      people: true,
+      projects: true,
+      adminSettings: true,
+      organisationReports: true,
+      approveLeave: false,
+    },
+    superadmin: {
+      timesheetScope: 'organisation',
+      people: true,
+      projects: true,
+      adminSettings: true,
+      organisationReports: true,
+      approveLeave: true,
+    },
+  };
+
+  for (const [role, access] of Object.entries(expected)) {
+    const user = { id: `${role}-1`, role };
+
+    for (const permission of [
+      PERMISSIONS.ACCESS_PORTAL,
+      PERMISSIONS.TRACK_OWN_WORK,
+      PERMISSIONS.VIEW_OWN_TIMESHEET,
+      PERMISSIONS.APPLY_OWN_LEAVE,
+    ]) {
+      assert.equal(hasPermission(user, permission), true, `${role}: ${permission}`);
+    }
+
+    assert.equal(getTimesheetScope(user), access.timesheetScope, `${role}: timesheet scope`);
+    assert.equal(hasPermission(user, PERMISSIONS.VIEW_PEOPLE), access.people, `${role}: People`);
+    assert.equal(
+      hasPermission(user, PERMISSIONS.MANAGE_OWNED_PROJECT_TEAM),
+      access.projects,
+      `${role}: Projects`,
+    );
+    assert.equal(
+      hasPermission(user, PERMISSIONS.ACCESS_ADMIN_SETTINGS),
+      access.adminSettings,
+      `${role}: Admin Settings`,
+    );
+    assert.equal(
+      hasPermission(user, PERMISSIONS.VIEW_ORGANISATION_REPORTS),
+      access.organisationReports,
+      `${role}: Analytics`,
+    );
+    assert.equal(
+      hasPermission(user, PERMISSIONS.APPROVE_LEAVE),
+      access.approveLeave,
+      `${role}: leave review`,
+    );
+  }
+});
+
 test('employees cannot edit time entries or approve leave', () => {
   const employee = { id: 'employee-1', role: 'employee' };
 

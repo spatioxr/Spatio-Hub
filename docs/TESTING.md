@@ -36,3 +36,24 @@ Both layers run in `.github/workflows/critical-tests.yml`. Database tests start
 an isolated local Supabase stack, reset it from the committed migrations and
 local-only test seed, execute every critical verification inside a rollback-only
 transaction, and stop the stack.
+
+## Launch smoke gate
+
+`HRMS-041` adds a four-role rollback-only launch journey in
+`supabase/verify/hrms_041_role_launch_smoke.sql`. For employee, manager, admin,
+and superadmin it verifies:
+
+- authenticated employee-profile resolution
+- start work, break, resume, context switch, and end day
+- personal timesheet and project scope
+- People and Admin Settings visibility
+- own leave submission
+
+The same run verifies manager-assigned timesheet scope and matching
+organisation scope for admin and superadmin. The database runner also includes
+the focused personal/organisation timesheet, project, activity, leave, People,
+and Admin Settings suites so the launch gate cannot pass by exercising only
+the happy-path timer flow.
+
+Every database verification runs inside its own transaction and ends with
+`ROLLBACK`; launch fixtures must never remain in the target database.

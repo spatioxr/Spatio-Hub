@@ -11,8 +11,16 @@ const verificationFiles = [
   'supabase/verify/hrms_013_work_entry_audit.sql',
   'supabase/verify/hrms_016_work_switching.sql',
   'supabase/verify/hrms_018_daily_report_workflow.sql',
+  'supabase/verify/hrms_021_personal_timesheet.sql',
+  'supabase/verify/hrms_022_scoped_timesheets.sql',
+  'supabase/verify/hrms_026_project_administration.sql',
+  'supabase/verify/hrms_028_activity_administration.sql',
   'supabase/verify/hrms_032_timezone_duration.sql',
   'supabase/verify/hrms_033_leave_balances.sql',
+  'supabase/verify/hrms_034_leave_workflow.sql',
+  'supabase/verify/hrms_041_role_launch_smoke.sql',
+  'supabase/verify/hrms_044_people_directory.sql',
+  'supabase/verify/hrms_045_admin_settings.sql',
 ];
 
 const psqlArguments = [
