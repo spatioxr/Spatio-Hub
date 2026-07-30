@@ -1,6 +1,12 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import Layout from '../components/Layout';
+import AppState from '../components/AppState';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { getManagedDepartments } from '../utils/rbac';
@@ -15,7 +21,6 @@ const DEPARTMENTS = ['Development', 'Design', 'Operations', 'Sales'];
 
 const Attendance = () => {
   const { user } = useContext(AuthContext);
-  const navigate = useNavigate();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [employees, setEmployees] = useState([]);
@@ -26,10 +31,13 @@ const Attendance = () => {
   const [leaveRecords, setLeaveRecords] = useState({});
   
   const [loading, setLoading] = useState(false);
+  const [dataError, setDataError] = useState('');
+  const [notice, setNotice] = useState(null);
   const [selectedDateDetails, setSelectedDateDetails] = useState(null); // for modal
   const [isEditingAtt, setIsEditingAtt] = useState(false);
   const [editAttForm, setEditAttForm] = useState({ check_in: '', check_out: '', bos_report: '', eod_report: '' });
   const [savingAtt, setSavingAtt] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // Month Navigation
   const handlePrevMonth = () => {
@@ -54,8 +62,12 @@ const Attendance = () => {
       } else if (user.role === 'employee') {
         return;
       }
-      const { data } = await query.order('name', { ascending: true });
-      if (data) setEmployees(data);
+      const { data, error } = await query.order('name', { ascending: true });
+      if (error) {
+        setDataError(error.message || 'Unable to load the employee list.');
+        return;
+      }
+      setEmployees(data || []);
     };
     if (user.role !== 'employee') fetchEmployees();
   }, [user]);
@@ -84,95 +96,107 @@ const Attendance = () => {
     }
   }, [selectedDepartment]);
 
-  // Fetch Data for the month
-  useEffect(() => {
-    if (!selectedEmployeeId) return;
-    
-    const fetchData = async () => {
-      setLoading(true);
-      
-      const year = currentMonth.getFullYear();
-      const month = currentMonth.getMonth();
-      
-      const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-      const lastDay = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
-      
-      const { data: attData } = await supabase
+  const fetchData = useCallback(async () => {
+    if (!selectedEmployeeId) return { error: null };
+
+    setLoading(true);
+    setDataError('');
+
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const lastDay = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
+
+    const [
+      { data: attData, error: attendanceError },
+      { data: repData, error: reportError },
+      { data: leavesData, error: leaveError },
+    ] = await Promise.all([
+      supabase
         .from('attendance')
         .select('*')
         .eq('employee_id', selectedEmployeeId)
         .gte('date', firstDay)
-        .lte('date', lastDay);
-        
-      const { data: repData } = await supabase
+        .lte('date', lastDay),
+      supabase
         .from('daily_reports')
         .select('*')
         .eq('employee_id', selectedEmployeeId)
         .gte('date', firstDay)
-        .lte('date', lastDay);
-        
-      const { data: leavesData } = await supabase
+        .lte('date', lastDay),
+      supabase
         .from('leaves')
         .select('*')
         .eq('employee_id', selectedEmployeeId)
-        .eq('status', 'Approved'); 
-        
-      const attMap = {};
-      (attData || []).forEach(att => {
-        const rep = (repData || []).find(r => r.date === att.date);
-        
-        // Late logic: Check-in after 10:30 AM
-        let isLate = false;
-        if (att.check_in) {
-          const parts = att.check_in.match(/(\d+):(\d+)/);
-          if (parts) {
-            const h = parseInt(parts[1]);
-            const m = parseInt(parts[2]);
-            if (h > 10 || (h === 10 && m >= 30)) isLate = true;
-          }
-        }
-        
-        // Duration logic
-        let durationHours = 0;
-        let dayType = 'Present'; // default if missing check-out
-        if (att.check_in && att.check_out) {
-          const t1 = new Date(`1970-01-01T${att.check_in}`);
-          const t2 = new Date(`1970-01-01T${att.check_out}`);
-          durationHours = (t2 - t1) / (1000 * 60 * 60);
-          
-          if (durationHours > 6) {
-            dayType = 'Full Day';
-          } else if (durationHours >= 4 && durationHours <= 6) {
-            dayType = 'Half Day';
-          } else {
-            dayType = 'Leave'; // 0 to 4 hours
-          }
-        }
-        
-        attMap[att.date] = {
-          ...att,
-          bos_report: rep?.bos_report || '-',
-          eod_report: rep?.eod_report || '-',
-          isLate,
-          dayType,
-          durationHours
-        };
-      });
-      
-      const leaveMap = {};
-      (leavesData || []).forEach(lv => {
-        for (let date = lv.from_date; date <= lv.to_date; date = addAppDays(date, 1)) {
-          leaveMap[date] = lv;
-        }
-      });
-      
-      setAttendanceRecords(attMap);
-      setLeaveRecords(leaveMap);
+        .eq('status', 'Approved'),
+    ]);
+
+    const fetchError = attendanceError || reportError || leaveError;
+    if (fetchError) {
+      setDataError(fetchError.message || 'Unable to load work-tracking details.');
       setLoading(false);
-    };
-    
-    fetchData();
-  }, [selectedEmployeeId, currentMonth]);
+      return { error: fetchError };
+    }
+
+    const attMap = {};
+    (attData || []).forEach(att => {
+      const rep = (repData || []).find(r => r.date === att.date);
+        
+      // Late logic: Check-in after 10:30 AM
+      let isLate = false;
+      if (att.check_in) {
+        const parts = att.check_in.match(/(\d+):(\d+)/);
+        if (parts) {
+          const h = parseInt(parts[1]);
+          const m = parseInt(parts[2]);
+          if (h > 10 || (h === 10 && m >= 30)) isLate = true;
+        }
+      }
+        
+      // Duration logic
+      let durationHours = 0;
+      let dayType = 'Present'; // default if missing check-out
+      if (att.check_in && att.check_out) {
+        const t1 = new Date(`1970-01-01T${att.check_in}`);
+        const t2 = new Date(`1970-01-01T${att.check_out}`);
+        durationHours = (t2 - t1) / (1000 * 60 * 60);
+          
+        if (durationHours > 6) {
+          dayType = 'Full Day';
+        } else if (durationHours >= 4 && durationHours <= 6) {
+          dayType = 'Half Day';
+        } else {
+          dayType = 'Leave'; // 0 to 4 hours
+        }
+      }
+        
+      attMap[att.date] = {
+        ...att,
+        bos_report: rep?.bos_report || '-',
+        eod_report: rep?.eod_report || '-',
+        isLate,
+        dayType,
+        durationHours
+      };
+    });
+      
+    const leaveMap = {};
+    (leavesData || []).forEach(lv => {
+      for (let date = lv.from_date; date <= lv.to_date; date = addAppDays(date, 1)) {
+        leaveMap[date] = lv;
+      }
+    });
+      
+    setAttendanceRecords(attMap);
+    setLeaveRecords(leaveMap);
+    setLoading(false);
+    return { error: null };
+  }, [currentMonth, selectedEmployeeId]);
+
+  // Fetch Data for the month
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   // --- Stats derived from current month records ---
   const monthStats = useMemo(() => {
@@ -256,6 +280,7 @@ const Attendance = () => {
     if (att || lv || user?.role !== 'employee') {
       setSelectedDateDetails({ date: dateStr, att, lv });
       setIsEditingAtt(false);
+      setSaveError('');
       setEditAttForm({
         check_in: att?.check_in || '',
         check_out: att?.check_out || '',
@@ -268,12 +293,15 @@ const Attendance = () => {
   const handleSaveAttendance = async () => {
     if (!selectedDateDetails || !selectedEmployeeId) return;
     setSavingAtt(true);
+    setSaveError('');
+    setNotice(null);
     const dateStr = selectedDateDetails.date;
     
     try {
       // 1. Upsert Attendance
-      const { data: existingAtt } = await supabase.from('attendance')
+      const { data: existingAtt, error: existingAttendanceError } = await supabase.from('attendance')
         .select('id').eq('employee_id', selectedEmployeeId).eq('date', dateStr).maybeSingle();
+      if (existingAttendanceError) throw existingAttendanceError;
       
       const checkInParts = editAttForm.check_in.split(':');
       let status = 'Present';
@@ -292,14 +320,22 @@ const Attendance = () => {
       };
 
       if (existingAtt) {
-        await supabase.from('attendance').update(attPayload).eq('id', existingAtt.id);
+        const { error: attendanceUpdateError } = await supabase
+          .from('attendance')
+          .update(attPayload)
+          .eq('id', existingAtt.id);
+        if (attendanceUpdateError) throw attendanceUpdateError;
       } else if (editAttForm.check_in || editAttForm.check_out) {
-        await supabase.from('attendance').insert(attPayload);
+        const { error: attendanceInsertError } = await supabase
+          .from('attendance')
+          .insert(attPayload);
+        if (attendanceInsertError) throw attendanceInsertError;
       }
 
       // 2. Upsert Daily Reports
-      const { data: existingRep } = await supabase.from('daily_reports')
+      const { data: existingRep, error: existingReportError } = await supabase.from('daily_reports')
         .select('id').eq('employee_id', selectedEmployeeId).eq('date', dateStr).maybeSingle();
+      if (existingReportError) throw existingReportError;
       
       const repPayload = {
         employee_id: selectedEmployeeId,
@@ -309,24 +345,31 @@ const Attendance = () => {
       };
 
       if (existingRep) {
-        await supabase.from('daily_reports').update(repPayload).eq('id', existingRep.id);
+        const { error: reportUpdateError } = await supabase
+          .from('daily_reports')
+          .update(repPayload)
+          .eq('id', existingRep.id);
+        if (reportUpdateError) throw reportUpdateError;
       } else if (editAttForm.bos_report || editAttForm.eod_report) {
-        await supabase.from('daily_reports').insert(repPayload);
+        const { error: reportInsertError } = await supabase
+          .from('daily_reports')
+          .insert(repPayload);
+        if (reportInsertError) throw reportInsertError;
       }
 
-      // Refresh data
       setSelectedDateDetails(null);
-      
-      // Need to re-trigger fetchData by simulating a state change (it uses selectedEmployeeId & currentMonth)
-      setEmployees([...employees]); // hack to re-trigger if needed, or just rely on fetch logic
-      // Actually we just set loading to true and wait for next tick? 
-      // Better to just refresh by updating selectedEmployeeId to itself to trigger useEffect (won't work if same).
-      // Let's just window.location.reload() or abstract fetchData.
-      window.location.reload(); 
+      const refreshResult = await fetchData();
+      setNotice({
+        type: refreshResult.error ? 'error' : 'success',
+        text: refreshResult.error
+          ? 'Changes were saved, but the calendar could not refresh. Select Try again to load the latest data.'
+          : 'Attendance details updated.',
+      });
     } catch (err) {
-      console.error(err);
+      setSaveError(err.message || 'Unable to save attendance details. Your form has been kept for another attempt.');
+    } finally {
+      setSavingAtt(false);
     }
-    setSavingAtt(false);
   };
 
   return (
@@ -336,6 +379,39 @@ const Attendance = () => {
       heading="Work tracking"
       description="Review monthly attendance, work duration, leave and late arrivals."
     >
+      {notice && (
+        <div
+          className={`people-feedback people-feedback--${notice.type}`}
+          role={notice.type === 'error' ? 'alert' : 'status'}
+        >
+          <i className={notice.type === 'error' ? 'ri-error-warning-line' : 'ri-checkbox-circle-line'} />
+          {notice.text}
+        </div>
+      )}
+
+      {dataError && (
+        <AppState
+          compact
+          type="error"
+          title="Work-tracking data could not be refreshed"
+          message={dataError}
+          action={(
+            <button type="button" className="btn btn-outline" onClick={fetchData}>
+              Try again
+            </button>
+          )}
+        />
+      )}
+
+      {loading && Object.keys(attendanceRecords).length === 0 && !dataError && (
+        <AppState
+          compact
+          type="loading"
+          title="Loading work-tracking calendar"
+          message="Collecting attendance, daily reports and approved leave."
+        />
+      )}
+
       {/* Monthly Stats Row */}
       <div className="attendance-summary-grid">
         <div className="attendance-summary-card attendance-summary-card--present">
@@ -566,6 +642,12 @@ const Attendance = () => {
               
               {isEditingAtt ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem' }}>
+                  {saveError && (
+                    <div className="people-feedback people-feedback--error" role="alert">
+                      <i className="ri-error-warning-line" />
+                      {saveError}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#646465', marginBottom: '0.25rem', display: 'block' }}>Check In</label>

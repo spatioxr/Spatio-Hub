@@ -236,14 +236,13 @@ const Projects = () => {
     const fetchError = projectResult.error || directoryResult?.error;
 
     if (fetchError) {
-      setProjects([]);
-      setDirectory([]);
       setError(fetchError.message || 'Unable to load projects.');
     } else {
       setProjects(projectResult.data || []);
       setDirectory(directoryResult?.data || []);
     }
     setLoading(false);
+    return { error: fetchError || null };
   }, [canManageDefinitions]);
 
   useEffect(() => {
@@ -352,6 +351,7 @@ const Projects = () => {
     setDrawerError('');
 
     try {
+      let actionLabel;
       if (!drawer.project) {
         const { data: createdData, error: createError } = await supabase.rpc('create_project_with_manager', {
           project_code: form.code,
@@ -368,7 +368,7 @@ const Projects = () => {
           });
           if (assignmentError) throw assignmentError;
         }
-        setNotice(`${form.name} was created.`);
+        actionLabel = `${form.name} was created.`;
       } else {
         if (canManageDefinitions) {
           if (form.managerIds.length === 0) {
@@ -383,11 +383,14 @@ const Projects = () => {
           if (updateError) throw updateError;
         }
         await syncAssignments(drawer.project, form);
-        setNotice(`${drawer.project.name} was updated.`);
+        actionLabel = `${drawer.project.name} was updated.`;
       }
 
       setDrawer(null);
-      await fetchProjects();
+      const refreshResult = await fetchProjects();
+      setNotice(refreshResult.error
+        ? `${actionLabel} The project list could not be refreshed; use Try again below.`
+        : actionLabel);
     } catch (saveError) {
       setDrawerError(saveError.message || 'Unable to save this project.');
     } finally {
@@ -408,8 +411,11 @@ const Projects = () => {
       return;
     }
 
-    setNotice(`${project.name} was ${shouldArchive ? 'archived' : 'restored'}.`);
-    await fetchProjects();
+    const actionLabel = `${project.name} was ${shouldArchive ? 'archived' : 'restored'}.`;
+    const refreshResult = await fetchProjects();
+    setNotice(refreshResult.error
+      ? `${actionLabel} The project list could not be refreshed; use Try again below.`
+      : actionLabel);
   };
 
   return (
@@ -489,9 +495,19 @@ const Projects = () => {
           </div>
         </div>
 
-        {loading ? (
+        {error && projects.length > 0 && (
+          <AppState
+            compact
+            type="error"
+            title="Project list could not be refreshed"
+            message={error}
+            action={<button type="button" className="btn btn-outline" onClick={fetchProjects}>Try again</button>}
+          />
+        )}
+
+        {loading && projects.length === 0 ? (
           <AppState type="loading" title="Loading projects" message="Fetching the projects you are permitted to manage." />
-        ) : error ? (
+        ) : error && projects.length === 0 ? (
           <AppState
             type="error"
             title="Unable to load projects"

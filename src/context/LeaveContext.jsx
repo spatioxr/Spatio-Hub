@@ -27,8 +27,17 @@ export const LeaveProvider = ({ children }) => {
     if (showLoading) setLoading(true);
     setLoadError(null);
 
-    // Fetch leaves with employee details
-    const { data: leavesData, error: leavesError } = await supabase
+    let balanceQuery = supabase.from('leave_balances').select('*');
+    if (user.role === 'employee') {
+      balanceQuery = balanceQuery.eq('employee_id', user.id);
+    }
+
+    const [
+      { data: leavesData, error: leavesError },
+      { data: balanceData, error: balanceError },
+      { data: holidayData, error: holidayError },
+    ] = await Promise.all([
+      supabase
       .from('leaves')
       .select(`
         *,
@@ -38,46 +47,35 @@ export const LeaveProvider = ({ children }) => {
           department
         )
       `)
-      .order('created_at', { ascending: false });
-
-    if (!leavesError && leavesData) {
-      setRequests(leavesData);
-    }
-
-    // Fetch balances (only for current user normally, but admins/superadmins might need others)
-    // For simplicity, we fetch all balances if admin/superadmin, or just own if employee.
-    let balanceQuery = supabase.from('leave_balances').select('*');
-    if (user.role === 'employee') {
-      balanceQuery = balanceQuery.eq('employee_id', user.id);
-    }
-    
-    const { data: balanceData, error: balanceError } = await balanceQuery;
-    
-    if (!balanceError && balanceData) {
-      const balMap = {};
-      balanceData.forEach(b => {
-        balMap[b.employee_id] = {
-          'Sick Leave': b.sick_leave,
-          'Casual Leave': b.casual_leave,
-          'Comp Off': b.comp_off
-        };
-      });
-      setBalances(balMap);
-    }
-
-    const { data: holidayData, error: holidayError } = await supabase
-      .from('holidays')
-      .select('id, name, date')
-      .order('date', { ascending: true });
-
-    if (!holidayError && holidayData) {
-      setHolidays(holidayData);
-    }
+      .order('created_at', { ascending: false }),
+      balanceQuery,
+      supabase
+        .from('holidays')
+        .select('id, name, date')
+        .order('date', { ascending: true }),
+    ]);
 
     const error = leavesError || balanceError || holidayError || null;
-    if (error && surfaceError) setLoadError(error);
+    if (error) {
+      if (surfaceError) setLoadError(error);
+      setLoading(false);
+      return { error };
+    }
+
+    const balMap = {};
+    (balanceData || []).forEach(b => {
+      balMap[b.employee_id] = {
+        'Sick Leave': b.sick_leave,
+        'Casual Leave': b.casual_leave,
+        'Comp Off': b.comp_off
+      };
+    });
+
+    setRequests(leavesData || []);
+    setBalances(balMap);
+    setHolidays(holidayData || []);
     setLoading(false);
-    return { error };
+    return { error: null };
   };
 
   useEffect(() => {

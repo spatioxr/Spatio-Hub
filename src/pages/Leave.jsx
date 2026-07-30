@@ -231,7 +231,8 @@ const Leave = () => {
     setFormMsg(result?.error
       ? {
           type: 'error',
-          text: 'The request was saved, but the latest leave data could not be refreshed. Reload to confirm it.',
+          text: 'The request was saved, but the latest leave data could not be refreshed.',
+          retry: true,
         }
       : {
           type: 'success',
@@ -267,8 +268,9 @@ const Leave = () => {
       ? {
           type: 'error',
           text: result.committed
-            ? 'Comp Off was granted, but the latest balances could not be refreshed. Reload to confirm it.'
+            ? 'Comp Off was granted, but the latest balances could not be refreshed.'
             : (result.error.message || 'Unable to grant Comp Off.'),
+          retry: Boolean(result.committed),
         }
       : { type: 'success', text: `${daysToAdd} Comp Off day(s) granted.` });
     return result;
@@ -282,8 +284,9 @@ const Leave = () => {
       ? {
           type: 'error',
           text: result.committed
-            ? 'The leave was approved, but the latest data could not be refreshed. Reload to confirm it.'
+            ? 'The leave was approved, but the latest data could not be refreshed.'
             : (result.error.message || 'Unable to approve the leave request.'),
+          retry: Boolean(result.committed),
         }
       : { type: 'success', text: 'Leave request approved and balance updated.' });
     setActionId(null);
@@ -302,7 +305,8 @@ const Leave = () => {
     setActionMsg(result?.error
       ? {
           type: 'error',
-          text: 'The leave was rejected, but the latest data could not be refreshed. Reload to confirm it.',
+          text: 'The leave was rejected, but the latest data could not be refreshed.',
+          retry: true,
         }
       : { type: 'success', text: 'Leave request rejected without changing the balance.' });
     setRejectTarget(null);
@@ -442,9 +446,17 @@ const Leave = () => {
           </div>
 
           {formMsg && (
-            <div className={`leave-form-msg ${formMsg.type}`}>
+            <div
+              className={`leave-form-msg ${formMsg.type}`}
+              role={formMsg.type === 'error' ? 'alert' : 'status'}
+            >
               <i className={formMsg.type === 'success' ? 'ri-checkbox-circle-fill' : 'ri-error-warning-fill'} />
               {formMsg.text}
+              {formMsg.retry && (
+                <button type="button" className="btn btn-outline" onClick={() => refreshLeaveData()}>
+                  Refresh data
+                </button>
+              )}
             </div>
           )}
 
@@ -551,6 +563,11 @@ const Leave = () => {
               <div className={`leave-form-msg ${actionMsg.type}`} role={actionMsg.type === 'error' ? 'alert' : 'status'}>
                 <i className={actionMsg.type === 'success' ? 'ri-checkbox-circle-fill' : 'ri-error-warning-fill'} />
                 {actionMsg.text}
+                {actionMsg.retry && (
+                  <button type="button" className="btn btn-outline" onClick={() => refreshLeaveData()}>
+                    Refresh data
+                  </button>
+                )}
               </div>
             )}
 

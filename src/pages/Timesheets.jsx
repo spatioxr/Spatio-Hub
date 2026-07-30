@@ -172,6 +172,7 @@ const Timesheets = () => {
   const [filterActivities, setFilterActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState(null);
   const [manualEditor, setManualEditor] = useState(null);
   const [manualContexts, setManualContexts] = useState([]);
   const [manualForm, setManualForm] = useState(() => defaultManualForm(dateKey(new Date())));
@@ -220,10 +221,6 @@ const Timesheets = () => {
 
     const fetchError = entryError || memberError || projectError || activityError;
     if (fetchError) {
-      setEntries([]);
-      setMembers([]);
-      setFilterProjects([]);
-      setFilterActivities([]);
       setError(fetchError.message || 'Unable to load your timesheet.');
     } else {
       setEntries(entryData || []);
@@ -232,6 +229,7 @@ const Timesheets = () => {
       setFilterActivities(activityData || []);
     }
     setLoading(false);
+    return { error: fetchError || null };
   }, [scope, weekStart]);
 
   useEffect(() => {
@@ -616,25 +614,39 @@ const Timesheets = () => {
     };
 
     setManualSaving(true);
-    const { error: saveError } = manualEditor.mode === 'edit'
-      ? await supabase.rpc('correct_manual_time_entry', {
-        target_work_entry_id: manualEditor.entry.work_entry_id,
-        ...payload,
-      })
-      : await supabase.rpc('create_manual_time_entry', {
-        target_employee_id: manualEditor.employee.employee_id,
-        ...payload,
+    try {
+      const { error: saveError } = manualEditor.mode === 'edit'
+        ? await supabase.rpc('correct_manual_time_entry', {
+          target_work_entry_id: manualEditor.entry.work_entry_id,
+          ...payload,
+        })
+        : await supabase.rpc('create_manual_time_entry', {
+          target_employee_id: manualEditor.employee.employee_id,
+          ...payload,
+        });
+
+      if (saveError) {
+        setManualError(saveError.message || 'Unable to save the manual time entry.');
+        return;
+      }
+
+      const actionLabel = manualEditor.mode === 'edit'
+        ? 'Time entry corrected.'
+        : 'Manual time entry added.';
+      setManualEditor(null);
+      setManualContexts([]);
+      const refreshResult = await loadTimesheet();
+      setNotice({
+        type: refreshResult.error ? 'error' : 'success',
+        text: refreshResult.error
+          ? `${actionLabel} The latest timesheet could not be refreshed; use Try again below.`
+          : actionLabel,
       });
-    setManualSaving(false);
-
-    if (saveError) {
+    } catch (saveError) {
       setManualError(saveError.message || 'Unable to save the manual time entry.');
-      return;
+    } finally {
+      setManualSaving(false);
     }
-
-    setManualEditor(null);
-    setManualContexts([]);
-    await loadTimesheet();
   };
 
   const closeHistory = () => {
@@ -691,6 +703,30 @@ const Timesheets = () => {
         </div>
       )}
     >
+      {notice && (
+        <div
+          className={`people-feedback people-feedback--${notice.type}`}
+          role={notice.type === 'error' ? 'alert' : 'status'}
+        >
+          <i className={notice.type === 'error' ? 'ri-error-warning-line' : 'ri-checkbox-circle-line'} />
+          {notice.text}
+        </div>
+      )}
+
+      {error && (entries.length > 0 || members.length > 0) && (
+        <AppState
+          compact
+          type="error"
+          title="Timesheet could not be refreshed"
+          message={error}
+          action={(
+            <button type="button" className="btn btn-outline" onClick={loadTimesheet}>
+              Try again
+            </button>
+          )}
+        />
+      )}
+
       {(availableScopes.length > 1 || isSharedScope) && (
         <section className="filter-bar timesheet-controls" aria-label="Timesheet scope">
           {availableScopes.length > 1 && (
@@ -860,7 +896,7 @@ const Timesheets = () => {
             message="Collecting sessions and break totals."
             compact
           />
-        ) : error ? (
+        ) : error && entries.length === 0 && members.length === 0 ? (
           <AppState
             type="error"
             title="Timesheet unavailable"
