@@ -82,6 +82,8 @@ environment.
 24. `20260730000200_leave_balance_workflow.sql` makes leave submission,
     pending edits, approval/rejection, balance deduction, and Comp Off grants
     controlled atomic operations and closes direct client balance mutations.
+25. `20260730000300_harden_leave_workflow.sql` rejects overlapping active
+    leave requests at the database boundary for both submissions and edits.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -252,6 +254,11 @@ Run `supabase/verify/hrms_033_leave_balances.sql` for the rollback-only leave
 correctness check. It verifies seeded remaining balances, edit/rejection
 neutrality, exactly-once approval deductions, exact half-day arithmetic,
 superadmin auto-approval, Comp Off grants, and direct-write denial.
+
+Run `supabase/verify/hrms_034_leave_workflow.sql` for the rollback-only core
+leave hardening check. It verifies Superadmin-only organisation review,
+Employee/Admin scope, half-day and reason handling, overlap rejection,
+approval/rejection status, and balance outcomes.
 
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager

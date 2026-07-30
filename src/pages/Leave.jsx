@@ -5,7 +5,7 @@ import { LeaveContext } from '../context/LeaveContext';
 import { supabase } from '../utils/supabaseClient';
 import AppState from '../components/AppState';
 import { formatAppDate } from '../utils/timezone';
-import { calculateLeaveDays } from '../utils/leave';
+import { calculateLeaveDays, canReviewLeave } from '../utils/leave';
 
 const LEAVE_TYPES = ['Sick Leave', 'Comp Off', 'Casual Leave'];
 
@@ -26,10 +26,12 @@ const GrantCompOffModal = ({ onClose, onGrant }) => {
   const [selectedEmp, setSelectedEmp] = useState('');
   const [days, setDays] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    supabase.from('employees').select('id, name').order('name').then(({ data }) => {
+    supabase.from('employees').select('id, name').order('name').then(({ data, error: loadError }) => {
       setEmployees(data || []);
+      if (loadError) setError(loadError.message || 'Unable to load employees.');
     });
   }, []);
 
@@ -37,7 +39,14 @@ const GrantCompOffModal = ({ onClose, onGrant }) => {
     e.preventDefault();
     if (!selectedEmp || days <= 0) return;
     setSubmitting(true);
-    await onGrant(selectedEmp, parseInt(days, 10));
+    setError('');
+    const result = await onGrant(selectedEmp, Number(days));
+    if (result?.error && !result.committed) {
+      setError(result.error.message || 'Unable to grant Comp Off.');
+      setSubmitting(false);
+      return;
+    }
+    onClose();
     setSubmitting(false);
   };
 
@@ -52,6 +61,12 @@ const GrantCompOffModal = ({ onClose, onGrant }) => {
           <button className="salary-modal-close" onClick={onClose}><i className="ri-close-line" /></button>
         </div>
         <form onSubmit={handleSubmit}>
+          {error && (
+            <div className="leave-form-msg error" role="alert">
+              <i className="ri-error-warning-fill" />
+              {error}
+            </div>
+          )}
           <div className="salary-field">
             <label className="salary-field-label">Employee <span className="salary-required">*</span></label>
             <select className="salary-input" value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} required>
@@ -61,7 +76,7 @@ const GrantCompOffModal = ({ onClose, onGrant }) => {
           </div>
           <div className="salary-field">
             <label className="salary-field-label">Days to Add <span className="salary-required">*</span></label>
-            <input className="salary-input" type="number" min="1" value={days} onChange={e => setDays(e.target.value)} required />
+            <input className="salary-input" type="number" min="0.5" step="0.5" value={days} onChange={e => setDays(e.target.value)} required />
           </div>
           <div className="salary-modal-actions">
             <button type="button" className="salary-cancel-btn" onClick={onClose} disabled={submitting}>Cancel</button>
@@ -79,7 +94,8 @@ const Leave = () => {
   const { user } = useContext(AuthContext);
   const {
     applyLeave, updateLeave, getUserBalance, getMyRequests, getPendingForApproval,
-    approveLeave, rejectLeave, grantCompOff, getLeaveHistory, loading
+    approveLeave, rejectLeave, grantCompOff, getLeaveHistory, refreshLeaveData,
+    loading, loadError
   } = useContext(LeaveContext);
 
   const [activeTab, setActiveTab] = useState('my');
@@ -93,15 +109,18 @@ const Leave = () => {
   const [selectedLeaveReason, setSelectedLeaveReason] = useState(null); // { reason, type }
   const [rejectTarget, setRejectTarget] = useState(null); // { id } to reject
   const [rejectComment, setRejectComment] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState('');
+  const [actionId, setActionId] = useState(null);
+  const [actionMsg, setActionMsg] = useState(null);
 
   const balance = user ? getUserBalance(user.id) : {};
   const myRequests = getMyRequests();
   const pendingApprovals = getPendingForApproval();
 
-  const isSuperAdmin = user?.role === 'superadmin';
-  const isAdmin = user?.role === 'admin';
-  const canViewApprovals = ['admin', 'superadmin', 'manager', 'head'].includes(user?.role);
-  const canApprove = isSuperAdmin; // only superadmin can approve/reject
+  const canApprove = canReviewLeave(user);
+  const canViewApprovals = canApprove;
+  const isSuperAdmin = canApprove;
 
   const leaveHistory = getLeaveHistory();
   const filteredHistory = leaveHistory.filter(r => {
@@ -150,11 +169,19 @@ const Leave = () => {
     }
 
     // Check for duplicate/overlapping leaves
-    const { data: existingLeaves } = await supabase
+    const { data: existingLeaves, error: overlapError } = await supabase
       .from('leaves')
       .select('id, from_date, to_date')
       .eq('employee_id', user.id)
       .neq('status', 'Rejected');
+
+    if (overlapError) {
+      setFormMsg({
+        type: 'error',
+        text: overlapError.message || 'Unable to check existing leave requests.',
+      });
+      return;
+    }
     
     const newFrom = new Date(form.from).getTime();
     const newTo = new Date(form.to).getTime();
@@ -191,7 +218,7 @@ const Leave = () => {
       });
     }
 
-    if (result?.error) {
+    if (result?.error && !result.committed) {
       setFormMsg({
         type: 'error',
         text: result.error.message || 'Unable to save the leave request.',
@@ -200,14 +227,19 @@ const Leave = () => {
       return;
     }
 
-    setFormMsg({
-      type: 'success',
-      text: editingLeaveId
-        ? `Leave request updated successfully! (${days} day${days > 1 ? 's' : ''})`
-        : isSuperAdmin
-          ? `Leave request submitted and auto-approved! (${days} day${days > 1 ? 's' : ''})`
-          : `Leave request submitted successfully! Awaiting approval. (${days} day${days > 1 ? 's' : ''})`,
-    });
+    setFormMsg(result?.error
+      ? {
+          type: 'error',
+          text: 'The request was saved, but the latest leave data could not be refreshed. Reload to confirm it.',
+        }
+      : {
+          type: 'success',
+          text: editingLeaveId
+            ? `Leave request updated successfully! (${days} day${days > 1 ? 's' : ''})`
+            : isSuperAdmin
+              ? `Leave request submitted and auto-approved! (${days} day${days > 1 ? 's' : ''})`
+              : `Leave request submitted successfully! Awaiting approval. (${days} day${days > 1 ? 's' : ''})`,
+        });
 
     setForm({ type: 'Sick Leave', from: '', to: '', reason: '', isHalfDay: false });
     setEditingLeaveId(null);
@@ -229,8 +261,52 @@ const Leave = () => {
   };
 
   const handleGrant = async (employeeId, daysToAdd) => {
-    await grantCompOff(employeeId, daysToAdd);
-    setShowGrantModal(false);
+    const result = await grantCompOff(employeeId, daysToAdd);
+    setActionMsg(result?.error
+      ? {
+          type: 'error',
+          text: result.committed
+            ? 'Comp Off was granted, but the latest balances could not be refreshed. Reload to confirm it.'
+            : (result.error.message || 'Unable to grant Comp Off.'),
+        }
+      : { type: 'success', text: `${daysToAdd} Comp Off day(s) granted.` });
+    return result;
+  };
+
+  const handleApprove = async (requestId) => {
+    setActionId(requestId);
+    setActionMsg(null);
+    const result = await approveLeave(requestId);
+    setActionMsg(result?.error
+      ? {
+          type: 'error',
+          text: result.committed
+            ? 'The leave was approved, but the latest data could not be refreshed. Reload to confirm it.'
+            : (result.error.message || 'Unable to approve the leave request.'),
+        }
+      : { type: 'success', text: 'Leave request approved and balance updated.' });
+    setActionId(null);
+  };
+
+  const handleReject = async () => {
+    if (!rejectTarget) return;
+    setRejecting(true);
+    setRejectError('');
+    const result = await rejectLeave(rejectTarget.id, rejectComment);
+    if (result?.error && !result.committed) {
+      setRejectError(result.error.message || 'Unable to reject the leave request.');
+      setRejecting(false);
+      return;
+    }
+    setActionMsg(result?.error
+      ? {
+          type: 'error',
+          text: 'The leave was rejected, but the latest data could not be refreshed. Reload to confirm it.',
+        }
+      : { type: 'success', text: 'Leave request rejected without changing the balance.' });
+    setRejectTarget(null);
+    setRejectComment('');
+    setRejecting(false);
   };
 
   const roleLabel = (role) => {
@@ -252,6 +328,26 @@ const Leave = () => {
             type="loading"
             title="Loading leave details"
             message="Your balances and requests are being prepared."
+          />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Layout
+        title="Leave"
+        eyebrow="Time away"
+        heading="Leave"
+        description="Manage your balance, requests and approvals in one place."
+      >
+        <div className="card">
+          <AppState
+            type="error"
+            title="Leave details could not be loaded"
+            message={loadError.message || 'Try loading the leave page again.'}
+            action={<button className="btn-teal" onClick={() => refreshLeaveData()}>Try again</button>}
           />
         </div>
       </Layout>
@@ -386,7 +482,7 @@ const Leave = () => {
                 className={`salary-tab-btn${activeTab === 'approvals' ? ' active' : ''}`}
                 onClick={() => setActiveTab('approvals')}
               >
-                <i className="ri-checkbox-circle-line" /> {(isSuperAdmin || user?.role === 'head') ? 'Pending Approvals' : 'Department Approvals'}
+                <i className="ri-checkbox-circle-line" /> Pending Approvals
                 {pendingApprovals.length > 0 && (
                   <span className="leave-tab-count pending" style={{ marginLeft: '0.25rem', background: '#FEE2E2', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem', color: '#991B1B' }}>{pendingApprovals.length}</span>
                 )}
@@ -410,6 +506,12 @@ const Leave = () => {
 
           {/* Top/Left: History or Approvals */}
           <div className="card">
+            {actionMsg && (
+              <div className={`leave-form-msg ${actionMsg.type}`} role={actionMsg.type === 'error' ? 'alert' : 'status'}>
+                <i className={actionMsg.type === 'success' ? 'ri-checkbox-circle-fill' : 'ri-error-warning-fill'} />
+                {actionMsg.text}
+              </div>
+            )}
 
             {/* My Leaves Tab */}
             {activeTab === 'my' && (
@@ -486,7 +588,7 @@ const Leave = () => {
             {activeTab === 'approvals' && canViewApprovals && (
               <>
                 <div className="leave-section-header">
-                  <h3 className="font-bold">{isSuperAdmin ? 'Pending Approvals' : 'Department Approvals'}</h3>
+                  <h3 className="font-bold">Pending Approvals</h3>
                   <span className="text-muted text-sm">{pendingApprovals.length} pending</span>
                 </div>
                 {pendingApprovals.length === 0 ? (
@@ -553,14 +655,20 @@ const Leave = () => {
                                     <>
                                       <button
                                         className="leave-action-approve"
-                                        onClick={() => approveLeave(row.id)}
+                                        onClick={() => handleApprove(row.id)}
+                                        disabled={actionId === row.id}
                                         title="Approve"
                                       >
-                                        <i className="ri-check-line" /> Approve
+                                        <i className="ri-check-line" /> {actionId === row.id ? 'Approving...' : 'Approve'}
                                       </button>
                                       <button
                                         className="leave-action-reject"
-                                        onClick={() => { setRejectTarget(row); setRejectComment(''); }}
+                                        onClick={() => {
+                                          setRejectTarget(row);
+                                          setRejectComment('');
+                                          setRejectError('');
+                                        }}
+                                        disabled={actionId === row.id}
                                         title="Reject"
                                       >
                                         <i className="ri-close-line" /> Reject
@@ -728,20 +836,24 @@ const Leave = () => {
                 placeholder="Explain why the leave is being rejected..."
                 value={rejectComment}
                 onChange={e => setRejectComment(e.target.value)}
+                disabled={rejecting}
               />
             </div>
+            {rejectError && (
+              <div className="leave-form-msg error" role="alert">
+                <i className="ri-error-warning-fill" />
+                {rejectError}
+              </div>
+            )}
             <div className="salary-modal-actions">
-              <button className="salary-cancel-btn" onClick={() => setRejectTarget(null)}>Cancel</button>
+              <button className="salary-cancel-btn" onClick={() => setRejectTarget(null)} disabled={rejecting}>Cancel</button>
               <button
                 className="salary-submit-btn"
                 style={{ background: '#EE5D50' }}
-                onClick={async () => {
-                  await rejectLeave(rejectTarget.id, rejectComment);
-                  setRejectTarget(null);
-                  setRejectComment('');
-                }}
+                onClick={handleReject}
+                disabled={rejecting}
               >
-                <i className="ri-close-circle-line" /> Confirm Reject
+                <i className="ri-close-circle-line" /> {rejecting ? 'Rejecting...' : 'Confirm Reject'}
               </button>
             </div>
           </div>

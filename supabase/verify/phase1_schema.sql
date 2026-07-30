@@ -164,6 +164,13 @@ SELECT
       'anon',
       'public.decide_leave_request(uuid,boolean,text)',
       'EXECUTE'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM pg_trigger
+      WHERE tgrelid = 'public.leaves'::regclass
+        AND tgname = 'leaves_prevent_active_overlap'
+        AND NOT tgisinternal
     ) AS has_controlled_leave_balance_workflow,
   to_regprocedure(
     'public.set_daily_report_requirements(uuid,boolean,boolean)'

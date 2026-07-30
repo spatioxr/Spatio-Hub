@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { AuthContext } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
-import { isEmployeeManagedBy } from '../utils/rbac';
+import { canReviewLeave } from '../utils/leave';
 
 export const LeaveContext = createContext();
 
@@ -11,10 +11,19 @@ export const LeaveProvider = ({ children }) => {
   const [requests, setRequests] = useState([]);
   const [balances, setBalances] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
-  const fetchLeaveData = async () => {
-    if (!user) return;
-    setLoading(true);
+  const fetchLeaveData = async (surfaceError = true, showLoading = true) => {
+    if (!user) {
+      setRequests([]);
+      setBalances({});
+      setLoadError(null);
+      setLoading(false);
+      return { error: null };
+    }
+
+    if (showLoading) setLoading(true);
+    setLoadError(null);
 
     // Fetch leaves with employee details
     const { data: leavesData, error: leavesError } = await supabase
@@ -54,7 +63,10 @@ export const LeaveProvider = ({ children }) => {
       setBalances(balMap);
     }
 
+    const error = leavesError || balanceError || null;
+    if (error && surfaceError) setLoadError(error);
     setLoading(false);
+    return { error };
   };
 
   useEffect(() => {
@@ -72,8 +84,9 @@ export const LeaveProvider = ({ children }) => {
       leave_reason: reason,
     });
 
-    if (!error) await fetchLeaveData();
-    return { error };
+    if (error) return { error, committed: false };
+    const refreshResult = await fetchLeaveData(false, false);
+    return { error: refreshResult.error, committed: true };
   };
 
   // Update a pending leave request
@@ -88,13 +101,14 @@ export const LeaveProvider = ({ children }) => {
       leave_reason: reason,
     });
 
-    if (!error) await fetchLeaveData();
-    return { error };
+    if (error) return { error, committed: false };
+    const refreshResult = await fetchLeaveData(false, false);
+    return { error: refreshResult.error, committed: true };
   };
 
   // Approve a leave request (only superadmin)
   const approveLeave = async (requestId) => {
-    if (user?.role !== 'superadmin') {
+    if (!canReviewLeave(user)) {
       return { error: new Error('Only a superadmin can approve leave.') };
     }
 
@@ -103,13 +117,14 @@ export const LeaveProvider = ({ children }) => {
       approve: true,
       decision_comment: null,
     });
-    if (!error) await fetchLeaveData();
-    return { error };
+    if (error) return { error, committed: false };
+    const refreshResult = await fetchLeaveData(false, false);
+    return { error: refreshResult.error, committed: true };
   };
 
   // Reject a leave request (only superadmin)
   const rejectLeave = async (requestId, comment = '') => {
-    if (user?.role !== 'superadmin') {
+    if (!canReviewLeave(user)) {
       return { error: new Error('Only a superadmin can reject leave.') };
     }
 
@@ -118,13 +133,14 @@ export const LeaveProvider = ({ children }) => {
       approve: false,
       decision_comment: comment,
     });
-    if (!error) await fetchLeaveData();
-    return { error };
+    if (error) return { error, committed: false };
+    const refreshResult = await fetchLeaveData(false, false);
+    return { error: refreshResult.error, committed: true };
   };
 
   // Grant Comp Off (Superadmin only)
   const grantCompOff = async (employeeId, daysToAdd) => {
-    if (user?.role !== 'superadmin') {
+    if (!canReviewLeave(user)) {
       return { error: new Error('Only a superadmin can grant Comp Off.') };
     }
 
@@ -132,8 +148,9 @@ export const LeaveProvider = ({ children }) => {
       target_employee_id: employeeId,
       days_to_add: daysToAdd,
     });
-    if (!error) await fetchLeaveData();
-    return { error };
+    if (error) return { error, committed: false };
+    const refreshResult = await fetchLeaveData(false, false);
+    return { error: refreshResult.error, committed: true };
   };
 
   // Get balance for a given user
@@ -154,30 +171,13 @@ export const LeaveProvider = ({ children }) => {
 
   // Pending requests that current user can view/approve
   const getPendingForApproval = () => {
-    if (!user) return [];
-    if (user.role === 'superadmin') {
-      // Super admin sees all pending requests
-      return requests.filter(r => r.status === 'Pending' && r.employee_id !== user.id);
-    }
-    if (user.role === 'admin' || user.role === 'manager') {
-      return requests.filter(r => {
-        if (r.employee_id === user.id) return false;
-        return isEmployeeManagedBy(r.employees, user);
-      });
-    }
-    return [];
+    if (!canReviewLeave(user)) return [];
+    return requests.filter(r => r.status === 'Pending' && r.employee_id !== user.id);
   };
 
   // Get all leave history for admins/superadmins
   const getLeaveHistory = () => {
-    if (!user) return [];
-    if (user.role === 'superadmin' || user.role === 'head') {
-      return requests;
-    }
-    if (user.role === 'admin' || user.role === 'manager') {
-      return requests.filter(r => isEmployeeManagedBy(r.employees, user));
-    }
-    return [];
+    return canReviewLeave(user) ? requests : [];
   };
 
   return (
@@ -192,7 +192,9 @@ export const LeaveProvider = ({ children }) => {
       getMyRequests,
       getPendingForApproval,
       getLeaveHistory,
-      loading
+      refreshLeaveData: fetchLeaveData,
+      loading,
+      loadError
     }}>
       {children}
     </LeaveContext.Provider>
