@@ -8,6 +8,7 @@ SELECT id AS employee_id, auth_id, department
 FROM public.employees
 WHERE role = 'superadmin'
   AND status = 'Active'
+  AND auth_id IS NOT NULL
 LIMIT 1;
 
 SELECT set_config(
