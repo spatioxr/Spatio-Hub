@@ -103,7 +103,7 @@ const runVerification = async (file) => {
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean)
-        .at(-1);
+        .findLast((line) => /^(t|true|f|false)\|\{/i.test(line));
 
       if (!/^(t|true)(\||$)/i.test(resultLine || '')) {
         reject(new Error(`${file} did not report all_checks_pass=true:\n${stdout}`));
@@ -125,6 +125,13 @@ for (const file of verificationFiles) {
     console.log(`PASS ${file}`);
   } catch (error) {
     failed = true;
+    if (process.env.GITHUB_ACTIONS) {
+      const annotation = error.message
+        .replaceAll('%', '%25')
+        .replaceAll('\r', '%0D')
+        .replaceAll('\n', '%0A');
+      console.error(`::error file=${file},title=Database verification failed::${annotation}`);
+    }
     console.error(`FAIL ${file}`);
     console.error(error.message);
     break;
