@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { AuthContext } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
+import { getElapsedSeconds, getWorkStatus } from '../utils/workSession';
 
 export const WorkSessionContext = createContext({
   status: 'out',
@@ -281,8 +282,7 @@ export const WorkSessionProvider = ({ children }) => {
     }
 
     const updateElapsed = () => {
-      const sinceSync = Math.floor((Date.now() - snapshot.syncedAt) / 1000);
-      setElapsedSeconds(snapshot.workedSeconds + Math.max(0, sinceSync));
+      setElapsedSeconds(getElapsedSeconds(snapshot));
     };
 
     updateElapsed();
@@ -291,7 +291,7 @@ export const WorkSessionProvider = ({ children }) => {
   }, [snapshot]);
 
   const value = useMemo(() => ({
-    status: !snapshot.session ? 'out' : snapshot.breakEntry ? 'break' : 'working',
+    status: getWorkStatus(snapshot),
     session: snapshot.session,
     dayState: snapshot.dayState,
     elapsedSeconds,

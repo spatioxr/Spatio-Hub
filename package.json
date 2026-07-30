@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "npm run test:unit",
+    "test:unit": "node --test src/utils/*.test.js",
+    "test:database": "node scripts/run-database-tests.mjs",
+    "test:ci": "npm run test:unit && npm run build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -24,6 +28,7 @@
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.4",
+    "supabase": "2.110.0",
     "vite": "^5.0.0"
   }
 }
