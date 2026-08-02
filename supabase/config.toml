@@ -1,1 +1,4 @@
 project_id = "spatio-people"
+
+[functions.user-credentials]
+verify_jwt = true

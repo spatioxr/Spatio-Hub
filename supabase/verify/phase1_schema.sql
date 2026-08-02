@@ -61,6 +61,37 @@ SELECT
     AS has_current_employee_role,
   to_regprocedure('public.can_access_employee(uuid)') IS NOT NULL
     AS has_employee_scope,
+  EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'employees'
+      AND column_name = 'must_change_password'
+      AND is_nullable = 'NO'
+  )
+    AND EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'employees'
+        AND column_name = 'temporary_password_issued_at'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'employees'
+        AND column_name = 'temporary_password_issued_by'
+    )
+    AND to_regprocedure(
+      'public.prevent_temporary_password_data_write()'
+    ) IS NOT NULL
+    AND (
+      SELECT count(*) = 15
+      FROM pg_trigger trigger_row
+      WHERE trigger_row.tgname = 'temporary_password_write_gate'
+        AND NOT trigger_row.tgisinternal
+    ) AS has_temporary_password_gate,
   to_regprocedure('public.can_access_project(uuid)') IS NOT NULL
     AS has_project_scope,
   to_regprocedure('public.can_manage_project(uuid)') IS NOT NULL

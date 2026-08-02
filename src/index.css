@@ -6936,3 +6936,235 @@ td {
     text-align: left;
   }
 }
++
+/* ── Temporary credentials and required password change ────────────────── */
+.credential-dialog-backdrop {
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 1100;
+}
+
+.credential-dialog {
+  width: min(100%, 520px);
+  padding: 2rem;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+  text-align: center;
+}
+
+.credential-dialog-icon,
+.password-change-icon {
+  display: inline-flex;
+  width: 52px;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.9rem;
+  border-radius: 15px;
+  background: var(--soft-mint);
+  color: var(--primary);
+  font-size: 1.5rem;
+}
+
+.credential-dialog h2 {
+  margin: 0.2rem 0 0.55rem;
+  color: var(--text-main);
+}
+
+.credential-dialog > p {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.credential-password-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 1.4rem 0 1rem;
+  padding: 0.7rem;
+  border: 1px solid #c8ddd6;
+  border-radius: 12px;
+  background: #f7fbf9;
+}
+
+.credential-password-row code {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  color: #123d32;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.credential-dialog-note,
+.password-change-required {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #c8ddd6;
+  border-radius: 11px;
+  background: var(--soft-mint);
+  color: #24594b;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.credential-dialog-done {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.people-action-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.password-change-shell {
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background:
+    radial-gradient(circle at top left, rgba(0, 168, 126, 0.12), transparent 42%),
+    #f7faf9;
+}
+
+.password-change-page {
+  width: min(100%, 520px);
+  margin: 0 auto;
+}
+
+.password-change-card,
+.password-help-card {
+  width: min(100%, 520px);
+  padding: 2rem;
+}
+
+.password-change-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.password-change-heading .password-change-icon {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.password-change-heading h2,
+.password-help-card h2 {
+  margin: 0.15rem 0 0.3rem;
+  color: var(--text-main);
+  font-size: 1.35rem;
+}
+
+.password-change-heading p,
+.password-help-card > p {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.password-change-required {
+  margin-bottom: 1.2rem;
+}
+
+.password-strength {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #f4d6a0;
+  border-radius: 10px;
+  background: #fff8eb;
+  color: #8a5a16;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.password-strength--valid {
+  border-color: #c6ecd9;
+  background: #ecf9f6;
+  color: var(--primary);
+}
+
+.password-change-actions {
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.password-help-card {
+  text-align: center;
+}
+
+.password-help-card .password-change-required {
+  margin-top: 1.25rem;
+  text-align: left;
+}
+
+.password-help-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 1.25rem;
+  color: var(--primary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.password-change-toast {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 1200;
+  display: flex;
+  max-width: min(420px, calc(100vw - 2rem));
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #c6ecd9;
+  border-radius: 12px;
+  background: #ecf9f6;
+  color: var(--primary);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.password-change-toast--error {
+  border-color: #fecaca;
+  background: #fff1f0;
+  color: var(--danger);
+}
+
+@media (max-width: 600px) {
+  .credential-dialog,
+  .password-change-card,
+  .password-help-card {
+    padding: 1.35rem;
+  }
+
+  .credential-password-row,
+  .password-change-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .credential-password-row .btn,
+  .password-change-actions .salary-submit-btn {
+    width: 100%;
+  }
+
+  .password-change-toast {
+    right: 1rem;
+    bottom: 1rem;
+  }
+}

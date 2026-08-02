@@ -86,6 +86,10 @@ environment.
     leave requests at the database boundary for both submissions and edits.
 26. `20260730000400_comp_off_granularity.sql` restricts Comp Off grants to
     positive whole-day or half-day units while preserving atomic increments.
+27. `20260802000200_temporary_password_credentials.sql` adds the
+    Superadmin-issued temporary-password state, protects the credential
+    metadata, blocks Phase 1 writes until replacement, and keeps forced users
+    limited to their own profile while changing the credential.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -200,6 +204,11 @@ Run `supabase/verify/hrms_045_admin_settings.sql` for the rollback-only Admin
 Settings check. It verifies Employee and Manager denial, Admin access to
 standard People controls, denial of Admin privileged-role changes,
 Superadmin promotion/demotion authority, and restricted function execution.
+
+Run `supabase/verify/hrms_042_temporary_passwords.sql` for the rollback-only
+credential gate check. It verifies the required employee fields, all 15 write
+triggers, self-only profile visibility during first login, denied application
+identity until replacement, and denial of direct credential-state changes.
 
 Run `supabase/verify/hrms_021_personal_timesheet.sql` for the rollback-only
 personal-timesheet check. It verifies self-only weekly scope, project and

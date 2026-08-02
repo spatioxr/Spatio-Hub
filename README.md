@@ -74,7 +74,7 @@ external PostgreSQL connection.
 | `/admin-settings` | Phase 1 administration and BOS/EOD exceptions |
 | `/leave` | Leave management |
 | `/login` | Current login |
-| `/reset-password` | Current password flow |
+| `/reset-password` | Required temporary-password replacement, password help, and authenticated password change |
 
 All other routes redirect to the dashboard.
 

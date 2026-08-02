@@ -35,6 +35,9 @@ Blocking findings:
 
 - Supabase reports **No backups**. The project is on the Free plan, which does
   not include scheduled backups.
+- On 2 August 2026, Jasim explicitly waived the backup requirement for the
+  temporary-password production rollout. This records acceptance of the
+  current database-recovery risk; it does not claim that a backup exists.
 - The intended pilot users have not been provisioned and verified. There is
   only one Auth user.
 

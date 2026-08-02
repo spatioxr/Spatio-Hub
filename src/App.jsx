@@ -45,8 +45,9 @@ const PermissionRoute = ({ permission, children }) => {
 
 const AppRoutes = () => (
   <AuthContext.Consumer>
-    {({ isPasswordRecovery }) => (
-      isPasswordRecovery && window.location.pathname !== '/reset-password'
+    {({ isPasswordRecovery, user }) => (
+      (isPasswordRecovery || user?.must_change_password)
+        && window.location.pathname !== '/reset-password'
         ? <Navigate to="/reset-password" replace />
         : (
           <Routes>

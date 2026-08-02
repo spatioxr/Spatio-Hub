@@ -248,6 +248,69 @@ const PersonDrawer = ({
   );
 };
 
+const TemporaryPasswordDialog = ({ credential, onClose }) => {
+  const dialogRef = useDialogFocus(true, onClose);
+  const [copied, setCopied] = useState(false);
+
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(credential.temporaryPassword);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="drawer-backdrop credential-dialog-backdrop">
+      <section
+        ref={dialogRef}
+        className="credential-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="credential-dialog-title"
+        tabIndex="-1"
+      >
+        <span className="credential-dialog-icon" aria-hidden="true">
+          <i className="ri-key-2-line" />
+        </span>
+        <span className="page-eyebrow">Temporary login</span>
+        <h2 id="credential-dialog-title">
+          {credential.action === 'provision' ? 'Login created' : 'Password reset'}
+        </h2>
+        <p>
+          Share this password securely with <strong>{credential.personName}</strong>.
+          It will not be shown again after this dialog closes.
+        </p>
+
+        <div className="credential-password-row">
+          <code>{credential.temporaryPassword}</code>
+          <button type="button" className="btn btn-outline" onClick={copyPassword}>
+            <i className={copied ? 'ri-check-line' : 'ri-file-copy-line'} aria-hidden="true" />
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+
+        <div className="credential-dialog-note">
+          <i className="ri-shield-check-line" aria-hidden="true" />
+          The user must replace this password immediately after signing in.
+        </div>
+
+        {credential.warning && (
+          <div className="people-feedback people-feedback--error" role="alert">
+            <i className="ri-error-warning-line" aria-hidden="true" />
+            {credential.warning}
+          </div>
+        )}
+
+        <button type="button" className="btn credential-dialog-done" onClick={onClose}>
+          I have saved it securely
+        </button>
+      </section>
+    </div>
+  );
+};
+
 const People = ({ mode = 'directory' }) => {
   const { user } = useContext(AuthContext);
   const [people, setPeople] = useState([]);
@@ -261,6 +324,9 @@ const People = ({ mode = 'directory' }) => {
   const [drawer, setDrawer] = useState(null);
   const [drawerError, setDrawerError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [credential, setCredential] = useState(null);
+  const [credentialError, setCredentialError] = useState('');
+  const [credentialActionId, setCredentialActionId] = useState('');
 
   const hasPeopleManagement = hasPermission(user, PERMISSIONS.MANAGE_PEOPLE);
   const canManage = mode === 'access' && hasPeopleManagement;
@@ -273,7 +339,7 @@ const People = ({ mode = 'directory' }) => {
 
     const { data, error: fetchError } = await supabase
       .from('employees')
-      .select('id, emp_code, name, email, department, designation, role, status, date_of_joining, reports_to, auth_id')
+      .select('id, emp_code, name, email, department, designation, role, status, date_of_joining, reports_to, auth_id, must_change_password, temporary_password_issued_at')
       .order('name', { ascending: true });
 
     if (fetchError) {
@@ -342,6 +408,53 @@ const People = ({ mode = 'directory' }) => {
     employment_status: form.status,
   });
 
+  const credentialErrorMessage = async (functionError) => {
+    let message = functionError?.message || 'Unable to manage login credentials.';
+    try {
+      const responseBody = await functionError?.context?.json();
+      message = responseBody?.error || message;
+    } catch {
+      // The Functions client may already have consumed a non-JSON response.
+    }
+    return message;
+  };
+
+  const manageTemporaryPassword = async (person, action, profileWasCreated = false) => {
+    setCredentialError('');
+    setCredentialActionId(person.id);
+
+    const { data, error: functionError } = await supabase.functions.invoke('user-credentials', {
+      body: { action, employeeId: person.id },
+    });
+
+    setCredentialActionId('');
+
+    if (functionError || !data?.temporaryPassword) {
+      const message = await credentialErrorMessage(functionError);
+      setCredentialError(
+        profileWasCreated
+          ? `${person.name} was added, but login creation failed: ${message}`
+          : message,
+      );
+      await fetchPeople();
+      return false;
+    }
+
+    setCredential({
+      action,
+      personName: person.name,
+      temporaryPassword: data.temporaryPassword,
+      warning: data.warning,
+    });
+    setNotice(
+      action === 'provision'
+        ? `${person.name} was added and their login was created.`
+        : `${person.name} received a new temporary password.`,
+    );
+    await fetchPeople();
+    return true;
+  };
+
   const savePerson = async (form) => {
     setSaving(true);
     setDrawerError('');
@@ -349,7 +462,7 @@ const People = ({ mode = 'directory' }) => {
     const payload = toRpcPayload(form);
     if (!isCreate) payload.target_employee_id = drawer.person.id;
 
-    const { error: saveError } = await supabase.rpc(
+    const { data: savedPerson, error: saveError } = await supabase.rpc(
       isCreate ? 'create_employee_profile' : 'update_employee_profile',
       payload,
     );
@@ -362,8 +475,24 @@ const People = ({ mode = 'directory' }) => {
 
     setDrawer(null);
     setSaving(false);
-    setNotice(isCreate ? `${form.name} was added.` : `${form.name} was updated.`);
-    await fetchPeople();
+    if (isCreate && isSuperadmin && savedPerson?.status === 'Active') {
+      await manageTemporaryPassword(savedPerson, 'provision', true);
+    } else {
+      setNotice(isCreate ? `${form.name} was added.` : `${form.name} was updated.`);
+      await fetchPeople();
+    }
+  };
+
+  const handleCredentialAction = async (person) => {
+    const action = person.auth_id ? 'reset' : 'provision';
+    if (
+      action === 'reset'
+      && !window.confirm(
+        `Reset ${person.name}’s password? Their existing password will stop working and a new temporary password will be shown once.`,
+      )
+    ) return;
+
+    await manageTemporaryPassword(person, action);
   };
 
   const changeStatus = async (person, nextStatus) => {
@@ -414,6 +543,13 @@ const People = ({ mode = 'directory' }) => {
         <div className="people-feedback people-feedback--success" role="status">
           <i className="ri-checkbox-circle-line" />
           {notice}
+        </div>
+      )}
+
+      {credentialError && (
+        <div className="people-feedback people-feedback--error" role="alert">
+          <i className="ri-error-warning-line" aria-hidden="true" />
+          {credentialError}
         </div>
       )}
 
@@ -497,6 +633,7 @@ const People = ({ mode = 'directory' }) => {
                   <th>Role</th>
                   <th>Reports to</th>
                   <th>Status</th>
+                  {isAccessMode && <th>Login</th>}
                   <th aria-label="Actions" />
                 </tr>
               </thead>
@@ -529,6 +666,17 @@ const People = ({ mode = 'directory' }) => {
                           {person.status === 'Released' ? 'Inactive' : person.status}
                         </span>
                       </td>
+                      {isAccessMode && (
+                        <td data-label="Login">
+                          <span className={`badge ${!person.auth_id ? 'warning' : person.must_change_password ? 'primary' : 'success'}`}>
+                            {!person.auth_id
+                              ? 'No login'
+                              : person.must_change_password
+                                ? 'Change required'
+                                : 'Active'}
+                          </span>
+                        </td>
+                      )}
                       <td className="people-row-actions">
                         <button
                           type="button"
@@ -546,6 +694,21 @@ const People = ({ mode = 'directory' }) => {
                           >
                             <i className={person.status === 'Released' ? 'ri-user-follow-line' : 'ri-user-unfollow-line'} />
                             {person.status === 'Released' ? 'Reactivate' : 'Deactivate'}
+                          </button>
+                        )}
+                        {isAccessMode && isSuperadmin && person.id !== user.id && person.status === 'Active' && (
+                          <button
+                            type="button"
+                            className="people-action-button"
+                            onClick={() => handleCredentialAction(person)}
+                            disabled={credentialActionId === person.id}
+                          >
+                            <i className={person.auth_id ? 'ri-key-2-line' : 'ri-user-add-line'} aria-hidden="true" />
+                            {credentialActionId === person.id
+                              ? 'Working…'
+                              : person.auth_id
+                                ? 'Reset password'
+                                : 'Create login'}
                           </button>
                         )}
                       </td>
@@ -569,6 +732,12 @@ const People = ({ mode = 'directory' }) => {
           error={drawerError}
           onClose={() => setDrawer(null)}
           onSave={savePerson}
+        />
+      )}
+      {credential && (
+        <TemporaryPasswordDialog
+          credential={credential}
+          onClose={() => setCredential(null)}
         />
       )}
     </Layout>

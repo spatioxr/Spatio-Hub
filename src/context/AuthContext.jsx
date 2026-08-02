@@ -23,6 +23,7 @@ const EMPLOYEE_PROFILE_FIELDS = [
   'managed_department',
   'reports_to',
   'avatar_url',
+  'must_change_password',
 ].join(', ');
 
 const getEmployeeProfile = async (authUser) => {
@@ -215,6 +216,40 @@ export const AuthProvider = ({ children }) => {
     return { success: true };
   };
 
+  const replaceTemporaryPassword = async ({ currentPassword, newPassword }) => {
+    if (!session?.user || !user?.must_change_password) {
+      return { success: false, message: 'A temporary-password change is not required.' };
+    }
+
+    const { data, error } = await supabase.functions.invoke('user-credentials', {
+      body: {
+        action: 'complete-temporary-password',
+        currentPassword,
+        newPassword,
+      },
+    });
+
+    if (error) {
+      let message = error.message || 'Unable to replace the temporary password.';
+      try {
+        const responseBody = await error.context?.json();
+        message = responseBody?.error || message;
+      } catch {
+        // The Functions client may already have consumed a non-JSON response.
+      }
+      return { success: false, message };
+    }
+
+    if (data?.status !== 'password_changed') {
+      return { success: false, message: 'The password change did not finish.' };
+    }
+
+    setUser((currentUser) => (
+      currentUser ? { ...currentUser, must_change_password: false } : currentUser
+    ));
+    return { success: true };
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -226,6 +261,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         updatePassword,
+        replaceTemporaryPassword,
         updateUser,
       }}
     >

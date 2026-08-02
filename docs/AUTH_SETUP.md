@@ -41,15 +41,17 @@ For a brand-new, empty Supabase project:
 1. Apply every file in `supabase/migrations` in filename order, preferably with
    `supabase db push`.
 2. Run `supabase/verify/phase1_schema.sql` and confirm every boolean is true.
-3. Confirm the seeded `STS001` employee is `jasim@spatiotech.ai` with role
+3. Deploy the credential function with
+   `supabase functions deploy user-credentials --project-ref <project-ref>`.
+4. Confirm the seeded `STS001` employee is `jasim@spatiotech.ai` with role
    `superadmin`.
-4. Under Authentication, create or invite `jasim@spatiotech.ai`.
-5. If Auth was created after the schema, rerun migration 003's mapping
+5. Under Authentication, create or invite `jasim@spatiotech.ai`.
+6. If Auth was created after the schema, rerun migration 003's mapping
    statement or sign in once so the app claims the matching profile.
-6. Set the Site URL to `https://spatio-hub.vercel.app`.
-7. Add `https://spatio-hub.vercel.app/reset-password` to the redirect allow
+7. Set the Site URL to `https://spatio-hub.vercel.app`.
+8. Add `https://spatio-hub.vercel.app/reset-password` to the redirect allow
    list.
-8. Redeploy the Vercel Production environment so it reads the latest
+9. Redeploy the Vercel Production environment so it reads the latest
    integration variables.
 
 The migrations deliberately contain no mock employee history and no
@@ -63,18 +65,30 @@ rollback guidance.
 
 ## Adding employees
 
-1. Create the employee profile with a unique employee code and normalised, lowercase email.
-2. Send an Auth invitation to that same email.
-3. Ask the employee to accept the invitation and choose their password.
+1. Sign in as Superadmin and open **People**.
+2. Create an Active employee profile with a unique employee code and
+   normalised, lowercase email.
+3. HRMS displays a generated temporary password once. Share it through an
+   approved private route; never store it in Git, documentation, screenshots,
+   the issue tracker, or UAT.
+4. The employee signs in and must immediately replace the temporary password.
+   Normal portal writes remain database-blocked until replacement succeeds.
 
-On first successful login, the app matches the authenticated email to the employee profile and safely links its `auth_id`. Passwords remain entirely within Supabase Auth.
+An existing Active profile exposes **Create login** when it has no Auth link
+and **Reset password** once linked. Only an active Superadmin can use these
+controls. Superadmins change their own password through **Change Password**.
+
+Passwords remain entirely within Supabase Auth. The Edge Function uses the
+server-only `SUPABASE_SERVICE_ROLE_KEY` supplied by Supabase; it must never be
+copied into a `VITE_` variable, repository file, or browser code.
 
 ## Password recovery
 
-Self-service recovery is disabled until launch-grade custom SMTP is configured
-and delivery is verified. During the internal Phase 1 rollout, the super-admin
-provisions users and handles password-reset assistance. Authenticated users may
-change their own password from the profile menu.
+Email recovery remains disabled until launch-grade custom SMTP is configured
+and delivery is verified. During the internal Phase 1 rollout, a Superadmin
+uses **Reset password** in People and shares the one-time-displayed temporary
+value securely. Authenticated users may change their own password from the
+profile menu.
 
 ## Before production
 
