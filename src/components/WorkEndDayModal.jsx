@@ -53,7 +53,7 @@ const WorkEndDayModal = ({ onClose, onComplete }) => {
             <p>
               {needsEod
                 ? 'Submit today’s final summary to close your active session.'
-                : 'Your profile is exempt from a required EOD report.'}
+                : 'Your profile is exempt from a required end-of-day summary.'}
             </p>
           </div>
           <button
@@ -71,7 +71,7 @@ const WorkEndDayModal = ({ onClose, onComplete }) => {
           {needsEod && (
             <label className="work-start-task">
               <span className="work-start-label">
-                End-of-day report <b aria-hidden="true">*</b>
+                End-of-day summary <b aria-hidden="true">*</b>
               </span>
               <textarea
                 value={eodReport}

@@ -7,7 +7,13 @@ import { useNavigate } from 'react-router-dom';
 import WorkTimerControl from './WorkTimerControl';
 import { formatAppDate } from '../utils/timezone';
 
-const TopBar = ({ title }) => {
+const TopBar = ({
+  title,
+  showTimer = true,
+  showLiveStatusToggle = false,
+  liveStatusOpen = false,
+  onLiveStatusToggle,
+}) => {
   const { user, logout, updateUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -121,7 +127,20 @@ const TopBar = ({ title }) => {
         <h1 className="page-title">{title}</h1>
       </div>
       <div className="topbar-actions">
-        <WorkTimerControl />
+        {showTimer && <WorkTimerControl />}
+        {showLiveStatusToggle && (
+          <button
+            type="button"
+            className="topbar-live-status-toggle"
+            onClick={onLiveStatusToggle}
+            aria-label={`${liveStatusOpen ? 'Close' : 'Open'} who’s in/out`}
+            aria-expanded={liveStatusOpen}
+            aria-controls="management-live-status"
+          >
+            <i className="ri-user-location-line" aria-hidden="true" />
+            <span>Who’s in/out</span>
+          </button>
+        )}
         <div
           className="user-profile-wrapper"
           ref={dropdownRef}

@@ -26,19 +26,14 @@ test('core phase-1 flows expose actionable error feedback', () => {
   assert.match(combinedSource, />\s*Refresh data\s*</);
 });
 
-test('work-tracking writes check every Supabase result before refreshing', () => {
+test('attendance is read-only and live work actions use controlled functions', () => {
   const attendanceSource = sourceFor(coreFlowFiles[0]);
+  const workSessionSource = sourceFor(new URL('../context/WorkSessionContext.jsx', import.meta.url));
 
-  [
-    'existingAttendanceError',
-    'attendanceUpdateError',
-    'attendanceInsertError',
-    'existingReportError',
-    'reportUpdateError',
-    'reportInsertError',
-  ].forEach((errorName) => {
-    assert.match(attendanceSource, new RegExp(`if \\(${errorName}\\) throw ${errorName}`));
-  });
+  assert.doesNotMatch(attendanceSource, /\.from\(['"](?:attendance|daily_reports)['"]\)\s*\.\s*(?:insert|update|upsert|delete)\s*\(/s);
 
-  assert.match(attendanceSource, /const refreshResult = await fetchData\(\)/);
+  ['start_work_day', 'switch_work_session', 'start_work_break', 'resume_work_session', 'end_work_day']
+    .forEach((functionName) => {
+      assert.match(workSessionSource, new RegExp(`supabase\\.rpc\\('${functionName}'`));
+    });
 });

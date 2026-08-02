@@ -9,7 +9,7 @@ import Layout from '../components/Layout';
 import AppState from '../components/AppState';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
-import { getManagedDepartments } from '../utils/rbac';
+import { getRole, ROLES } from '../utils/rbac';
 import {
   addAppDays,
   appDateKey,
@@ -18,10 +18,9 @@ import {
 } from '../utils/timezone';
 import useDialogFocus from '../hooks/useDialogFocus';
 
-const DEPARTMENTS = ['Development', 'Design', 'Operations', 'Sales'];
-
 const Attendance = () => {
   const { user } = useContext(AuthContext);
+  const userRole = getRole(user);
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [employees, setEmployees] = useState([]);
@@ -33,16 +32,10 @@ const Attendance = () => {
   
   const [loading, setLoading] = useState(false);
   const [dataError, setDataError] = useState('');
-  const [notice, setNotice] = useState(null);
-  const [selectedDateDetails, setSelectedDateDetails] = useState(null); // for modal
-  const [isEditingAtt, setIsEditingAtt] = useState(false);
-  const [editAttForm, setEditAttForm] = useState({ check_in: '', check_out: '', bos_report: '', eod_report: '' });
-  const [savingAtt, setSavingAtt] = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const [selectedDateDetails, setSelectedDateDetails] = useState(null);
   const detailDialogRef = useDialogFocus(
     Boolean(selectedDateDetails),
     () => setSelectedDateDetails(null),
-    { closeDisabled: savingAtt },
   );
 
   // Month Navigation
@@ -57,50 +50,51 @@ const Attendance = () => {
   useEffect(() => {
     if (!user) return;
     const fetchEmployees = async () => {
-      let query = supabase.from('employees').select('id, name, department');
-      if (user.role === 'admin' || user.role === 'manager') {
-        const allowedDepts = getManagedDepartments(user);
-        if (allowedDepts.length > 0) {
-          query = query.or(`department.in.(${allowedDepts.join(',')}),reports_to.eq.${user.id}`);
-        } else {
-          query = query.eq('reports_to', user.id);
-        }
-      } else if (user.role === 'employee') {
-        return;
-      }
-      const { data, error } = await query.order('name', { ascending: true });
+      if (userRole === ROLES.EMPLOYEE) return;
+      const scope = userRole === ROLES.MANAGER ? 'managed' : 'organisation';
+      const { data, error } = await supabase.rpc('timesheet_scope_members', {
+        requested_scope: scope,
+      });
       if (error) {
         setDataError(error.message || 'Unable to load the employee list.');
         return;
       }
-      setEmployees(data || []);
+      setEmployees((data || []).map((employee) => ({
+        id: employee.employee_id,
+        name: employee.employee_name,
+        department: employee.employee_department,
+      })));
     };
-    if (user.role !== 'employee') fetchEmployees();
-  }, [user]);
+    void fetchEmployees();
+  }, [user, userRole]);
 
   // Ensure default selected employee is set when list loads
   useEffect(() => {
-    if (user?.role !== 'employee' && employees.length > 0 && !selectedEmployeeId) {
+    if (userRole !== ROLES.EMPLOYEE && employees.length > 0 && !selectedEmployeeId) {
       setSelectedEmployeeId(user.id);
-    } else if (user?.role === 'employee' && user?.id) {
+    } else if (userRole === ROLES.EMPLOYEE && user?.id) {
       setSelectedEmployeeId(user.id);
     }
-  }, [employees, user]);
+  }, [employees, user, userRole]);
 
   // When department filter changes (superadmin), reset employee to first of that dept or own
   const filteredEmployees = useMemo(() => {
-    if (user?.role !== 'superadmin' || selectedDepartment === 'all') return employees;
+    if (userRole !== ROLES.SUPERADMIN || selectedDepartment === 'all') return employees;
     return employees.filter(e => e.department === selectedDepartment);
-  }, [employees, selectedDepartment, user]);
+  }, [employees, selectedDepartment, userRole]);
+
+  const departments = useMemo(() => (
+    [...new Set(employees.map((employee) => employee.department).filter(Boolean))].sort()
+  ), [employees]);
 
   useEffect(() => {
-    if (user?.role === 'superadmin' && selectedDepartment !== 'all') {
+    if (userRole === ROLES.SUPERADMIN && selectedDepartment !== 'all') {
       // Reset to first employee in dept or own id
       const first = filteredEmployees.find(e => e.id !== user.id) || filteredEmployees[0];
       if (first && filteredEmployees.length > 0) setSelectedEmployeeId(first.id);
       else setSelectedEmployeeId(user.id);
     }
-  }, [selectedDepartment]);
+  }, [filteredEmployees, selectedDepartment, userRole, user?.id]);
 
   const fetchData = useCallback(async () => {
     if (!selectedEmployeeId) return { error: null };
@@ -139,7 +133,7 @@ const Attendance = () => {
 
     const fetchError = attendanceError || reportError || leaveError;
     if (fetchError) {
-      setDataError(fetchError.message || 'Unable to load work-tracking details.');
+      setDataError(fetchError.message || 'Unable to load attendance details.');
       setLoading(false);
       return { error: fetchError };
     }
@@ -282,124 +276,23 @@ const Attendance = () => {
     const att = attendanceRecords[dateStr];
     const lv = leaveRecords[dateStr];
     
-    // Only allow clicking if there is data OR user is a manager+ allowing them to backdate
-    if (att || lv || user?.role !== 'employee') {
+    if (att || lv) {
       setSelectedDateDetails({ date: dateStr, att, lv });
-      setIsEditingAtt(false);
-      setSaveError('');
-      setEditAttForm({
-        check_in: att?.check_in || '',
-        check_out: att?.check_out || '',
-        bos_report: att?.bos_report || '',
-        eod_report: att?.eod_report || ''
-      });
-    }
-  };
-
-  const handleSaveAttendance = async () => {
-    if (!selectedDateDetails || !selectedEmployeeId) return;
-    setSavingAtt(true);
-    setSaveError('');
-    setNotice(null);
-    const dateStr = selectedDateDetails.date;
-    
-    try {
-      // 1. Upsert Attendance
-      const { data: existingAtt, error: existingAttendanceError } = await supabase.from('attendance')
-        .select('id').eq('employee_id', selectedEmployeeId).eq('date', dateStr).maybeSingle();
-      if (existingAttendanceError) throw existingAttendanceError;
-      
-      const checkInParts = editAttForm.check_in.split(':');
-      let status = 'Present';
-      if (checkInParts.length >= 2) {
-        const h = parseInt(checkInParts[0], 10);
-        const m = parseInt(checkInParts[1], 10);
-        if (h > 10 || (h === 10 && m >= 30)) status = 'Late';
-      }
-
-      const attPayload = {
-        employee_id: selectedEmployeeId,
-        date: dateStr,
-        check_in: editAttForm.check_in || null,
-        check_out: editAttForm.check_out || null,
-        status: status
-      };
-
-      if (existingAtt) {
-        const { error: attendanceUpdateError } = await supabase
-          .from('attendance')
-          .update(attPayload)
-          .eq('id', existingAtt.id);
-        if (attendanceUpdateError) throw attendanceUpdateError;
-      } else if (editAttForm.check_in || editAttForm.check_out) {
-        const { error: attendanceInsertError } = await supabase
-          .from('attendance')
-          .insert(attPayload);
-        if (attendanceInsertError) throw attendanceInsertError;
-      }
-
-      // 2. Upsert Daily Reports
-      const { data: existingRep, error: existingReportError } = await supabase.from('daily_reports')
-        .select('id').eq('employee_id', selectedEmployeeId).eq('date', dateStr).maybeSingle();
-      if (existingReportError) throw existingReportError;
-      
-      const repPayload = {
-        employee_id: selectedEmployeeId,
-        date: dateStr,
-        bos_report: editAttForm.bos_report || null,
-        eod_report: editAttForm.eod_report || null
-      };
-
-      if (existingRep) {
-        const { error: reportUpdateError } = await supabase
-          .from('daily_reports')
-          .update(repPayload)
-          .eq('id', existingRep.id);
-        if (reportUpdateError) throw reportUpdateError;
-      } else if (editAttForm.bos_report || editAttForm.eod_report) {
-        const { error: reportInsertError } = await supabase
-          .from('daily_reports')
-          .insert(repPayload);
-        if (reportInsertError) throw reportInsertError;
-      }
-
-      setSelectedDateDetails(null);
-      const refreshResult = await fetchData();
-      setNotice({
-        type: refreshResult.error ? 'error' : 'success',
-        text: refreshResult.error
-          ? 'Changes were saved, but the calendar could not refresh. Select Try again to load the latest data.'
-          : 'Attendance details updated.',
-      });
-    } catch (err) {
-      setSaveError(err.message || 'Unable to save attendance details. Your form has been kept for another attempt.');
-    } finally {
-      setSavingAtt(false);
     }
   };
 
   return (
     <Layout
-      title="Work Tracking"
+      title="Attendance"
       eyebrow="Attendance"
-      heading="Work tracking"
-      description="Review monthly attendance, work duration, leave and late arrivals."
+      heading="Attendance calendar"
+      description="Review monthly presence, leave and punctuality. Work sessions and corrections remain in Timesheets."
     >
-      {notice && (
-        <div
-          className={`people-feedback people-feedback--${notice.type}`}
-          role={notice.type === 'error' ? 'alert' : 'status'}
-        >
-          <i className={notice.type === 'error' ? 'ri-error-warning-line' : 'ri-checkbox-circle-line'} />
-          {notice.text}
-        </div>
-      )}
-
       {dataError && (
         <AppState
           compact
           type="error"
-          title="Work-tracking data could not be refreshed"
+          title="Attendance data could not be refreshed"
           message={dataError}
           action={(
             <button type="button" className="btn btn-outline" onClick={fetchData}>
@@ -413,8 +306,8 @@ const Attendance = () => {
         <AppState
           compact
           type="loading"
-          title="Loading work-tracking calendar"
-          message="Collecting attendance, daily reports and approved leave."
+          title="Loading attendance calendar"
+          message="Collecting presence, workday check-ins and approved leave."
         />
       )}
 
@@ -484,7 +377,7 @@ const Attendance = () => {
 
           <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
             {/* Department filter for Super Admin / Head */}
-            {(user?.role === 'superadmin' || user?.role === 'head') && (
+            {userRole === ROLES.SUPERADMIN && (
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-muted">Department:</span>
                 <select
@@ -494,14 +387,14 @@ const Attendance = () => {
                   onChange={e => setSelectedDepartment(e.target.value)}
                 >
                   <option value="all">All Departments</option>
-                  {DEPARTMENTS.map(d => (
+                  {departments.map(d => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
               </div>
             )}
 
-            {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'superadmin' || user?.role === 'head') && (
+            {userRole !== ROLES.EMPLOYEE && (
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-muted">Employee:</span>
                 <select 
@@ -511,7 +404,7 @@ const Attendance = () => {
                   onChange={(e) => setSelectedEmployeeId(e.target.value)}
                 >
                   <option value={user.id}>Me ({user.name})</option>
-                  {((user?.role === 'superadmin' || user?.role === 'head') ? filteredEmployees : employees)
+                  {(userRole === ROLES.SUPERADMIN ? filteredEmployees : employees)
                     .filter(e => e.id !== user.id)
                     .map(emp => (
                       <option key={emp.id} value={emp.id}>{emp.name}</option>
@@ -545,7 +438,7 @@ const Attendance = () => {
               const todayStr = appDateKey();
               
               const isToday = todayStr === dateStr;
-              const isClickable = !!att || !!lv || user?.role !== 'employee';
+              const isClickable = !!att || !!lv;
               const isWeekend = new Date(year, month, d).getDay() === 0;
               
               let indicator = null;
@@ -655,39 +548,7 @@ const Attendance = () => {
             </div>
             <div style={{ padding: '0 0 1rem' }}>
               
-              {isEditingAtt ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem' }}>
-                  {saveError && (
-                    <div className="people-feedback people-feedback--error" role="alert">
-                      <i className="ri-error-warning-line" />
-                      {saveError}
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="attendance-check-in" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#646465', marginBottom: '0.25rem', display: 'block' }}>Check In</label>
-                      <input id="attendance-check-in" type="time" className="salary-input" value={editAttForm.check_in} onChange={e => setEditAttForm(prev => ({...prev, check_in: e.target.value}))} />
-                    </div>
-                    <div>
-                      <label htmlFor="attendance-check-out" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#646465', marginBottom: '0.25rem', display: 'block' }}>Check Out</label>
-                      <input id="attendance-check-out" type="time" className="salary-input" value={editAttForm.check_out} onChange={e => setEditAttForm(prev => ({...prev, check_out: e.target.value}))} />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="attendance-bos" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#006742', marginBottom: '0.25rem', display: 'block' }}>BOS Report</label>
-                    <textarea id="attendance-bos" className="salary-input" style={{ minHeight: '80px', resize: 'vertical' }} value={editAttForm.bos_report} onChange={e => setEditAttForm(prev => ({...prev, bos_report: e.target.value}))} placeholder="Enter Beginning of Shift report..."></textarea>
-                  </div>
-                  <div>
-                    <label htmlFor="attendance-eod" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#00A87E', marginBottom: '0.25rem', display: 'block' }}>EOD Report</label>
-                    <textarea id="attendance-eod" className="salary-input" style={{ minHeight: '80px', resize: 'vertical' }} value={editAttForm.eod_report} onChange={e => setEditAttForm(prev => ({...prev, eod_report: e.target.value}))} placeholder="Enter End of Day report..."></textarea>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
-                    <button className="salary-cancel-btn" onClick={() => setIsEditingAtt(false)}>Cancel</button>
-                    <button className="salary-submit-btn" style={{ background: '#006742' }} onClick={handleSaveAttendance} disabled={savingAtt}>{savingAtt ? 'Saving...' : 'Save Changes'}</button>
-                  </div>
-                </div>
-              ) : (
-                <>
+              <>
                   {selectedDateDetails.lv ? (
                     <div style={{ background: '#FFF2F2', padding: '1rem', borderRadius: 8, borderLeft: '4px solid #C0392B', marginBottom: '1rem' }}>
                       <h4 style={{ color: '#C0392B', fontWeight: 'bold', marginBottom: '0.5rem' }}><i className="ri-calendar-event-line"></i> {selectedDateDetails.lv.days === 0.5 ? 'Half Day ' : 'On '}Leave</h4>
@@ -717,12 +578,12 @@ const Attendance = () => {
                       </div>
                       
                       <div style={{ background: '#E8F2EF', padding: '1rem', borderRadius: 8, marginBottom: '0.5rem' }}>
-                        <p style={{ fontSize: '0.8rem', color: '#006742', fontWeight: 600, marginBottom: '0.25rem' }}>BOS Report</p>
+                        <p style={{ fontSize: '0.8rem', color: '#006742', fontWeight: 600, marginBottom: '0.25rem' }}>Start-of-day plan</p>
                         <p style={{ fontSize: '0.9rem', color: '#000000', whiteSpace: 'pre-wrap' }}>{selectedDateDetails.att.bos_report || 'Not submitted'}</p>
                       </div>
                       
                       <div style={{ background: '#E0F5EE', padding: '1rem', borderRadius: 8 }}>
-                        <p style={{ fontSize: '0.8rem', color: '#00A87E', fontWeight: 600, marginBottom: '0.25rem' }}>EOD Report</p>
+                        <p style={{ fontSize: '0.8rem', color: '#00A87E', fontWeight: 600, marginBottom: '0.25rem' }}>End-of-day summary</p>
                         <p style={{ fontSize: '0.9rem', color: '#000000', whiteSpace: 'pre-wrap' }}>{selectedDateDetails.att.eod_report || 'Not submitted'}</p>
                       </div>
                     </div>
@@ -730,18 +591,7 @@ const Attendance = () => {
                     <p style={{ color: '#646465' }}>No attendance record found for this day.</p>
                   ) : null}
 
-                  {user?.role !== 'employee' && (
-                    <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
-                      <button 
-                        onClick={() => setIsEditingAtt(true)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F4F4F4', color: '#000', padding: '0.5rem 1.5rem', borderRadius: '8px', fontWeight: '600' }}
-                      >
-                        <i className="ri-pencil-line"></i> Edit Attendance
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
+              </>
             </div>
           </div>
         </div>

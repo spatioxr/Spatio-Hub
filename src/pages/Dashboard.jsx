@@ -129,6 +129,7 @@ const Dashboard = () => {
   const isSuperAdmin = user.role === 'superadmin';
   const isNormalAdmin = user.role === 'admin';
   const canViewLiveStatus = hasPermission(user, PERMISSIONS.VIEW_LIVE_STATUS);
+  const hasManagementLiveRail = hasPermission(user, PERMISSIONS.VIEW_MANAGEMENT_LIVE_RAIL);
   const myLeaveRequests = getMyRequests();
   const myLeaveBalance = getUserBalance(user.id);
   const approvedDays = (type) => myLeaveRequests
@@ -140,7 +141,7 @@ const Dashboard = () => {
     if (isEmployee) {
       return (
         <div className="dashboard-kpi-grid">
-          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive orange-theme" onClick={() => navigate('/attendance')}>
+          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive orange-theme" onClick={() => navigate('/track-work')}>
             <i className="ri-arrow-right-s-line card-chevron"></i>
             <div className="card-icon-wrapper">
               <i className="ri-calendar-line"></i>
@@ -177,7 +178,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive orange-theme" onClick={() => navigate('/attendance')}>
+          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive orange-theme" onClick={() => navigate('/track-work')}>
             <i className="ri-arrow-right-s-line card-chevron"></i>
             <div className="card-icon-wrapper">
               <i className="ri-calendar-line"></i>
@@ -276,7 +277,7 @@ const Dashboard = () => {
                   {workStatus === 'out'
                     ? dayState.hasWorkToday
                       ? 'Your final session is closed for today.'
-                      : 'Use Start work in the timer above. BOS is requested there when required.'
+                      : 'Use Start work in the timer above. Your start-of-day plan is requested there when required.'
                     : contextLabel}
                 </span>
               </div>
@@ -325,7 +326,7 @@ const Dashboard = () => {
 
       </div>
 
-      {canViewLiveStatus && (
+      {canViewLiveStatus && !hasManagementLiveRail && (
         <LiveStatusBoard refreshKey={workStatus} />
       )}
 

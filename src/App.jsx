@@ -5,12 +5,15 @@ import { LeaveProvider } from './context/LeaveContext';
 import { WorkSessionProvider } from './context/WorkSessionContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import TrackWork from './pages/TrackWork';
 import Attendance from './pages/Attendance';
 import Leave from './pages/Leave';
 import People from './pages/People';
 import Projects from './pages/Projects';
 import Activities from './pages/Activities';
 import AdminSettings from './pages/AdminSettings';
+import WorkSetup from './pages/WorkSetup';
+import WorkdayCheckIns from './pages/WorkdayCheckIns';
 import Timesheets from './pages/Timesheets';
 import WorkDistribution from './pages/WorkDistribution';
 import ResetPassword from './pages/ResetPassword';
@@ -50,7 +53,22 @@ const AppRoutes = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
+            <Route
+              path="/track-work"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.TRACK_OWN_WORK}>
+                  <TrackWork />
+                </PermissionRoute>
+              )}
+            />
+            <Route
+              path="/attendance"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.VIEW_ATTENDANCE}>
+                  <Attendance />
+                </PermissionRoute>
+              )}
+            />
             <Route
               path="/timesheets"
               element={(
@@ -71,7 +89,7 @@ const AppRoutes = () => (
             <Route
               path="/analytics"
               element={(
-                <PermissionRoute permission={PERMISSIONS.VIEW_ORGANISATION_REPORTS}>
+                <PermissionRoute permission={PERMISSIONS.VIEW_WORK_DISTRIBUTION}>
                   <WorkDistribution />
                 </PermissionRoute>
               )}
@@ -80,7 +98,7 @@ const AppRoutes = () => (
               path="/projects"
               element={(
                 <PermissionRoute permission={PERMISSIONS.MANAGE_OWNED_PROJECT_TEAM}>
-                  <Projects />
+                  <Projects mode="manage" />
                 </PermissionRoute>
               )}
             />
@@ -93,13 +111,46 @@ const AppRoutes = () => (
               )}
             />
             <Route
-              path="/activities"
+              path="/admin-settings/users"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.ACCESS_ADMIN_SETTINGS}>
+                  <People mode="access" />
+                </PermissionRoute>
+              )}
+            />
+            <Route
+              path="/admin-settings/work-setup"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.ACCESS_ADMIN_SETTINGS}>
+                  <WorkSetup />
+                </PermissionRoute>
+              )}
+            />
+            <Route
+              path="/admin-settings/work-setup/projects"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.MANAGE_PROJECTS}>
+                  <Projects mode="setup" />
+                </PermissionRoute>
+              )}
+            />
+            <Route
+              path="/admin-settings/work-setup/activities"
               element={(
                 <PermissionRoute permission={PERMISSIONS.MANAGE_ACTIVITIES}>
                   <Activities />
                 </PermissionRoute>
               )}
             />
+            <Route
+              path="/admin-settings/workday-check-ins"
+              element={(
+                <PermissionRoute permission={PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS}>
+                  <WorkdayCheckIns />
+                </PermissionRoute>
+              )}
+            />
+            <Route path="/activities" element={<Navigate to="/admin-settings/work-setup/activities" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )

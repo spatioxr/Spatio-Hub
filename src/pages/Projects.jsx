@@ -206,7 +206,7 @@ const ProjectDrawer = ({
   );
 };
 
-const Projects = () => {
+const Projects = ({ mode = 'manage' }) => {
   const { user } = useContext(AuthContext);
   const [projects, setProjects] = useState([]);
   const [directory, setDirectory] = useState([]);
@@ -221,7 +221,9 @@ const Projects = () => {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('active');
 
-  const canManageDefinitions = hasPermission(user, PERMISSIONS.MANAGE_PROJECTS);
+  const canManageDefinitions = mode === 'setup'
+    && hasPermission(user, PERMISSIONS.MANAGE_PROJECTS);
+  const isSetupMode = mode === 'setup';
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -429,12 +431,12 @@ const Projects = () => {
 
   return (
     <Layout
-      title="Projects"
-      eyebrow="Administration"
-      heading="Projects"
+      title={isSetupMode ? 'Project Setup' : 'Projects'}
+      eyebrow={isSetupMode ? 'Work Setup' : 'Manage'}
+      heading={isSetupMode ? 'Project Setup' : 'Projects'}
       description={canManageDefinitions
-        ? 'Manage project definitions, ownership and explicit team access.'
-        : 'View projects you own and manage their team assignments.'}
+        ? 'Create, archive and maintain project definitions and accountable managers.'
+        : 'Review permitted projects and manage their team assignments.'}
       actions={canManageDefinitions ? (
         <button type="button" className="btn" onClick={openCreate}>
           <i className="ri-add-line" />
@@ -453,8 +455,8 @@ const Projects = () => {
         <div className="people-readonly-note">
           <i className="ri-team-line" />
           <div>
-            <strong>Owned projects only</strong>
-            <span>Project definitions are read-only; team assignments remain available.</span>
+            <strong>Operational project view</strong>
+            <span>Project definitions are read-only here; team assignments remain available.</span>
           </div>
         </div>
       )}

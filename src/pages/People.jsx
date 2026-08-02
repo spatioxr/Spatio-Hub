@@ -248,7 +248,7 @@ const PersonDrawer = ({
   );
 };
 
-const People = () => {
+const People = ({ mode = 'directory' }) => {
   const { user } = useContext(AuthContext);
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -262,8 +262,10 @@ const People = () => {
   const [drawerError, setDrawerError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const canManage = hasPermission(user, PERMISSIONS.MANAGE_PEOPLE);
+  const hasPeopleManagement = hasPermission(user, PERMISSIONS.MANAGE_PEOPLE);
+  const canManage = mode === 'access' && hasPeopleManagement;
   const isSuperadmin = getRole(user) === ROLES.SUPERADMIN;
+  const isAccessMode = mode === 'access';
 
   const fetchPeople = useCallback(async () => {
     setLoading(true);
@@ -393,12 +395,14 @@ const People = () => {
 
   return (
     <Layout
-      title="People"
-      eyebrow="Organisation"
-      heading="People"
-      description={canManage
-        ? 'Manage the work profiles that power Phase 1 access and reporting.'
-        : 'View people assigned to projects you manage.'}
+      title={isAccessMode ? 'Users & Access' : 'People'}
+      eyebrow={isAccessMode ? 'Settings' : 'Manage'}
+      heading={isAccessMode ? 'Users & Access' : 'People'}
+      description={isAccessMode
+        ? 'Manage the work profiles, roles and employment status that power Phase 1 access.'
+        : hasPeopleManagement
+          ? 'Browse the organisation directory. User changes remain in Settings.'
+          : 'View people assigned to projects you manage.'}
       actions={canManage ? (
         <button type="button" className="btn" onClick={() => openDrawer('create')}>
           <i className="ri-user-add-line" />
@@ -417,8 +421,12 @@ const People = () => {
         <div className="people-readonly-note">
           <i className="ri-eye-line" />
           <div>
-            <strong>Read-only project view</strong>
-            <span>You can see your profile and people assigned to projects you manage.</span>
+            <strong>Read-only directory</strong>
+            <span>
+              {hasPeopleManagement
+                ? 'Use Settings → Users & Access to add people or change access.'
+                : 'You can see your profile and people assigned to projects you manage.'}
+            </span>
           </div>
         </div>
       )}

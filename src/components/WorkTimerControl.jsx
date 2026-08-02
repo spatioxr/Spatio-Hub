@@ -17,7 +17,7 @@ const formatElapsed = (totalSeconds) => {
   return [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':');
 };
 
-const WorkTimerControl = () => {
+const WorkTimerControl = ({ variant = 'compact' }) => {
   const [modalMode, setModalMode] = useState(null);
   const [endDayOpen, setEndDayOpen] = useState(false);
   const [confirmation, setConfirmation] = useState('');
@@ -72,7 +72,7 @@ const WorkTimerControl = () => {
   };
 
   return (
-    <section className="work-timer" aria-label="Current work status">
+    <section className={`work-timer work-timer--${variant}`} aria-label="Current work status">
       <div className="work-timer-summary">
         <div className="work-timer-state-row">
           <span className={`work-timer-dot work-timer-dot--${status}`} aria-hidden="true" />

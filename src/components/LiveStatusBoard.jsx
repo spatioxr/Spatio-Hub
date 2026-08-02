@@ -30,7 +30,7 @@ const formatStatusStart = (value) => {
   })}, ${time}`;
 };
 
-const LiveStatusBoard = ({ refreshKey }) => {
+const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
   const [rows, setRows] = useState([]);
   const [activeTab, setActiveTab] = useState('In');
   const [search, setSearch] = useState('');
@@ -97,18 +97,30 @@ const LiveStatusBoard = ({ refreshKey }) => {
   }, [activeTab, rows, search]);
 
   return (
-    <section className="card live-status-board" aria-labelledby="live-status-title">
+    <section className={`card live-status-board live-status-board--${variant}`} aria-labelledby={`live-status-title-${variant}`}>
       <div className="live-status-header">
         <div>
           <div className="live-status-title-row">
-            <h3 id="live-status-title">Who&apos;s in today</h3>
+            <h3 id={`live-status-title-${variant}`}>
+              {variant === 'rail' ? 'Who’s in/out' : 'Who’s in today'}
+            </h3>
             <span className="live-status-indicator">
               <span aria-hidden="true" />
               Live
             </span>
           </div>
-          <p>Company work status refreshes automatically.</p>
+          <p>
+            {variant === 'rail'
+              ? `${rows.length} ${rows.length === 1 ? 'member' : 'members'} · company status`
+              : 'Company work status refreshes automatically.'}
+          </p>
         </div>
+
+        {variant === 'rail' && (
+          <button type="button" className="live-status-rail-close" onClick={onClose} aria-label="Close who’s in/out">
+            <i className="ri-close-line" aria-hidden="true" />
+          </button>
+        )}
 
         <label className="live-status-search">
           <i className="ri-search-line" aria-hidden="true" />
@@ -117,7 +129,7 @@ const LiveStatusBoard = ({ refreshKey }) => {
             aria-label="Search live status"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search people or context"
+            placeholder={variant === 'rail' ? 'Search members…' : 'Search people or context'}
           />
         </label>
       </div>

@@ -307,7 +307,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
           {needsBos && (
             <label className="work-start-task">
               <span className="work-start-label">
-                Beginning-of-day report <b aria-hidden="true">*</b>
+                Start-of-day plan <b aria-hidden="true">*</b>
               </span>
               <textarea
                 value={bosReport}
@@ -328,7 +328,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
           <div className="work-start-footer">
             <span>
               {needsBos
-                ? 'Your BOS and first session will be saved together.'
+                ? 'Your workday plan and first session will be saved together.'
                 : 'Select exactly one context and describe your task.'}
             </span>
             <button type="submit" className="work-start-submit" disabled={!canSubmit}>

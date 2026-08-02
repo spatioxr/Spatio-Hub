@@ -33,7 +33,7 @@ const DailyReportSettings = ({ onSaved }) => {
 
       if (cancelled) return;
       if (employeeError || settingsError) {
-        setError('Unable to load BOS/EOD settings.');
+        setError('Unable to load workday check-in settings.');
         setLoading(false);
         return;
       }
@@ -90,7 +90,7 @@ const DailyReportSettings = ({ onSaved }) => {
     );
 
     if (saveError) {
-      setError(saveError.message || 'Unable to save BOS/EOD settings.');
+      setError(saveError.message || 'Unable to save workday check-in settings.');
       setSaving(false);
       return;
     }
@@ -115,10 +115,10 @@ const DailyReportSettings = ({ onSaved }) => {
       <div className="flex justify-between items-center mb-4" style={{ gap: '1rem' }}>
         <div>
           <h3 className="font-bold" style={{ fontSize: '1.125rem', color: 'var(--text-main)' }}>
-            BOS/EOD requirements
+            Workday check-in requirements
           </h3>
           <p className="text-muted text-sm mt-1">
-            Choose whether reports are mandatory for an employee.
+            Choose whether the workday plan and summary are mandatory for an employee.
           </p>
         </div>
         <i className="ri-settings-3-line" style={{ color: '#006742', fontSize: '1.5rem' }} />
@@ -150,8 +150,8 @@ const DailyReportSettings = ({ onSaved }) => {
 
           <div style={{ display: 'grid', gap: '0.65rem' }}>
             {[
-              ['bos_required', 'Beginning-of-day report', 'Requested on the first work start.'],
-              ['eod_required', 'End-of-day report', 'Requested before the final End Day.'],
+              ['bos_required', 'Start-of-day plan', 'Requested on the first work start.'],
+              ['eod_required', 'End-of-day summary', 'Requested before the final End Day.'],
             ].map(([field, label, description]) => (
               <label
                 key={field}

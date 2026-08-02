@@ -208,7 +208,7 @@ const Activities = () => {
   return (
     <Layout
       title="Activities"
-      eyebrow="Administration"
+      eyebrow="Work Setup"
       heading="Internal activities"
       description="Manage the approved catalogue for non-project work while preserving historical reporting."
       actions={(

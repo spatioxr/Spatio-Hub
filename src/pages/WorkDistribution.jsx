@@ -1,5 +1,6 @@
 import React, {
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -7,7 +8,9 @@ import React, {
 } from 'react';
 import AppState from '../components/AppState';
 import Layout from '../components/Layout';
+import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
+import { getRole, ROLES } from '../utils/rbac';
 import {
   buildWorkDistributionCsv,
   workDistributionCsvFilename,
@@ -132,6 +135,9 @@ const DistributionChart = ({
 };
 
 const WorkDistribution = () => {
+  const { user } = useContext(AuthContext);
+  const isManager = getRole(user) === ROLES.MANAGER;
+  const analyticsScope = isManager ? 'managed' : 'organisation';
   const today = dateKey();
   const initialStart = addDays(today, -6);
   const [draftRange, setDraftRange] = useState({ start: initialStart, end: today });
@@ -156,18 +162,18 @@ const WorkDistribution = () => {
     const { data, error: fetchError } = await supabase.rpc('scoped_timesheet_entries', {
       requested_start_at: range.start,
       requested_end_at: range.end,
-      requested_scope: 'organisation',
+      requested_scope: analyticsScope,
       requested_employee_id: null,
     });
 
     if (fetchError) {
       setEntries([]);
-      setError(fetchError.message || 'Unable to load organisation analytics.');
+      setError(fetchError.message || 'Unable to load work-distribution analytics.');
     } else {
       setEntries(data || []);
     }
     setLoading(false);
-  }, [appliedRange]);
+  }, [analyticsScope, appliedRange]);
 
   useEffect(() => {
     void fetchEntries();
@@ -356,9 +362,11 @@ const WorkDistribution = () => {
   return (
     <Layout
       title="Analytics"
-      eyebrow="Organisation reporting"
+      eyebrow={isManager ? 'Managed projects' : 'Organisation reporting'}
       heading="Work distribution"
-      description="Understand where team time is going across projects, internal activities, departments, and people."
+      description={isManager
+        ? 'Understand where time is going across projects and people assigned to projects you manage.'
+        : 'Understand where team time is going across projects, internal activities, departments, and people.'}
       actions={(
         <button
           type="button"
@@ -428,8 +436,8 @@ const WorkDistribution = () => {
       ) : loading ? (
         <AppState
           type="loading"
-          title="Building the organisation view"
-          message="Adding worked time and breaks across the selected period."
+          title={`Building the ${isManager ? 'managed-project' : 'organisation'} view`}
+          message="Adding worked time and breaks across the selected permitted period."
         />
       ) : (
         <>
