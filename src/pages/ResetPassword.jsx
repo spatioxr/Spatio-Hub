@@ -70,7 +70,7 @@ const PasswordForm = ({
           className="salary-input"
           type="password"
           autoComplete="new-password"
-          placeholder="12+ characters"
+          placeholder="8+ characters"
           value={newPassword}
           onChange={onNewPasswordChange}
           required

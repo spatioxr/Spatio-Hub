@@ -43,13 +43,7 @@ const generateTemporaryPassword = () => (
   `Tmp!9aA-${crypto.randomUUID().replaceAll('-', '')}`
 );
 
-const isStrongPassword = (password: string) => (
-  password.length >= 12
-  && /[a-z]/.test(password)
-  && /[A-Z]/.test(password)
-  && /\d/.test(password)
-  && /[^A-Za-z0-9]/.test(password)
-);
+const isStrongPassword = (password: string) => password.length >= 8;
 
 const requiredEnvironment = (name: string) => {
   const value = Deno.env.get(name);
@@ -123,7 +117,7 @@ Deno.serve(async (request) => {
         throw new RequestError(
           400,
           'WEAK_PASSWORD',
-          'Use at least 12 characters with uppercase, lowercase, number, and symbol.',
+          'Use at least 8 characters.',
         );
       }
       if (newPassword === currentPassword) {

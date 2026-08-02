@@ -6,19 +6,17 @@ import {
   PASSWORD_REQUIREMENT_MESSAGE,
 } from './passwordPolicy.js';
 
-test('accepts a password that satisfies every temporary-password replacement rule', () => {
-  assert.equal(isStrongPassword('Spatio!Pilot9'), true);
+test('accepts any replacement password with at least eight characters', () => {
+  assert.equal(isStrongPassword('password'), true);
+  assert.equal(isStrongPassword('12345678'), true);
 });
 
-test('rejects passwords missing length or a required character class', () => {
-  assert.equal(isStrongPassword('Short!9A'), false);
-  assert.equal(isStrongPassword('SPATIO!PILOT9'), false);
-  assert.equal(isStrongPassword('spatio!pilot9'), false);
-  assert.equal(isStrongPassword('Spatio!PilotX'), false);
-  assert.equal(isStrongPassword('Spatio9PilotX'), false);
+test('rejects replacement passwords shorter than eight characters', () => {
+  assert.equal(isStrongPassword('1234567'), false);
+  assert.equal(isStrongPassword(''), false);
 });
 
 test('exports matching password guidance', () => {
-  assert.equal(PASSWORD_MIN_LENGTH, 12);
-  assert.match(PASSWORD_REQUIREMENT_MESSAGE, /uppercase, lowercase, number, and symbol/);
+  assert.equal(PASSWORD_MIN_LENGTH, 8);
+  assert.equal(PASSWORD_REQUIREMENT_MESSAGE, 'Use at least 8 characters.');
 });
