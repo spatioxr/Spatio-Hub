@@ -9,6 +9,7 @@ const verificationFiles = [
   'supabase/verify/hrms_011_work_breaks.sql',
   'supabase/verify/hrms_012_daily_reports.sql',
   'supabase/verify/hrms_013_work_entry_audit.sql',
+  'supabase/verify/hrms_015_optional_task_descriptions.sql',
   'supabase/verify/hrms_016_work_switching.sql',
   'supabase/verify/hrms_018_daily_report_workflow.sql',
   'supabase/verify/hrms_021_personal_timesheet.sql',

@@ -15,6 +15,7 @@ export const WorkSessionContext = createContext({
   dayState: {
     bosRequired: true,
     eodRequired: true,
+    taskDescriptionRequired: true,
     bosSubmitted: false,
     eodSubmitted: false,
     hasWorkToday: false,
@@ -37,19 +38,26 @@ const firstRow = (data) => (Array.isArray(data) ? data[0] : data) || null;
 const emptyDayState = {
   bosRequired: true,
   eodRequired: true,
+  taskDescriptionRequired: true,
   bosSubmitted: false,
   eodSubmitted: false,
   hasWorkToday: false,
 };
 
-const normaliseDayState = (data) => {
+const normaliseDayState = (data, settings) => {
   const state = firstRow(data);
-  if (!state) return emptyDayState;
+  if (!state) {
+    return {
+      ...emptyDayState,
+      taskDescriptionRequired: settings?.task_description_required ?? true,
+    };
+  }
 
   return {
     reportDate: state.report_date,
     bosRequired: state.bos_required,
     eodRequired: state.eod_required,
+    taskDescriptionRequired: settings?.task_description_required ?? true,
     bosSubmitted: state.bos_submitted,
     eodSubmitted: state.eod_submitted,
     hasWorkToday: state.has_work_today,
@@ -118,15 +126,22 @@ export const WorkSessionProvider = ({ children }) => {
       const [
         { data: sessionData, error: sessionError },
         { data: dayData, error: dayError },
+        { data: settingsData, error: settingsError },
       ] = await Promise.all([
         supabase.rpc('current_work_session'),
         supabase.rpc('current_work_day_requirements'),
+        supabase
+          .from('employee_work_settings')
+          .select('task_description_required')
+          .eq('employee_id', user.id)
+          .maybeSingle(),
       ]);
       if (sessionError) throw sessionError;
       if (dayError) throw dayError;
+      if (settingsError) throw settingsError;
 
       const session = firstRow(sessionData);
-      const dayState = normaliseDayState(dayData);
+      const dayState = normaliseDayState(dayData, settingsData);
       if (!session) {
         setSnapshot({
           session: null,

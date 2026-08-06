@@ -97,6 +97,10 @@ environment.
     `Released`/Archived employee state a complete portal-access boundary for
     catalogue reads and self-profile changes while preserving the profile for a
     clear refusal message and later restoration.
+30. `20260806000200_optional_task_descriptions.sql` adds audited per-employee
+    and all-active-employee task-description controls, keeps task descriptions
+    required by default, and enforces the saved rule when starting or switching
+    a work session.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -179,6 +183,12 @@ Run `supabase/verify/hrms_013_work_entry_audit.sql` for the rollback-only
 correction audit check. It verifies audited manual creation and correction,
 required reasons, old/new snapshots, Manager project-team scope, employee and
 out-of-scope denial, immutable audit rows, and continued direct-write denial.
+
+Run `supabase/verify/hrms_015_optional_task_descriptions.sql` for the
+rollback-only task-description requirement check. It verifies required
+defaults, audited individual exceptions, the all-active-employee action,
+optional start/switch behaviour, required-mode rejection, legacy BOS/EOD
+compatibility, and superadmin-only control.
 
 Run `supabase/verify/hrms_016_work_switching.sql` for the rollback-only atomic
 work-switch check. It verifies shared session boundaries, separate automatic

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AuthContext } from '../context/AuthContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import { supabase } from '../utils/supabaseClient';
+import { isTaskDescriptionValid } from '../utils/workSession';
 import useDialogFocus from '../hooks/useDialogFocus';
 
 const optionKey = (type, id) => `${type}:${id}`;
@@ -106,14 +107,15 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
         type,
         id,
         label,
-        taskDescription: entry.task_description,
+        taskDescription: entry.task_description || '',
       });
       return choices;
     }, []);
   }, [activities, projects, recentEntries]);
 
   const hasContext = Boolean(contextId);
-  const hasTask = Boolean(taskDescription.trim());
+  const taskDescriptionRequired = dayState.taskDescriptionRequired !== false;
+  const hasTask = isTaskDescriptionValid(taskDescription, taskDescriptionRequired);
   const needsBos = !isSwitch
     && !dayState.hasWorkToday
     && dayState.bosRequired
@@ -124,7 +126,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
   const chooseRecent = (choice) => {
     setContextType(choice.type);
     setContextId(choice.id);
-    setTaskDescription(choice.taskDescription);
+    setTaskDescription(choice.taskDescription || '');
     setError('');
   };
 
@@ -197,7 +199,9 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
                 ? 'Your current entry will close when the new one starts.'
                 : needsBos
                   ? 'Add today’s plan, then choose the context for your first session.'
-                  : 'Choose one context and add a concise task description.'}
+                  : taskDescriptionRequired
+                    ? 'Choose one context and add a concise task description.'
+                    : 'Choose one context. A task description is optional for you.'}
             </p>
           </div>
           <button
@@ -222,7 +226,9 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
                     key={optionKey(choice.type, choice.id)}
                     className="work-start-recent"
                     onClick={() => chooseRecent(choice)}
-                    title={`${choice.label} — ${choice.taskDescription}`}
+                    title={choice.taskDescription
+                      ? `${choice.label} — ${choice.taskDescription}`
+                      : choice.label}
                   >
                     <i
                       className={choice.type === 'project' ? 'ri-briefcase-4-line' : 'ri-lightbulb-flash-line'}
@@ -290,7 +296,10 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
 
           <label className="work-start-task">
             <span className="work-start-label">
-              Task description <b aria-hidden="true">*</b>
+              Task description
+              {taskDescriptionRequired
+                ? <b aria-hidden="true">*</b>
+                : <small> (optional)</small>}
             </span>
             <textarea
               value={taskDescription}
@@ -300,7 +309,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
               }}
               placeholder="What do you plan to complete?"
               rows="3"
-              required
+              required={taskDescriptionRequired}
             />
           </label>
 
@@ -329,7 +338,9 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
             <span>
               {needsBos
                 ? 'Your workday plan and first session will be saved together.'
-                : 'Select exactly one context and describe your task.'}
+                : taskDescriptionRequired
+                  ? 'Select exactly one context and describe your task.'
+                  : 'Select exactly one work context to continue.'}
             </span>
             <button type="submit" className="work-start-submit" disabled={!canSubmit}>
               <i className={isSwitch ? 'ri-swap-line' : 'ri-play-fill'} aria-hidden="true" />

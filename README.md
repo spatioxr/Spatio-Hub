@@ -71,7 +71,7 @@ external PostgreSQL connection.
 | `/projects` | Project definitions and scoped team assignments |
 | `/activities` | Internal activity catalogue |
 | `/people` | Permission-scoped employee directory |
-| `/admin-settings` | Phase 1 administration and BOS/EOD exceptions |
+| `/admin-settings` | Phase 1 administration and work-entry requirements |
 | `/leave` | Leave management |
 | `/login` | Current login |
 | `/reset-password` | Required temporary-password replacement, password help, and authenticated password change |

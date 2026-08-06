@@ -21,8 +21,8 @@ confirm:
 | Projects/assignments | Assigned | Assigned/managed | Organisation | Organisation |
 | Work entries/breaks | Own | Assigned teams/projects, read-only | Organisation, read-only | Organisation |
 | Audit history | Own | Assigned teams/projects | Organisation | Organisation |
-| BOS/EOD settings | Own, read-only | Own, read-only | Own, read-only | Organisation |
-| BOS/EOD setting history | — | — | — | Organisation |
+| Work requirements | Own, read-only | Own, read-only | Own, read-only | Organisation |
+| Work-requirement history | — | — | — | Organisation |
 
 Managers are scoped through explicit project ownership and team membership.
 HRMS-027 regression coverage exercises Manager add/remove only on owned
@@ -49,8 +49,8 @@ profile directly.
 Admin Settings is available only to active Admin and Superadmin profiles. The
 route groups existing Phase 1 administration controls without widening their
 underlying data access. Project and activity controls retain their existing
-controlled-function and RLS boundaries, while BOS/EOD exceptions remain
-superadmin-only. Employee-profile functions also enforce that only a
+controlled-function and RLS boundaries, while task-description and BOS/EOD
+requirements remain superadmin-only. Employee-profile functions also enforce that only a
 superadmin may grant or remove the `admin` or `superadmin` role.
 
 Activity administration is exposed through organisation-only projection,
@@ -118,16 +118,19 @@ functions, while direct writes to `break_entries` are denied.
 
 BOS/EOD report text remains writable only within the existing own or
 superadmin row scope, and a database trigger owns the corresponding submission
-timestamps. Per-employee BOS/EOD requirements are readable within their
-existing scope but may be changed only through the superadmin-controlled
-settings function; direct authenticated settings writes are denied.
-Each effective settings change records the previous and saved BOS/EOD values,
-the superadmin actor, and the shared change timestamp in immutable history.
+timestamps. Per-employee task-description and BOS/EOD requirements are readable
+within their existing scope but may be changed only through superadmin-controlled
+settings functions; direct authenticated settings writes are denied. The bulk
+task-description function applies one value to every active employee while the
+individual function preserves per-person exceptions.
+Each effective settings change records the previous and saved task-description
+and BOS/EOD values, the superadmin actor, and the shared change timestamp in
+immutable history.
 Unchanged saves do not create misleading audit events. Setting updates are
 published to signed-in affected employees so their timer refreshes the saved
 requirements without a page reload.
 
-Work-entry and BOS/EOD-settings audit rows are inserted atomically by their
+Work-entry and work-requirement audit rows are inserted atomically by their
 controlled functions. Authenticated clients have no insert, update, or delete
 privileges on audit history, and database triggers also reject audit updates
 and deletion.

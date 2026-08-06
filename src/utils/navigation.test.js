@@ -17,7 +17,7 @@ test('navigation separates common, Manage and Settings responsibilities', () => 
   assert.match(sidebar, /label="Settings"/);
   assert.match(sidebar, /name: 'Users & Access'/);
   assert.match(sidebar, /name: 'Work Setup'/);
-  assert.match(sidebar, /name: 'Workday Check-ins'/);
+  assert.match(sidebar, /name: 'Work Requirements'/);
 });
 
 test('Track Work owns live actions while Attendance remains read-only history', () => {

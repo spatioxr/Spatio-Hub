@@ -21,7 +21,7 @@ const MANAGE_ITEMS = [
 const SETTINGS_ITEMS = [
   { path: '/admin-settings/users', name: 'Users & Access', icon: 'ri-admin-line', permission: PERMISSIONS.ACCESS_ADMIN_SETTINGS },
   { path: '/admin-settings/work-setup', name: 'Work Setup', icon: 'ri-tools-line', permission: PERMISSIONS.ACCESS_ADMIN_SETTINGS },
-  { path: '/admin-settings/workday-check-ins', name: 'Workday Check-ins', icon: 'ri-sun-line', permission: PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS },
+  { path: '/admin-settings/workday-check-ins', name: 'Work Requirements', icon: 'ri-sun-line', permission: PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS },
 ];
 
 const NavigationLink = ({ item }) => (

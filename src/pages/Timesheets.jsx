@@ -1026,7 +1026,7 @@ const Timesheets = () => {
                             {formatDuration(entry.worked_seconds)}
                           </span>
                         </div>
-                        <p>{entry.task_description}</p>
+                        <p>{entry.task_description || 'No task description recorded.'}</p>
                         <div className="timesheet-session-meta">
                           <span>
                             <i className="ri-time-line" />

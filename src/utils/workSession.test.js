@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getElapsedSeconds, getWorkStatus } from './workSession.js';
+import {
+  getElapsedSeconds,
+  getWorkStatus,
+  isTaskDescriptionValid,
+} from './workSession.js';
 
 test('timer status follows the out, working, break, working, out lifecycle', () => {
   const session = { id: 'session-1' };
@@ -39,4 +43,11 @@ test('elapsed time freezes on break and never becomes negative', () => {
     workedSeconds: -30,
     syncedAt,
   }, syncedAt - 10_000), 0);
+});
+
+test('task descriptions follow the employee requirement', () => {
+  assert.equal(isTaskDescriptionValid('Describe the session', true), true);
+  assert.equal(isTaskDescriptionValid('   ', true), false);
+  assert.equal(isTaskDescriptionValid('', false), true);
+  assert.equal(isTaskDescriptionValid(undefined, false), true);
 });

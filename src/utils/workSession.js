@@ -3,6 +3,10 @@ export const getWorkStatus = ({ session, breakEntry } = {}) => {
   return breakEntry ? 'break' : 'working';
 };
 
+export const isTaskDescriptionValid = (taskDescription, required = true) => (
+  !required || Boolean(taskDescription?.trim())
+);
+
 export const getElapsedSeconds = ({
   session,
   breakEntry,

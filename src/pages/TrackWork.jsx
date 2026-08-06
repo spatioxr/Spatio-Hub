@@ -154,7 +154,7 @@ const TrackWork = () => {
                   <div className="track-work-entry-copy">
                     <span>{entry.context_type === 'project' ? 'Project' : 'Internal activity'}</span>
                     <strong>{entry.context_label}</strong>
-                    <p>{entry.task_description}</p>
+                    <p>{entry.task_description || 'No task description recorded.'}</p>
                     {(entry.breaks || []).length > 0 && (
                       <small>{entry.breaks.length} {entry.breaks.length === 1 ? 'break' : 'breaks'} · {formatDuration(entry.break_seconds)}</small>
                     )}

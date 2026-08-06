@@ -207,7 +207,41 @@ SELECT
     ) AS has_controlled_leave_balance_workflow,
   to_regprocedure(
     'public.set_daily_report_requirements(uuid,boolean,boolean)'
-  ) IS NOT NULL AS has_daily_report_requirements_control,
+  ) IS NOT NULL
+    AND to_regprocedure(
+      'public.set_employee_work_requirements(uuid,boolean,boolean,boolean)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.set_task_description_requirement_for_all(boolean)'
+    ) IS NOT NULL
+    AND has_function_privilege(
+      'authenticated',
+      'public.set_employee_work_requirements(uuid,boolean,boolean,boolean)',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.set_task_description_requirement_for_all(boolean)',
+      'EXECUTE'
+    )
+    AND NOT has_function_privilege(
+      'anon',
+      'public.set_employee_work_requirements(uuid,boolean,boolean,boolean)',
+      'EXECUTE'
+    )
+    AND NOT has_function_privilege(
+      'anon',
+      'public.set_task_description_requirement_for_all(boolean)',
+      'EXECUTE'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'employee_work_settings'
+        AND column_name = 'task_description_required'
+        AND is_nullable = 'NO'
+    ) AS has_work_requirements_control,
   to_regprocedure(
     'public.live_work_status()'
   ) IS NOT NULL

@@ -9,14 +9,15 @@ The source of truth for implementation work is the [Spatio HRMS issue tracker](h
 ## Confirmed tracking workflow
 
 - An employee starts work by selecting either an assigned project or an internal activity.
-- A concise task description is captured for the work session.
+- A concise task description is available for each work session and is required by default.
 - Employees may switch projects or activities during the day.
 - Switching automatically closes the current underlying session and opens another.
 - Department remains sourced from the employee profile.
 - A simple Start Break and Resume flow excludes break duration from worked time.
 - One BOS report is required at the first start of the day.
 - One EOD report is required at the final end of the day.
-- Superadmin may make BOS or EOD optional for selected employees.
+- Superadmin may make task descriptions, BOS, or EOD optional for selected employees.
+- Superadmin may apply the same task-description requirement to every active employee at once.
 - Managers, admins, and superadmins may correct permitted time entries with a required reason and immutable audit history.
 
 Example internal activities include pre-sales, proposal creation, estimation, demo-video production, and marketing-material production.
@@ -26,7 +27,7 @@ Example internal activities include pre-sales, proposal creation, estimation, de
 - Employee: own timer, own timesheet, leave, and the company live-status board.
 - Manager: employee capabilities plus assigned project/team timesheets and team assignment. This role covers project managers, product managers, tech leads, 3D leads, and similar assigned leads.
 - Admin: organisation tracking, project/activity administration, reporting, and permitted corrections.
-- Superadmin: full phase-1 access and per-user BOS/EOD exceptions.
+- Superadmin: full phase-1 access and organisation/per-user work-requirement controls.
 
 Exact access must be enforced in Supabase RLS as well as the UI.
 The canonical capability table is documented in
