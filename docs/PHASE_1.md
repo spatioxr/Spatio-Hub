@@ -17,6 +17,9 @@ The source of truth for implementation work is the [Spatio HRMS issue tracker](h
 - A simple Start Break and Resume flow excludes break duration from worked time.
 - One BOS report is required at the first start of the day.
 - One EOD report is required at the final end of the day.
+- If an employee returns after End Day on the same date, the workday reopens:
+  the original BOS and check-in stay intact, the earlier EOD is cleared, and
+  the employee submits a fresh EOD when ending again.
 - Superadmin may make BOS or EOD optional for selected employees.
 - Managers, admins, and superadmins may correct permitted time entries with a required reason and immutable audit history.
 

@@ -107,6 +107,10 @@ environment.
 32. `20260806000400_start_and_switch_task_rules.sql` removes task-description
     configuration, omits descriptions on the first work start, requires them
     on context switches, and restores BOS/EOD-only superadmin settings.
+33. `20260806000500_reopen_work_day.sql` allows an employee to reopen the same
+    Asia/Kolkata workday after End Day, preserves the original BOS and check-in,
+    clears the provisional EOD and attendance check-out atomically, and requires
+    a fresh EOD on the next final End Day.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -204,7 +208,8 @@ break-excluded totals, and continued direct-write denial.
 Run `supabase/verify/hrms_018_daily_report_workflow.sql` for the rollback-only
 BOS/EOD work-day check. It verifies first-start BOS enforcement, report-neutral
 switching, break-safe final End Day, EOD enforcement, attendance integration,
-per-employee exemptions, and denial of the legacy bypass RPCs.
+same-day reopening with a fresh final EOD, per-employee exemptions, and denial
+of the legacy bypass RPCs.
 
 Run `supabase/verify/hrms_019_daily_report_settings.sql` for the rollback-only
 BOS/EOD exception check. It verifies mandatory defaults, superadmin-only

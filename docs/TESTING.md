@@ -26,7 +26,8 @@ npm run test:database
 The database suite verifies server-enforced role access, duplicate timer and
 break actions, overlapping entries, BOS/EOD enforcement, correction
 authorization and audit history, mandatory switch descriptions, description-free
-first starts, duration totals, and leave balance single-deduction behaviour. The
+first starts, same-day workday reopening with a replacement final EOD, duration
+totals, and leave balance single-deduction behaviour. The
 HRMS-044 archive check additionally verifies
 that Admin/Superadmin can archive and restore users, history remains intact,
 and an archived Auth identity cannot read Phase 1 catalogue data or update its

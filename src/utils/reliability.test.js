@@ -45,3 +45,15 @@ test('timer restoration does not depend on task-description settings', () => {
   assert.match(workSessionSource, /Unable to load workday check-in requirements; using defaults/);
   assert.match(workSessionSource, /supabase\.rpc\('current_work_session'\)/);
 });
+
+test('a same-day return is presented as an explicit workday reopen', () => {
+  const timerSource = sourceFor(new URL('../components/WorkTimerControl.jsx', import.meta.url));
+  const startModalSource = sourceFor(new URL('../components/WorkStartModal.jsx', import.meta.url));
+  const endModalSource = sourceFor(new URL('../components/WorkEndDayModal.jsx', import.meta.url));
+
+  assert.match(timerSource, /isReopening = isOut && dayState\.hasWorkToday/);
+  assert.match(timerSource, /Reopen day/);
+  assert.match(startModalSource, /clear the earlier EOD/);
+  assert.match(startModalSource, /original check-in and start-of-day plan will be preserved/);
+  assert.match(endModalSource, /you can reopen today and end it again later/);
+});

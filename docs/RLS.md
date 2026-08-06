@@ -96,6 +96,9 @@ Authenticated clients read permitted work sessions through RLS and begin or
 finally end their own work day only through the server-controlled BOS/EOD
 workflow functions. Initial starts store a blank task description. Context
 switches require a description and remain atomic and report-neutral. The
+same controlled start function may reopen a completed workday on the same
+Asia/Kolkata date; it preserves BOS and the original check-in while atomically
+clearing the provisional EOD and check-out so the next End Day is final. The
 legacy session-only start/end functions are no longer executable by
 authenticated clients, and direct insert, update, and delete privileges on
 `work_entries` are denied.

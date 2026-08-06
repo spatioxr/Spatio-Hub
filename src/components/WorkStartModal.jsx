@@ -17,6 +17,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
     switchSession,
   } = useContext(WorkSessionContext);
   const isSwitch = mode === 'switch';
+  const isReopen = !isSwitch && dayState.hasWorkToday;
   const [contextType, setContextType] = useState('project');
   const [contextId, setContextId] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
@@ -188,14 +189,20 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
         <div className="work-start-header">
           <div>
             <span className="work-start-eyebrow">
-              {isSwitch ? 'Switch context' : 'Start work'}
+              {isSwitch ? 'Switch context' : isReopen ? 'Reopen workday' : 'Start work'}
             </span>
             <h2 id="work-start-title">
-              {isSwitch ? 'What are you switching to?' : 'What are you working on?'}
+              {isSwitch
+                ? 'What are you switching to?'
+                : isReopen ? 'What are you returning to?' : 'What are you working on?'}
             </h2>
             <p>
               {isSwitch
                 ? 'Select the new context and describe the task you are moving to.'
+                : isReopen
+                  ? dayState.eodSubmitted
+                    ? 'Starting again will reopen today, clear the earlier EOD, and require a fresh final EOD when you finish.'
+                    : 'Starting again will reopen today’s attendance. Use End Day again when you finish.'
                 : needsBos
                   ? 'Add today’s plan, then choose the context for your first session.'
                   : 'Choose one project or internal activity to start work.'}
@@ -206,7 +213,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
             className="work-start-close"
             onClick={onClose}
             disabled={submitting}
-            aria-label={`Close ${isSwitch ? 'switch context' : 'start work'}`}
+            aria-label={`Close ${isSwitch ? 'switch context' : isReopen ? 'reopen workday' : 'start work'}`}
           >
             <i className="ri-close-line" aria-hidden="true" />
           </button>
@@ -337,13 +344,18 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
                 ? 'Your workday plan and first session will be saved together.'
                 : isSwitch
                   ? 'Choose a different context and describe the new task.'
+                  : isReopen
+                    ? 'Your original check-in and start-of-day plan will be preserved.'
                   : 'Select exactly one work context to continue.'}
             </span>
             <button type="submit" className="work-start-submit" disabled={!canSubmit}>
-              <i className={isSwitch ? 'ri-swap-line' : 'ri-play-fill'} aria-hidden="true" />
+              <i
+                className={isSwitch ? 'ri-swap-line' : isReopen ? 'ri-restart-line' : 'ri-play-fill'}
+                aria-hidden="true"
+              />
               {submitting
-                ? isSwitch ? 'Switching…' : 'Starting…'
-                : isSwitch ? 'Switch context' : 'Start work'}
+                ? isSwitch ? 'Switching…' : isReopen ? 'Reopening…' : 'Starting…'
+                : isSwitch ? 'Switch context' : isReopen ? 'Reopen day' : 'Start work'}
             </button>
           </div>
         </form>

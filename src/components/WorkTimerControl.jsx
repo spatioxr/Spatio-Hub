@@ -28,6 +28,7 @@ const WorkTimerControl = ({ variant = 'compact' }) => {
     elapsedSeconds,
     contextLabel,
     taskDescription,
+    dayState,
     loading,
     error,
     startBreak,
@@ -38,6 +39,7 @@ const WorkTimerControl = ({ variant = 'compact' }) => {
   const isOut = status === 'out';
   const isWorking = status === 'working';
   const isOnBreak = status === 'break';
+  const isReopening = isOut && dayState.hasWorkToday;
 
   useEffect(() => {
     if (!confirmation) return undefined;
@@ -115,19 +117,21 @@ const WorkTimerControl = ({ variant = 'compact' }) => {
           disabled={loading || breakActionPending}
           aria-label={
             isOut
-              ? 'Start work'
+              ? isReopening ? 'Reopen work day' : 'Start work'
               : isWorking
                 ? 'Switch work context'
                 : breakActionPending ? 'Resuming work' : 'Resume work'
           }
         >
           <i
-            className={isOut ? 'ri-play-fill' : isWorking ? 'ri-swap-line' : 'ri-play-circle-line'}
+            className={isReopening
+              ? 'ri-restart-line'
+              : isOut ? 'ri-play-fill' : isWorking ? 'ri-swap-line' : 'ri-play-circle-line'}
             aria-hidden="true"
           />
           <span>
             {isOut
-              ? 'Start work'
+              ? isReopening ? 'Reopen day' : 'Start work'
               : isWorking
                 ? 'Switch'
                 : breakActionPending ? 'Resuming…' : 'Resume'}
@@ -154,7 +158,11 @@ const WorkTimerControl = ({ variant = 'compact' }) => {
           mode={modalMode}
           onClose={() => setModalMode(null)}
           onComplete={(label) => {
-            if (modalMode === 'switch') setConfirmation(`Switched to ${label}`);
+            if (modalMode === 'switch') {
+              setConfirmation(`Switched to ${label}`);
+            } else {
+              setConfirmation(isReopening ? 'Work day reopened' : 'Work started');
+            }
           }}
         />
       )}

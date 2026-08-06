@@ -54,6 +54,7 @@ const WorkEndDayModal = ({ onClose, onComplete }) => {
               {needsEod
                 ? 'Submit today’s final summary to close your active session.'
                 : 'Your profile is exempt from a required end-of-day summary.'}
+              {' '}If plans change, you can reopen today and end it again later.
             </p>
           </div>
           <button
@@ -84,7 +85,7 @@ const WorkEndDayModal = ({ onClose, onComplete }) => {
                 required
                 autoFocus
               />
-              <small>This report is submitted once for the entire work day.</small>
+              <small>Reopening the day clears this summary so your next End Day can replace it.</small>
             </label>
           )}
 
