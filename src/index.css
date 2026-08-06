@@ -4196,7 +4196,7 @@ td {
 
 .people-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 220px));
+  grid-template-columns: repeat(3, minmax(0, 220px));
   gap: 0.85rem;
   margin-bottom: 1rem;
 }
@@ -4227,6 +4227,11 @@ td {
 .people-stat-icon--active {
   background: #ecf9f6;
   color: var(--success);
+}
+
+.people-stat-icon--archived {
+  background: #f1f3f2;
+  color: var(--text-muted);
 }
 
 .people-stat div {
@@ -4316,6 +4321,14 @@ td {
 
 .people-table tbody tr:hover {
   background: #fbfcfb;
+}
+
+.people-table tbody .people-row--archived {
+  background: #fafafa;
+}
+
+.people-table tbody .people-row--archived:hover {
+  background: #f6f7f6;
 }
 
 .people-person-cell {

@@ -4,6 +4,13 @@ import AppState from '../components/AppState';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { getRole, hasPermission, PERMISSIONS, ROLES } from '../utils/rbac';
+import {
+  ACTIVE_EMPLOYMENT_STATUS,
+  ARCHIVED_EMPLOYMENT_STATUS,
+  employmentStatusLabel,
+  isActivePerson,
+  isArchivedPerson,
+} from '../utils/people.js';
 import useDialogFocus from '../hooks/useDialogFocus';
 
 const ROLE_OPTIONS = [
@@ -30,8 +37,8 @@ const EMPTY_FORM = {
 const roleLabel = (role) => ROLE_OPTIONS.find((option) => option.value === role)?.label || role;
 
 const statusTone = (status) => {
-  if (status === 'Active') return 'success';
-  if (status === 'Released') return 'danger';
+  if (status === ACTIVE_EMPLOYMENT_STATUS) return 'success';
+  if (status === ARCHIVED_EMPLOYMENT_STATUS) return 'neutral';
   return 'warning';
 };
 
@@ -72,7 +79,7 @@ const PersonDrawer = ({
     ));
   const roleLocked = !isSuperadmin && ['admin', 'superadmin'].includes(person?.role);
   const managerOptions = people.filter((candidate) => (
-    candidate.status === 'Active' && candidate.id !== person?.id
+    isActivePerson(candidate) && candidate.id !== person?.id
   ));
 
   const handleChange = (event) => {
@@ -202,7 +209,7 @@ const PersonDrawer = ({
               <span>Status *</span>
               <select name="status" value={form.status} onChange={handleChange} disabled={readOnly}>
                 {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>{status === 'Released' ? 'Inactive' : status}</option>
+                  <option key={status} value={status}>{employmentStatusLabel(status)}</option>
                 ))}
               </select>
             </label>
@@ -475,7 +482,7 @@ const People = ({ mode = 'directory' }) => {
 
     setDrawer(null);
     setSaving(false);
-    if (isCreate && isSuperadmin && savedPerson?.status === 'Active') {
+    if (isCreate && isSuperadmin && isActivePerson(savedPerson)) {
       await manageTemporaryPassword(savedPerson, 'provision', true);
     } else {
       setNotice(isCreate ? `${form.name} was added.` : `${form.name} was updated.`);
@@ -495,7 +502,15 @@ const People = ({ mode = 'directory' }) => {
     await manageTemporaryPassword(person, action);
   };
 
-  const changeStatus = async (person, nextStatus) => {
+  const toggleArchive = async (person) => {
+    const shouldArchive = !isArchivedPerson(person);
+    if (
+      shouldArchive
+      && !window.confirm(
+        `Archive ${person.name}? Any linked login will be blocked, but their profile and work history will be retained.`,
+      )
+    ) return;
+
     setError('');
     const { error: saveError } = await supabase.rpc('update_employee_profile', {
       target_employee_id: person.id,
@@ -503,7 +518,7 @@ const People = ({ mode = 'directory' }) => {
         ...person,
         reports_to: person.reports_to || '',
         date_of_joining: person.date_of_joining || '',
-        status: nextStatus,
+        status: shouldArchive ? ARCHIVED_EMPLOYMENT_STATUS : ACTIVE_EMPLOYMENT_STATUS,
       }),
     });
 
@@ -513,14 +528,15 @@ const People = ({ mode = 'directory' }) => {
     }
 
     setNotice(
-      nextStatus === 'Active'
-        ? `${person.name} was reactivated.`
-        : `${person.name} was deactivated. Their history was retained.`,
+      shouldArchive
+        ? `${person.name} was archived. Their profile and history were retained.`
+        : `${person.name} was restored to Active.`,
     );
     await fetchPeople();
   };
 
-  const activeCount = people.filter((person) => person.status === 'Active').length;
+  const activeCount = people.filter(isActivePerson).length;
+  const archivedCount = people.filter(isArchivedPerson).length;
 
   return (
     <Layout
@@ -528,7 +544,7 @@ const People = ({ mode = 'directory' }) => {
       eyebrow={isAccessMode ? 'Settings' : 'Manage'}
       heading={isAccessMode ? 'Users & Access' : 'People'}
       description={isAccessMode
-        ? 'Manage the work profiles, roles and employment status that power Phase 1 access.'
+        ? 'Manage work profiles, roles and portal access. Archived users keep their history but cannot access the portal.'
         : hasPeopleManagement
           ? 'Browse the organisation directory. User changes remain in Settings.'
           : 'View people assigned to projects you manage.'}
@@ -570,11 +586,18 @@ const People = ({ mode = 'directory' }) => {
       <div className="people-stats">
         <div className="people-stat">
           <span className="people-stat-icon"><i className="ri-team-line" /></span>
-          <div><strong>{people.length}</strong><span>Visible people</span></div>
+          <div>
+            <strong>{people.length}</strong>
+            <span>{isAccessMode ? 'Total profiles' : 'People in your scope'}</span>
+          </div>
         </div>
         <div className="people-stat">
           <span className="people-stat-icon people-stat-icon--active"><i className="ri-user-follow-line" /></span>
           <div><strong>{activeCount}</strong><span>Active</span></div>
+        </div>
+        <div className="people-stat">
+          <span className="people-stat-icon people-stat-icon--archived"><i className="ri-archive-line" /></span>
+          <div><strong>{archivedCount}</strong><span>Archived</span></div>
         </div>
       </div>
 
@@ -602,7 +625,7 @@ const People = ({ mode = 'directory' }) => {
             <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter by status">
               <option value="all">All statuses</option>
               {STATUS_OPTIONS.map((item) => (
-                <option key={item} value={item}>{item === 'Released' ? 'Inactive' : item}</option>
+                <option key={item} value={item}>{employmentStatusLabel(item)}</option>
               ))}
             </select>
           </div>
@@ -641,7 +664,7 @@ const People = ({ mode = 'directory' }) => {
                 {filteredPeople.map((person) => {
                   const manager = peopleById.get(person.reports_to);
                   return (
-                    <tr key={person.id}>
+                    <tr className={isArchivedPerson(person) ? 'people-row--archived' : ''} key={person.id}>
                       <td data-label="Person">
                         <div className="people-person-cell">
                           <span className="people-avatar">
@@ -663,13 +686,15 @@ const People = ({ mode = 'directory' }) => {
                       <td data-label="Reports to">{manager?.name || 'Not assigned'}</td>
                       <td data-label="Status">
                         <span className={`badge ${statusTone(person.status)}`}>
-                          {person.status === 'Released' ? 'Inactive' : person.status}
+                          {employmentStatusLabel(person.status)}
                         </span>
                       </td>
                       {isAccessMode && (
                         <td data-label="Login">
-                          <span className={`badge ${!person.auth_id ? 'warning' : person.must_change_password ? 'primary' : 'success'}`}>
-                            {!person.auth_id
+                          <span className={`badge ${isArchivedPerson(person) ? 'neutral' : !person.auth_id ? 'warning' : person.must_change_password ? 'primary' : 'success'}`}>
+                            {isArchivedPerson(person)
+                              ? 'Access blocked'
+                              : !person.auth_id
                               ? 'No login'
                               : person.must_change_password
                                 ? 'Change required'
@@ -689,14 +714,14 @@ const People = ({ mode = 'directory' }) => {
                         {canEditPerson(person) && person.id !== user.id && (
                           <button
                             type="button"
-                            className={`people-action-button ${person.status === 'Released' ? '' : 'people-action-button--danger'}`}
-                            onClick={() => changeStatus(person, person.status === 'Released' ? 'Active' : 'Released')}
+                            className={`people-action-button ${isArchivedPerson(person) ? '' : 'people-action-button--danger'}`}
+                            onClick={() => toggleArchive(person)}
                           >
-                            <i className={person.status === 'Released' ? 'ri-user-follow-line' : 'ri-user-unfollow-line'} />
-                            {person.status === 'Released' ? 'Reactivate' : 'Deactivate'}
+                            <i className={isArchivedPerson(person) ? 'ri-refresh-line' : 'ri-archive-line'} />
+                            {isArchivedPerson(person) ? 'Restore' : 'Archive'}
                           </button>
                         )}
-                        {isAccessMode && isSuperadmin && person.id !== user.id && person.status === 'Active' && (
+                        {isAccessMode && isSuperadmin && person.id !== user.id && isActivePerson(person) && (
                           <button
                             type="button"
                             className="people-action-button"

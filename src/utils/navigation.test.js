@@ -45,3 +45,14 @@ test('Manager+ live status is part of the application shell and settings stay ro
   assert.match(app, /path="\/admin-settings\/work-setup"/);
   assert.match(app, /permission=\{PERMISSIONS\.MANAGE_BOS_EOD_EXCEPTIONS\}/);
 });
+
+test('Users & Access presents retained profiles with explicit archive semantics', () => {
+  const people = read('../pages/People.jsx');
+
+  assert.match(people, /'Total profiles'/);
+  assert.match(people, /'People in your scope'/);
+  assert.match(people, /\? 'Restore' : 'Archive'/);
+  assert.match(people, /'Access blocked'/);
+  assert.match(people, /profile and work history will be retained/);
+  assert.doesNotMatch(people, />Visible people</);
+});

@@ -86,10 +86,17 @@ environment.
     leave requests at the database boundary for both submissions and edits.
 26. `20260730000400_comp_off_granularity.sql` restricts Comp Off grants to
     positive whole-day or half-day units while preserving atomic increments.
-27. `20260802000200_temporary_password_credentials.sql` adds the
+27. `20260802000100_hrms_046_manager_live_context.sql` adds permission-aware
+    project/activity context to the Manager+ live-status rail without widening
+    employee or work-entry table access.
+28. `20260802000200_temporary_password_credentials.sql` adds the
     Superadmin-issued temporary-password state, protects the credential
     metadata, blocks Phase 1 writes until replacement, and keeps forced users
     limited to their own profile while changing the credential.
+29. `20260806000100_employee_archive_access.sql` makes the retained
+    `Released`/Archived employee state a complete portal-access boundary for
+    catalogue reads and self-profile changes while preserving the profile for a
+    clear refusal message and later restoration.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective

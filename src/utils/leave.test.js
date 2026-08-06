@@ -17,9 +17,9 @@ test('invalid date order has no positive duration', () => {
 });
 
 test('only superadmins can review organisation leave', () => {
-  assert.equal(canReviewLeave({ role: 'employee' }), false);
-  assert.equal(canReviewLeave({ role: 'manager' }), false);
-  assert.equal(canReviewLeave({ role: 'admin' }), false);
-  assert.equal(canReviewLeave({ role: 'head' }), false);
-  assert.equal(canReviewLeave({ role: 'superadmin' }), true);
+  assert.equal(canReviewLeave({ role: 'employee', status: 'Active' }), false);
+  assert.equal(canReviewLeave({ role: 'manager', status: 'Active' }), false);
+  assert.equal(canReviewLeave({ role: 'admin', status: 'Active' }), false);
+  assert.equal(canReviewLeave({ role: 'head', status: 'Active' }), false);
+  assert.equal(canReviewLeave({ role: 'superadmin', status: 'Active' }), true);
 });

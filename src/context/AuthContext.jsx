@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { isActivePerson, isArchivedPerson } from '../utils/people.js';
 
 export const AuthContext = createContext();
 
@@ -67,6 +68,12 @@ const getEmployeeProfile = async (authUser) => {
   return profileByEmail;
 };
 
+const inactiveProfileMessage = (profile) => (
+  isArchivedPerson(profile)
+    ? 'Your employee profile has been archived. Please contact HR if you need access restored.'
+    : 'Your employee profile is not active. Please contact HR.'
+);
+
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
@@ -94,6 +101,13 @@ export const AuthProvider = ({ children }) => {
       if (!employeeProfile) {
         setUser(null);
         setAuthError('Your login is not linked to an employee profile. Please contact HR.');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      if (!isActivePerson(employeeProfile)) {
+        setUser(null);
+        setAuthError(inactiveProfileMessage(employeeProfile));
         await supabase.auth.signOut();
         return;
       }
@@ -161,6 +175,14 @@ export const AuthProvider = ({ children }) => {
         return {
           success: false,
           message: 'Your login is not linked to an employee profile. Please contact HR.',
+        };
+      }
+
+      if (!isActivePerson(employeeProfile)) {
+        await supabase.auth.signOut();
+        return {
+          success: false,
+          message: inactiveProfileMessage(employeeProfile),
         };
       }
 

@@ -48,7 +48,7 @@ test('launch navigation and actions match the complete four-role matrix', () => 
   };
 
   for (const [role, access] of Object.entries(expected)) {
-    const user = { id: `${role}-1`, role };
+    const user = { id: `${role}-1`, role, status: 'Active' };
 
     for (const permission of [
       PERMISSIONS.ACCESS_PORTAL,
@@ -91,7 +91,7 @@ test('launch navigation and actions match the complete four-role matrix', () => 
 });
 
 test('employees cannot edit time entries or approve leave', () => {
-  const employee = { id: 'employee-1', role: 'employee' };
+  const employee = { id: 'employee-1', role: 'employee', status: 'Active' };
 
   assert.equal(hasPermission(employee, PERMISSIONS.CORRECT_SCOPED_TIME_ENTRIES), false);
   assert.equal(hasPermission(employee, PERMISSIONS.APPROVE_LEAVE), false);
@@ -99,7 +99,7 @@ test('employees cannot edit time entries or approve leave', () => {
 });
 
 test('managers can correct only their assigned scope and owned project teams', () => {
-  const manager = { id: 'manager-1', role: 'manager' };
+  const manager = { id: 'manager-1', role: 'manager', status: 'Active' };
 
   assert.equal(hasPermission(manager, PERMISSIONS.CORRECT_SCOPED_TIME_ENTRIES), true);
   assert.equal(getTimesheetScope(manager), 'assigned_projects');
@@ -110,23 +110,32 @@ test('managers can correct only their assigned scope and owned project teams', (
 test('only superadmins receive privileged exception and leave permissions', () => {
   for (const role of ['employee', 'manager', 'admin']) {
     assert.equal(
-      hasPermission({ role }, PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS),
+      hasPermission({ role, status: 'Active' }, PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS),
       false,
     );
-    assert.equal(hasPermission({ role }, PERMISSIONS.APPROVE_LEAVE), false);
+    assert.equal(hasPermission({ role, status: 'Active' }, PERMISSIONS.APPROVE_LEAVE), false);
   }
 
   assert.equal(
-    hasPermission({ role: 'superadmin' }, PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS),
+    hasPermission({ role: 'superadmin', status: 'Active' }, PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS),
     true,
   );
   assert.equal(
-    hasPermission({ role: 'superadmin' }, PERMISSIONS.APPROVE_LEAVE),
+    hasPermission({ role: 'superadmin', status: 'Active' }, PERMISSIONS.APPROVE_LEAVE),
     true,
   );
 });
 
 test('unknown roles fail closed', () => {
-  assert.equal(hasPermission({ role: 'unknown' }, PERMISSIONS.ACCESS_PORTAL), false);
-  assert.equal(getTimesheetScope({ role: 'unknown' }), 'none');
+  assert.equal(hasPermission({ role: 'unknown', status: 'Active' }, PERMISSIONS.ACCESS_PORTAL), false);
+  assert.equal(getTimesheetScope({ role: 'unknown', status: 'Active' }), 'none');
+});
+
+test('archived profiles fail closed even when they retain a privileged role', () => {
+  const archivedAdmin = { id: 'admin-archived', role: 'admin', status: 'Released' };
+
+  assert.equal(hasPermission(archivedAdmin, PERMISSIONS.ACCESS_PORTAL), false);
+  assert.equal(hasPermission(archivedAdmin, PERMISSIONS.MANAGE_PEOPLE), false);
+  assert.equal(getTimesheetScope(archivedAdmin), 'none');
+  assert.equal(canManageProjectTeam(archivedAdmin, { manager_id: archivedAdmin.id }), false);
 });

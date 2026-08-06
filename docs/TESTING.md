@@ -25,7 +25,10 @@ npm run test:database
 The database suite verifies server-enforced role access, duplicate timer and
 break actions, overlapping entries, BOS/EOD enforcement, correction
 authorization and audit history, switching, duration totals, and leave balance
-single-deduction behaviour.
+single-deduction behaviour. The HRMS-044 archive check additionally verifies
+that Admin/Superadmin can archive and restore users, history remains intact,
+and an archived Auth identity cannot read Phase 1 catalogue data or update its
+profile.
 
 `test:database` uses the standard local Supabase database container. It can
 instead use an external PostgreSQL client when `DATABASE_URL` is set; the URL

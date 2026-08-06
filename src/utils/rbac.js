@@ -1,3 +1,5 @@
+import { isActivePerson } from './people.js';
+
 export const ROLES = Object.freeze({
   EMPLOYEE: 'employee',
   MANAGER: 'manager',
@@ -80,11 +82,13 @@ export const normalizeRole = (role) => LEGACY_ROLE_ALIASES[role] || role;
 export const getRole = (user) => normalizeRole(user?.role);
 
 export const hasPermission = (user, permission) => {
+  if (!isActivePerson(user)) return false;
   const permissions = ROLE_PERMISSIONS[getRole(user)];
   return permissions?.has(permission) || false;
 };
 
 export const getTimesheetScope = (user) => {
+  if (!isActivePerson(user)) return 'none';
   const role = getRole(user);
   if (role === ROLES.SUPERADMIN || role === ROLES.ADMIN) return 'organisation';
   if (role === ROLES.MANAGER) return 'assigned_projects';
@@ -93,6 +97,7 @@ export const getTimesheetScope = (user) => {
 };
 
 export const canManageProjectTeam = (user, project) => {
+  if (!isActivePerson(user)) return false;
   const role = getRole(user);
   if (role === ROLES.SUPERADMIN || role === ROLES.ADMIN) return true;
   return role === ROLES.MANAGER && project?.manager_id === user?.id;
@@ -114,7 +119,7 @@ export const isDepartmentManagedBy = (employeeDepartment, user) => {
 };
 
 export const isEmployeeManagedBy = (employee, user) => {
-  if (!user || !employee) return false;
+  if (!isActivePerson(user) || !employee) return false;
 
   const role = getRole(user);
   if (role === ROLES.SUPERADMIN || role === ROLES.ADMIN) return true;

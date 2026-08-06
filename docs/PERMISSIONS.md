@@ -43,8 +43,9 @@ project or team.
 
 - Department remains employee profile data; it does not grant Manager access.
 - Manager access comes only from explicit project/team responsibility and membership.
-- People removal means changing the employment status to `Released`;
-  operational history is retained and employee profiles are not hard-deleted.
+- Archiving a person means changing the stored employment status to `Released`;
+  the UI labels that state `Archived`. Portal access is blocked, operational
+  history is retained, and employee profiles are not hard-deleted.
 - Admins can manage standard Phase 1 profile fields but cannot create, promote,
   or edit a superadmin. Only a superadmin can grant or remove either the admin
   or superadmin role. Superadmins otherwise have every Admin capability.

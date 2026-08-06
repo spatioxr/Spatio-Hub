@@ -59,6 +59,8 @@ SELECT
     AS has_current_employee_id,
   to_regprocedure('public.current_employee_role()') IS NOT NULL
     AS has_current_employee_role,
+  to_regprocedure('public.is_active_employee()') IS NOT NULL
+    AS has_active_employee_boundary,
   to_regprocedure('public.can_access_employee(uuid)') IS NOT NULL
     AS has_employee_scope,
   EXISTS (

@@ -40,8 +40,11 @@ assigned to projects they manage. Admins and superadmins use controlled
 ID, name, work email, department, designation, application role, reporting
 manager, joining date, and employment status. Direct authenticated inserts and
 deletes are denied. Admins cannot grant or remove privileged roles or manage a
-superadmin profile, and nobody can deactivate their own profile. Released
-profiles retain operational history.
+superadmin profile, and nobody can deactivate their own profile. `Released`
+profiles are shown as Archived in the UI, lose active portal access, and retain
+operational history. `is_active_employee()` also gates the otherwise shared
+activity and holiday catalogues, and archived identities cannot update their
+profile directly.
 
 Admin Settings is available only to active Admin and Superadmin profiles. The
 route groups existing Phase 1 administration controls without widening their
