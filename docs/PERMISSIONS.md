@@ -37,7 +37,7 @@ project or team.
 | View work-distribution reports | Own summary | Assigned projects | Organisation | Organisation |
 | Apply for leave | Own | Own | Own | Own |
 | Approve/reject leave | No | No | No | Organisation |
-| Configure task-description and BOS/EOD requirements | No | No | No | Organisation |
+| Configure BOS/EOD requirements | No | No | No | Organisation |
 
 ## Scope rules
 

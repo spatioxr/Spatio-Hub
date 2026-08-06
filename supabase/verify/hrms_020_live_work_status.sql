@@ -16,7 +16,10 @@ DECLARE
   activity_id UUID;
   project_id UUID;
   break_work_entry_id UUID;
-  in_started_at TIMESTAMPTZ := statement_timestamp() - INTERVAL '1 hour';
+  in_started_at TIMESTAMPTZ := public.app_day_start(
+    public.app_current_date(statement_timestamp())
+  );
+  switched_started_at TIMESTAMPTZ := statement_timestamp();
   break_started_at TIMESTAMPTZ := statement_timestamp() - INTERVAL '30 minutes';
 BEGIN
   SELECT employee.id, employee.auth_id
@@ -135,13 +138,28 @@ BEGIN
     employee_id,
     activity_id,
     task_description,
+    started_at,
+    ended_at
+  )
+  VALUES (
+    in_employee_id,
+    activity_id,
+    'Live-board first check-in verification.',
+    in_started_at,
+    switched_started_at
+  );
+
+  INSERT INTO public.work_entries (
+    employee_id,
+    activity_id,
+    task_description,
     started_at
   )
   VALUES (
     in_employee_id,
     activity_id,
-    'Live-board In verification.',
-    in_started_at
+    'Live-board switched-session verification.',
+    switched_started_at
   );
 
   INSERT INTO public.work_entries (
@@ -280,7 +298,7 @@ SELECT
   true AS all_checks_pass,
   jsonb_build_object(
     'employee_can_see_all_active_names', true,
-    'in_status_and_start_time_correct', true,
+    'in_status_uses_first_check_in_after_switch', true,
     'break_status_and_start_time_correct', true,
     'out_status_correct', true,
     'permitted_activity_context_visible', true,

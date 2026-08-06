@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AuthContext } from '../context/AuthContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import { supabase } from '../utils/supabaseClient';
-import { isTaskDescriptionValid } from '../utils/workSession';
+import { isTaskDescriptionValidForMode } from '../utils/workSession';
 import useDialogFocus from '../hooks/useDialogFocus';
 
 const optionKey = (type, id) => `${type}:${id}`;
@@ -114,8 +114,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
   }, [activities, projects, recentEntries]);
 
   const hasContext = Boolean(contextId);
-  const taskDescriptionRequired = dayState.taskDescriptionRequired !== false;
-  const hasTask = isTaskDescriptionValid(taskDescription, taskDescriptionRequired);
+  const hasTask = isTaskDescriptionValidForMode(taskDescription, mode);
   const needsBos = !isSwitch
     && !dayState.hasWorkToday
     && dayState.bosRequired
@@ -126,7 +125,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
   const chooseRecent = (choice) => {
     setContextType(choice.type);
     setContextId(choice.id);
-    setTaskDescription(choice.taskDescription || '');
+    setTaskDescription(isSwitch ? choice.taskDescription || '' : '');
     setError('');
   };
 
@@ -155,7 +154,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
       await submitSession({
         projectId: contextType === 'project' ? contextId : null,
         activityId: contextType === 'activity' ? contextId : null,
-        taskDescription: taskDescription.trim(),
+        taskDescription: isSwitch ? taskDescription.trim() : '',
         bosReport: needsBos ? bosReport.trim() : null,
       });
       onComplete?.(selectedLabel);
@@ -196,12 +195,10 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
             </h2>
             <p>
               {isSwitch
-                ? 'Your current entry will close when the new one starts.'
+                ? 'Select the new context and describe the task you are moving to.'
                 : needsBos
                   ? 'Add today’s plan, then choose the context for your first session.'
-                  : taskDescriptionRequired
-                    ? 'Choose one context and add a concise task description.'
-                    : 'Choose one context. A task description is optional for you.'}
+                  : 'Choose one project or internal activity to start work.'}
             </p>
           </div>
           <button
@@ -226,7 +223,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
                     key={optionKey(choice.type, choice.id)}
                     className="work-start-recent"
                     onClick={() => chooseRecent(choice)}
-                    title={choice.taskDescription
+                    title={isSwitch && choice.taskDescription
                       ? `${choice.label} — ${choice.taskDescription}`
                       : choice.label}
                   >
@@ -294,24 +291,24 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
             </label>
           </fieldset>
 
-          <label className="work-start-task">
-            <span className="work-start-label">
-              Task description
-              {taskDescriptionRequired
-                ? <b aria-hidden="true">*</b>
-                : <small> (optional)</small>}
-            </span>
-            <textarea
-              value={taskDescription}
-              onChange={(event) => {
-                setTaskDescription(event.target.value);
-                setError('');
-              }}
-              placeholder="What do you plan to complete?"
-              rows="3"
-              required={taskDescriptionRequired}
-            />
-          </label>
+          {isSwitch && (
+            <label className="work-start-task">
+              <span className="work-start-label">
+                Task description <b aria-hidden="true">*</b>
+              </span>
+              <textarea
+                value={taskDescription}
+                onChange={(event) => {
+                  setTaskDescription(event.target.value);
+                  setError('');
+                }}
+                placeholder="What task are you switching to?"
+                rows="3"
+                required
+              />
+              <small>Required when switching work context.</small>
+            </label>
+          )}
 
           {needsBos && (
             <label className="work-start-task">
@@ -338,8 +335,8 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
             <span>
               {needsBos
                 ? 'Your workday plan and first session will be saved together.'
-                : taskDescriptionRequired
-                  ? 'Select exactly one context and describe your task.'
+                : isSwitch
+                  ? 'Choose a different context and describe the new task.'
                   : 'Select exactly one work context to continue.'}
             </span>
             <button type="submit" className="work-start-submit" disabled={!canSubmit}>

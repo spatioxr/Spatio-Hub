@@ -210,28 +210,28 @@ SELECT
   ) IS NOT NULL
     AND to_regprocedure(
       'public.set_employee_work_requirements(uuid,boolean,boolean,boolean)'
-    ) IS NOT NULL
+    ) IS NULL
     AND to_regprocedure(
       'public.set_task_description_requirement_for_all(boolean)'
-    ) IS NOT NULL
+    ) IS NULL
     AND has_function_privilege(
       'authenticated',
-      'public.set_employee_work_requirements(uuid,boolean,boolean,boolean)',
-      'EXECUTE'
-    )
-    AND has_function_privilege(
-      'authenticated',
-      'public.set_task_description_requirement_for_all(boolean)',
+      'public.set_daily_report_requirements(uuid,boolean,boolean)',
       'EXECUTE'
     )
     AND NOT has_function_privilege(
       'anon',
-      'public.set_employee_work_requirements(uuid,boolean,boolean,boolean)',
+      'public.set_daily_report_requirements(uuid,boolean,boolean)',
       'EXECUTE'
     )
     AND NOT has_function_privilege(
-      'anon',
-      'public.set_task_description_requirement_for_all(boolean)',
+      'authenticated',
+      'public.start_work_session(uuid,uuid,text)',
+      'EXECUTE'
+    )
+    AND has_function_privilege(
+      'authenticated',
+      'public.switch_work_session(uuid,uuid,text)',
       'EXECUTE'
     )
     AND EXISTS (
@@ -241,7 +241,8 @@ SELECT
         AND table_name = 'employee_work_settings'
         AND column_name = 'task_description_required'
         AND is_nullable = 'NO'
-    ) AS has_work_requirements_control,
+        AND column_default = 'false'
+    ) AS has_fixed_task_description_workflow,
   to_regprocedure(
     'public.live_work_status()'
   ) IS NOT NULL

@@ -101,6 +101,12 @@ environment.
     and all-active-employee task-description controls, keeps task descriptions
     required by default, and enforces the saved rule when starting or switching
     a work session.
+31. `20260806000300_live_status_first_check_in.sql` keeps the live board's In
+    timestamp anchored to the first work entry of the current Asia/Kolkata day
+    when switching context opens a replacement entry.
+32. `20260806000400_start_and_switch_task_rules.sql` removes task-description
+    configuration, omits descriptions on the first work start, requires them
+    on context switches, and restores BOS/EOD-only superadmin settings.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -185,10 +191,10 @@ required reasons, old/new snapshots, Manager project-team scope, employee and
 out-of-scope denial, immutable audit rows, and continued direct-write denial.
 
 Run `supabase/verify/hrms_015_optional_task_descriptions.sql` for the
-rollback-only task-description requirement check. It verifies required
-defaults, audited individual exceptions, the all-active-employee action,
-optional start/switch behaviour, required-mode rejection, legacy BOS/EOD
-compatibility, and superadmin-only control.
+rollback-only task-description workflow check. It verifies description-free
+first starts, mandatory described switches, atomic switch rejection, removed
+task-description configuration, retained audited BOS/EOD control, and scoped
+function privileges.
 
 Run `supabase/verify/hrms_016_work_switching.sql` for the rollback-only atomic
 work-switch check. It verifies shared session boundaries, separate automatic

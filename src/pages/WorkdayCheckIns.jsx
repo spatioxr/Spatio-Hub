@@ -4,10 +4,10 @@ import Layout from '../components/Layout';
 
 const WorkdayCheckIns = () => (
   <Layout
-    title="Work Requirements"
+    title="Workday Check-ins"
     eyebrow="Settings · Superadmin"
-    heading="Work Requirements"
-    description="Choose whether task descriptions, start-of-day plans and end-of-day summaries are required."
+    heading="Workday Check-ins"
+    description="Choose who needs to submit a start-of-day plan and an end-of-day summary."
   >
     <DailyReportSettings />
   </Layout>

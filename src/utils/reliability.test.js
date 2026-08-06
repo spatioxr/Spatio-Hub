@@ -37,3 +37,11 @@ test('attendance is read-only and live work actions use controlled functions', (
       assert.match(workSessionSource, new RegExp(`supabase\\.rpc\\('${functionName}'`));
     });
 });
+
+test('timer restoration does not depend on task-description settings', () => {
+  const workSessionSource = sourceFor(new URL('../context/WorkSessionContext.jsx', import.meta.url));
+
+  assert.doesNotMatch(workSessionSource, /\.select\(['"]task_description_required['"]\)/);
+  assert.match(workSessionSource, /Unable to load workday check-in requirements; using defaults/);
+  assert.match(workSessionSource, /supabase\.rpc\('current_work_session'\)/);
+});

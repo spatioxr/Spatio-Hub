@@ -49,8 +49,8 @@ profile directly.
 Admin Settings is available only to active Admin and Superadmin profiles. The
 route groups existing Phase 1 administration controls without widening their
 underlying data access. Project and activity controls retain their existing
-controlled-function and RLS boundaries, while task-description and BOS/EOD
-requirements remain superadmin-only. Employee-profile functions also enforce that only a
+controlled-function and RLS boundaries, while BOS/EOD requirements remain
+superadmin-only. Employee-profile functions also enforce that only a
 superadmin may grant or remove the `admin` or `superadmin` role.
 
 Activity administration is exposed through organisation-only projection,
@@ -94,7 +94,8 @@ export cannot bypass the organisation projection or its role checks.
 
 Authenticated clients read permitted work sessions through RLS and begin or
 finally end their own work day only through the server-controlled BOS/EOD
-workflow functions. Context switches remain atomic and report-neutral. The
+workflow functions. Initial starts store a blank task description. Context
+switches require a description and remain atomic and report-neutral. The
 legacy session-only start/end functions are no longer executable by
 authenticated clients, and direct insert, update, and delete privileges on
 `work_entries` are denied.
@@ -118,19 +119,18 @@ functions, while direct writes to `break_entries` are denied.
 
 BOS/EOD report text remains writable only within the existing own or
 superadmin row scope, and a database trigger owns the corresponding submission
-timestamps. Per-employee task-description and BOS/EOD requirements are readable
-within their existing scope but may be changed only through superadmin-controlled
-settings functions; direct authenticated settings writes are denied. The bulk
-task-description function applies one value to every active employee while the
-individual function preserves per-person exceptions.
-Each effective settings change records the previous and saved task-description
-and BOS/EOD values, the superadmin actor, and the shared change timestamp in
-immutable history.
+timestamps. Per-employee BOS/EOD requirements are readable within their
+existing scope but may be changed only through the superadmin-controlled
+settings function; direct authenticated settings writes are denied. The
+retained task-description column is compatibility-only and is not queried or
+configurable by the application.
+Each effective settings change records the previous and saved BOS/EOD values,
+the superadmin actor, and the shared change timestamp in immutable history.
 Unchanged saves do not create misleading audit events. Setting updates are
 published to signed-in affected employees so their timer refreshes the saved
 requirements without a page reload.
 
-Work-entry and work-requirement audit rows are inserted atomically by their
+Work-entry and BOS/EOD-settings audit rows are inserted atomically by their
 controlled functions. Authenticated clients have no insert, update, or delete
 privileges on audit history, and database triggers also reject audit updates
 and deletion.

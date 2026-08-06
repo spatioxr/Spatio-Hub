@@ -8,14 +8,16 @@ import React, {
 } from 'react';
 import { AuthContext } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
-import { getElapsedSeconds, getWorkStatus } from '../utils/workSession';
+import {
+  getElapsedSeconds,
+  getWorkStatus,
+} from '../utils/workSession';
 
 export const WorkSessionContext = createContext({
   status: 'out',
   dayState: {
     bosRequired: true,
     eodRequired: true,
-    taskDescriptionRequired: true,
     bosSubmitted: false,
     eodSubmitted: false,
     hasWorkToday: false,
@@ -35,29 +37,27 @@ export const WorkSessionContext = createContext({
 
 const firstRow = (data) => (Array.isArray(data) ? data[0] : data) || null;
 
+// Older deployed schemas still validate this argument on first start. The
+// corrective migration ignores it and stores an empty description, while this
+// system-generated value keeps first clock-in working during a rolling deploy.
+const LEGACY_FIRST_START_DESCRIPTION = 'Work started';
+
 const emptyDayState = {
   bosRequired: true,
   eodRequired: true,
-  taskDescriptionRequired: true,
   bosSubmitted: false,
   eodSubmitted: false,
   hasWorkToday: false,
 };
 
-const normaliseDayState = (data, settings) => {
+const normaliseDayState = (data) => {
   const state = firstRow(data);
-  if (!state) {
-    return {
-      ...emptyDayState,
-      taskDescriptionRequired: settings?.task_description_required ?? true,
-    };
-  }
+  if (!state) return emptyDayState;
 
   return {
     reportDate: state.report_date,
     bosRequired: state.bos_required,
     eodRequired: state.eod_required,
-    taskDescriptionRequired: settings?.task_description_required ?? true,
     bosSubmitted: state.bos_submitted,
     eodSubmitted: state.eod_submitted,
     hasWorkToday: state.has_work_today,
@@ -123,25 +123,23 @@ export const WorkSessionProvider = ({ children }) => {
     setError('');
 
     try {
-      const [
-        { data: sessionData, error: sessionError },
-        { data: dayData, error: dayError },
-        { data: settingsData, error: settingsError },
-      ] = await Promise.all([
+      const [sessionResult, dayResult] = await Promise.all([
         supabase.rpc('current_work_session'),
         supabase.rpc('current_work_day_requirements'),
-        supabase
-          .from('employee_work_settings')
-          .select('task_description_required')
-          .eq('employee_id', user.id)
-          .maybeSingle(),
       ]);
+
+      const { data: sessionData, error: sessionError } = sessionResult;
+      const { data: dayData, error: dayError } = dayResult;
       if (sessionError) throw sessionError;
-      if (dayError) throw dayError;
-      if (settingsError) throw settingsError;
+      if (dayError) {
+        console.warn(
+          'Unable to load workday check-in requirements; using defaults:',
+          dayError.message,
+        );
+      }
 
       const session = firstRow(sessionData);
-      const dayState = normaliseDayState(dayData, settingsData);
+      const dayState = normaliseDayState(dayError ? null : dayData);
       if (!session) {
         setSnapshot({
           session: null,
@@ -189,13 +187,12 @@ export const WorkSessionProvider = ({ children }) => {
   const startSession = useCallback(async ({
     projectId,
     activityId,
-    taskDescription: nextTaskDescription,
     bosReport,
   }) => {
     const { error: startError } = await supabase.rpc('start_work_day', {
       target_project_id: projectId,
       target_activity_id: activityId,
-      session_task_description: nextTaskDescription,
+      session_task_description: LEGACY_FIRST_START_DESCRIPTION,
       beginning_of_day_report: bosReport || null,
     });
 

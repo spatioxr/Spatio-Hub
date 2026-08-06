@@ -6,7 +6,7 @@ The current product work is intentionally limited to phase 1:
 
 - dashboard and live work status
 - project or internal-activity time tracking
-- task descriptions, breaks, and BOS/EOD reports
+- task descriptions on context switches, breaks, and BOS/EOD reports
 - personal, team, and organisation timesheets
 - project/activity administration
 - leave requests, balances, and approvals

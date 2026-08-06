@@ -3,7 +3,7 @@ import test from 'node:test';
 import {
   getElapsedSeconds,
   getWorkStatus,
-  isTaskDescriptionValid,
+  isTaskDescriptionValidForMode,
 } from './workSession.js';
 
 test('timer status follows the out, working, break, working, out lifecycle', () => {
@@ -45,9 +45,9 @@ test('elapsed time freezes on break and never becomes negative', () => {
   }, syncedAt - 10_000), 0);
 });
 
-test('task descriptions follow the employee requirement', () => {
-  assert.equal(isTaskDescriptionValid('Describe the session', true), true);
-  assert.equal(isTaskDescriptionValid('   ', true), false);
-  assert.equal(isTaskDescriptionValid('', false), true);
-  assert.equal(isTaskDescriptionValid(undefined, false), true);
+test('task descriptions are only mandatory when switching work context', () => {
+  assert.equal(isTaskDescriptionValidForMode('', 'start'), true);
+  assert.equal(isTaskDescriptionValidForMode(undefined, 'start'), true);
+  assert.equal(isTaskDescriptionValidForMode('   ', 'switch'), false);
+  assert.equal(isTaskDescriptionValidForMode('Describe the new task', 'switch'), true);
 });

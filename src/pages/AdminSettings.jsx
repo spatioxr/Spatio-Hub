@@ -31,8 +31,8 @@ const AdminSettings = () => {
     areas.push({
       key: 'check-ins',
       icon: 'ri-sun-line',
-      title: 'Work Requirements',
-      description: 'Choose who must enter task descriptions, workday plans and summaries.',
+      title: 'Workday Check-ins',
+      description: 'Choose who submits a start-of-day plan and an end-of-day summary.',
       detail: 'Superadmin only',
       href: '/admin-settings/workday-check-ins',
     });
