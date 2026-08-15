@@ -1,6 +1,13 @@
-import React, { createContext, useCallback, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { isActivePerson, isArchivedPerson } from '../utils/people.js';
+import { shouldBlockForAuthEvent } from '../utils/authEvents.js';
 
 export const AuthContext = createContext();
 
@@ -113,8 +120,9 @@ export const AuthProvider = ({ children }) => {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(
     () => ['invite', 'recovery'].includes(getAuthLinkType()),
   );
+  const authUserIdRef = useRef(null);
 
-  const syncSession = useCallback(async (nextSession) => {
+  const syncSession = useCallback(async (nextSession, { blockUi = true } = {}) => {
     setSession(nextSession);
 
     if (!nextSession?.user) {
@@ -123,8 +131,10 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
-    setLoading(true);
-    setAuthError('');
+    if (blockUi) {
+      setLoading(true);
+      setAuthError('');
+    }
 
     try {
       const employeeProfile = await getEmployeeProfile(nextSession.user);
@@ -146,10 +156,12 @@ export const AuthProvider = ({ children }) => {
       setUser(employeeProfile);
     } catch (error) {
       console.error('Unable to load employee profile:', error.message);
-      setUser(null);
-      setAuthError('Unable to load your employee profile. Please try again.');
+      if (blockUi) {
+        setUser(null);
+        setAuthError('Unable to load your employee profile. Please try again.');
+      }
     } finally {
-      setLoading(false);
+      if (blockUi) setLoading(false);
     }
   }, []);
 
@@ -170,10 +182,18 @@ export const AuthProvider = ({ children }) => {
         setIsPasswordRecovery(false);
       }
 
+      const nextAuthUserId = nextSession?.user?.id || null;
+      const blockUi = shouldBlockForAuthEvent({
+        event,
+        currentAuthUserId: authUserIdRef.current,
+        nextAuthUserId,
+      });
+      authUserIdRef.current = nextAuthUserId;
+
       // Supabase advises keeping the auth callback synchronous. Run profile
       // loading immediately after the callback returns.
       window.setTimeout(() => {
-        if (active) void syncSession(nextSession);
+        if (active) void syncSession(nextSession, { blockUi });
       }, 0);
     });
 
