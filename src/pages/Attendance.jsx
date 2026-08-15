@@ -3,6 +3,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import Layout from '../components/Layout';
@@ -12,6 +13,7 @@ import { supabase } from '../utils/supabaseClient';
 import { getRole, ROLES } from '../utils/rbac';
 import {
   appDateKey,
+  appDayRange,
   formatAppClock,
   formatAppDate,
 } from '../utils/timezone';
@@ -66,9 +68,20 @@ const Attendance = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedDay, setSelectedDay] = useState(null);
+  const [detailEntries, setDetailEntries] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  const detailRequestKey = useRef('');
+  const closeDayDetail = useCallback(() => {
+    detailRequestKey.current = '';
+    setSelectedDay(null);
+    setDetailEntries([]);
+    setDetailError('');
+    setDetailLoading(false);
+  }, []);
   const detailDialogRef = useDialogFocus(
     Boolean(selectedDay),
-    () => setSelectedDay(null),
+    closeDayDetail,
   );
   const bounds = useMemo(() => monthBounds(currentMonth), [currentMonth]);
   const today = appDateKey();
@@ -129,6 +142,10 @@ const Attendance = () => {
     void loadAttendance();
   }, [loadAttendance]);
 
+  useEffect(() => {
+    closeDayDetail();
+  }, [bounds.start, closeDayDetail, selectedEmployeeId]);
+
   const rowsByDate = useMemo(
     () => new Map(rows.map((row) => [row.attendance_date, row])),
     [rows],
@@ -145,6 +162,39 @@ const Attendance = () => {
 
   const moveMonth = (offset) => {
     setCurrentMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  };
+
+  const openDayDetail = async (row, date, state) => {
+    const requestKey = `${selectedEmployeeId}:${date}`;
+    const requestedScope = selectedEmployeeId === user.id
+      ? 'personal'
+      : organisationScope ? 'organisation' : 'managed';
+    const range = appDayRange(date, date);
+
+    detailRequestKey.current = requestKey;
+    setSelectedDay({
+      ...(row || {}),
+      attendance_date: date,
+      state,
+    });
+    setDetailEntries([]);
+    setDetailError('');
+    setDetailLoading(true);
+
+    const { data, error: detailFetchError } = await supabase.rpc('scoped_timesheet_entries', {
+      requested_start_at: range.start,
+      requested_end_at: range.end,
+      requested_scope: requestedScope,
+      requested_employee_id: selectedEmployeeId,
+    });
+
+    if (detailRequestKey.current !== requestKey) return;
+    if (detailFetchError) {
+      setDetailError(detailFetchError.message || 'Unable to load this day’s work timeline.');
+    } else {
+      setDetailEntries(data || []);
+    }
+    setDetailLoading(false);
   };
 
   return (
@@ -246,17 +296,13 @@ const Attendance = () => {
                 const row = rowsByDate.get(date);
                 const state = resolveAttendanceDayState(row, today);
                 const copy = STATE_COPY[state];
-                const hasDetail = Boolean(
-                  row?.checked_in_at || row?.holiday_id || Number(row?.leave_fraction) > 0,
-                );
                 return (
                   <button
                     type="button"
                     className={`attendance-day attendance-day--${state}${date === today ? ' attendance-day--today' : ''}`}
                     key={date}
-                    onClick={() => hasDetail && setSelectedDay({ ...row, state })}
-                    disabled={!hasDetail}
-                    aria-label={`${formatAppDate(date)}: ${copy.label}`}
+                    onClick={() => openDayDetail(row, date, state)}
+                    aria-label={`${formatAppDate(date)}: ${copy.label}. Open full-day details`}
                   >
                     <span className="attendance-day-number">{day}</span>
                     {copy.icon ? <i className={copy.icon} aria-hidden="true" /> : <strong>{copy.short}</strong>}
@@ -278,7 +324,7 @@ const Attendance = () => {
       </section>
 
       {selectedDay && (
-        <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && setSelectedDay(null)}>
+        <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && closeDayDetail()}>
           <aside
             ref={detailDialogRef}
             className="drawer attendance-detail-drawer"
@@ -291,9 +337,9 @@ const Attendance = () => {
               <div>
                 <span className="page-eyebrow">Attendance detail</span>
                 <h2 id="attendance-detail-title">{formatAppDate(selectedDay.attendance_date, { weekday: 'long', month: 'long' })}</h2>
-                <p>{STATE_COPY[selectedDay.state].label}</p>
+                <p>{selectedEmployee?.employee_name || 'Employee'} · {STATE_COPY[selectedDay.state].label}</p>
               </div>
-              <button type="button" className="people-icon-button" onClick={() => setSelectedDay(null)} aria-label="Close attendance detail">
+              <button type="button" className="people-icon-button" onClick={closeDayDetail} aria-label="Close attendance detail">
                 <i className="ri-close-line" />
               </button>
             </div>
@@ -327,8 +373,89 @@ const Attendance = () => {
               </div>
             )}
 
+            <section className="attendance-detail-section" aria-labelledby="attendance-day-timeline-title">
+              <div className="attendance-detail-section-heading">
+                <div>
+                  <span className="page-eyebrow">Work breakdown</span>
+                  <h3 id="attendance-day-timeline-title">Full-day timeline</h3>
+                </div>
+                {!detailLoading && !detailError && (
+                  <span>{detailEntries.length} {detailEntries.length === 1 ? 'session' : 'sessions'}</span>
+                )}
+              </div>
+
+              {detailLoading ? (
+                <AppState compact type="loading" title="Loading full-day data" message="Collecting projects, activities, tasks and breaks." />
+              ) : detailError ? (
+                <AppState
+                  compact
+                  type="error"
+                  title="Full-day data could not be loaded"
+                  message={detailError}
+                  action={(
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => openDayDetail(selectedDay, selectedDay.attendance_date, selectedDay.state)}
+                    >
+                      Try again
+                    </button>
+                  )}
+                />
+              ) : detailEntries.length === 0 ? (
+                <AppState
+                  compact
+                  type="empty"
+                  title="No tracked sessions"
+                  message="There are no project or internal-activity sessions recorded for this date."
+                />
+              ) : (
+                <ol className="timesheet-timeline attendance-detail-timeline">
+                  {detailEntries.map((entry) => (
+                    <li className="timesheet-session" key={entry.work_entry_id}>
+                      <span className={`timesheet-context-icon timesheet-context-icon--${entry.context_type}`}>
+                        <i className={entry.context_type === 'project' ? 'ri-folder-3-line' : 'ri-flashlight-line'} />
+                      </span>
+                      <div className="timesheet-session-body">
+                        <div className="timesheet-session-heading">
+                          <div>
+                            <span className="timesheet-context-type">
+                              {entry.context_type === 'project' ? 'Project' : 'Internal activity'}
+                            </span>
+                            <h4>{entry.context_label || 'Context not recorded'}</h4>
+                          </div>
+                          <span className="timesheet-session-duration">{formatDuration(entry.worked_seconds)}</span>
+                        </div>
+                        <p>{entry.task_description || 'First work start · no task description required'}</p>
+                        <div className="timesheet-session-meta">
+                          <span>
+                            <i className="ri-time-line" />
+                            {formatAppClock(entry.started_at)} – {entry.ended_at ? formatAppClock(entry.ended_at) : 'In progress'}
+                          </span>
+                          {!entry.ended_at && <span className="badge success">In progress</span>}
+                        </div>
+                        {(entry.breaks || []).length > 0 && (
+                          <div className="timesheet-break-list">
+                            {(entry.breaks || []).map((breakEntry) => (
+                              <div key={breakEntry.id}>
+                                <span>
+                                  <i className="ri-cup-line" />
+                                  Break · {formatAppClock(breakEntry.started_at)} – {breakEntry.ended_at ? formatAppClock(breakEntry.ended_at) : 'In progress'}
+                                </span>
+                                <strong>{formatDuration(breakEntry.duration_seconds)}</strong>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+
             <div className="attendance-detail-footer">
-              Attendance is read-only. Open Timesheets for session details or an authorised correction.
+              Attendance is read-only. Use Timesheets for an authorised correction and its audit history.
             </div>
           </aside>
         </div>

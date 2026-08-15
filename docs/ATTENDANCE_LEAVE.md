@@ -66,6 +66,10 @@ project, analytics, time-correction, or BOS/EOD-setting access.
 - Late status is disabled until a Leave Admin configures a cutoff. When set,
   the original first check-in is late only when it is strictly after the
   cutoff; a check-in exactly at the cutoff is on time.
+- Every calendar date opens a read-only full-day detail. It combines the day
+  state and attendance totals with scoped project/activity sessions, task
+  descriptions, session times, and individual breaks. Dates without work still
+  open and explicitly state that no sessions were tracked.
 
 ## Feedback acceptance map
 
@@ -79,6 +83,7 @@ project, analytics, time-correction, or BOS/EOD-setting access.
 | 15 | Holiday calendar and working-day totals use one rule | Add a future holiday not covered by active leave, request a range crossing it and a weekend, and confirm neither consumes leave or counts as an Attendance working day | `leave.test.js`; `hrms_048_attendance_leave_reset.sql` |
 | 23 | Every request goes to the HR queue, with no role-based auto-approval | Submit as Employee, Leave Admin, and Superadmin; confirm all three are Pending and visible to another Leave Admin | `hrms_033_leave_balances.sql`; `hrms_048_attendance_leave_reset.sql` |
 | 24 | Late timing has an explicit optional criterion | Leave policy disabled: no late labels. Set cutoff to `10:00`; confirm `10:00` is on time and `10:01` is late using the original check-in | `hrms_048_attendance_leave_reset.sql`; `attendance.test.js` |
+| 31 | Every Attendance date opens its complete read-only day record | Click completed, working, leave, holiday, weekend, future, and no-record dates; confirm the drawer always opens and shows day facts plus scoped sessions, tasks and breaks where present | `reliability.test.js`; responsive browser smoke |
 
 ## Release gate
 

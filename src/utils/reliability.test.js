@@ -38,6 +38,17 @@ test('attendance is read-only and live work actions use controlled functions', (
     });
 });
 
+test('every attendance date opens a scoped full-day work timeline', () => {
+  const attendanceSource = sourceFor(coreFlowFiles[0]);
+
+  assert.match(attendanceSource, /supabase\.rpc\('scoped_timesheet_entries'/);
+  assert.match(attendanceSource, /onClick=\{\(\) => openDayDetail\(row, date, state\)\}/);
+  assert.match(attendanceSource, /Full-day timeline/);
+  assert.match(attendanceSource, /entry\.task_description/);
+  assert.match(attendanceSource, /entry\.breaks/);
+  assert.doesNotMatch(attendanceSource, /disabled=\{!hasDetail\}/);
+});
+
 test('timer restoration does not depend on task-description settings', () => {
   const workSessionSource = sourceFor(new URL('../context/WorkSessionContext.jsx', import.meta.url));
 
