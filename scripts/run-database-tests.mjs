@@ -31,6 +31,7 @@ const verificationFiles = [
   'supabase/verify/hrms_046_role_ux_boundaries.sql',
   'supabase/verify/hrms_046_daily_work_modes.sql',
   'supabase/verify/hrms_050_admin_live_work_actions.sql',
+  'supabase/verify/hrms_051_people_contact_details.sql',
 ];
 
 const psqlArguments = [

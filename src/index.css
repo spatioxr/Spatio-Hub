@@ -6038,6 +6038,52 @@ button.dashboard-snapshot-card:hover {
   gap: 0.15rem;
 }
 
+.people-person-details {
+  align-items: flex-start;
+}
+
+.people-contact-row,
+.people-contact-input {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.people-contact-row > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.people-contact-input input {
+  min-width: 0;
+  flex: 1;
+}
+
+.people-copy-button {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: white;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.people-copy-button:hover {
+  border-color: #b8d4ca;
+  background: var(--soft-mint);
+}
+
+.people-copy-button:focus-visible {
+  outline: 3px solid rgba(0, 168, 126, 0.18);
+  outline-offset: 2px;
+}
+
 .people-person-cell strong,
 .people-mobile-value {
   color: var(--text-main);
@@ -6231,10 +6277,17 @@ button.dashboard-snapshot-card:hover {
   gap: 0.4rem;
 }
 
-.people-field > span {
+.people-field > span,
+.people-field > label {
   color: var(--text-main);
   font-size: 0.75rem;
   font-weight: 650;
+}
+
+.people-field > .people-contact-input {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .people-field input,

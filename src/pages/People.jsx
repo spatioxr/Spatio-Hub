@@ -28,6 +28,7 @@ const EMPTY_FORM = {
   emp_code: '',
   name: '',
   email: '',
+  phone_number: '',
   department: '',
   designation: '',
   role: 'employee',
@@ -43,6 +44,7 @@ const personToForm = (person) => (
       emp_code: person.emp_code || '',
       name: person.name || '',
       email: person.email || '',
+      phone_number: person.phone_number || '',
       department: person.department || '',
       designation: person.designation || '',
       role: person.role || 'employee',
@@ -62,6 +64,31 @@ const statusTone = (status) => {
   return 'warning';
 };
 
+const CopyContactButton = ({ label, value, onCopied }) => {
+  if (!value) return null;
+
+  const copyValue = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      onCopied(`${label} copied.`);
+    } catch {
+      onCopied(`Unable to copy ${label.toLowerCase()}.`);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className="people-copy-button"
+      onClick={copyValue}
+      aria-label={`Copy ${label.toLowerCase()}`}
+      title={`Copy ${label.toLowerCase()}`}
+    >
+      <i className="ri-file-copy-line" aria-hidden="true" />
+    </button>
+  );
+};
+
 const PersonDrawer = ({
   mode,
   person,
@@ -73,6 +100,7 @@ const PersonDrawer = ({
   onClose,
   onNavigate,
   onSave,
+  onNotice,
 }) => {
   const readOnly = mode === 'view';
   const drawerRef = useDialogFocus(true, onClose, { closeDisabled: saving });
@@ -94,6 +122,7 @@ const PersonDrawer = ({
   ));
 
   const handleChange = (event) => {
+    if (event.target.name === 'phone_number') event.target.setCustomValidity('');
     setForm((current) => ({
       ...current,
       [event.target.name]: event.target.type === 'checkbox'
@@ -104,6 +133,13 @@ const PersonDrawer = ({
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    const phoneInput = event.currentTarget.elements.phone_number;
+    const phoneDigits = form.phone_number.replace(/[^0-9]/g, '');
+    if (form.phone_number && (phoneDigits.length < 7 || phoneDigits.length > 15)) {
+      phoneInput.setCustomValidity('Enter a phone number containing 7 to 15 digits.');
+      phoneInput.reportValidity();
+      return;
+    }
     if (!readOnly) onSave(form);
   };
 
@@ -209,21 +245,45 @@ const PersonDrawer = ({
             </label>
           )}
 
-          <label className="people-field">
-            <span>Work email *</span>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              disabled={readOnly}
-              placeholder="name@company.com"
-              required
-            />
+          <div className="people-field">
+            <label htmlFor="person-work-email">Work email *</label>
+            <span className="people-contact-input">
+              <input
+                id="person-work-email"
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                disabled={readOnly}
+                placeholder="name@company.com"
+                required
+              />
+              <CopyContactButton label="Email" value={form.email} onCopied={onNotice} />
+            </span>
             {!readOnly && mode === 'create' && (
               <small>The profile links automatically when an Auth user signs in with this email.</small>
             )}
-          </label>
+          </div>
+
+          <div className="people-field">
+            <label htmlFor="person-phone-number">Phone number</label>
+            <span className="people-contact-input">
+              <input
+                id="person-phone-number"
+                type="tel"
+                name="phone_number"
+                value={form.phone_number}
+                onChange={handleChange}
+                disabled={readOnly}
+                placeholder="+91 98765 43210"
+                pattern="[+]?[0-9 ()-]{7,25}"
+                maxLength="25"
+                title="Use 7–15 digits; spaces, brackets, hyphens and a leading + are allowed."
+              />
+              <CopyContactButton label="Phone number" value={form.phone_number} onCopied={onNotice} />
+            </span>
+            {!readOnly && <small>Optional. Include the country code for international numbers.</small>}
+          </div>
 
           <div className="people-form-grid">
             <label className="people-field">
@@ -406,7 +466,7 @@ const People = ({ mode = 'directory' }) => {
 
     const { data, error: fetchError } = await supabase
       .from('employees')
-      .select('id, emp_code, name, email, department, designation, role, status, date_of_joining, reports_to, auth_id, must_change_password, temporary_password_issued_at, is_leave_admin')
+      .select('id, emp_code, name, email, phone_number, department, designation, role, status, date_of_joining, reports_to, auth_id, must_change_password, temporary_password_issued_at, is_leave_admin')
       .order('name', { ascending: true });
 
     if (fetchError) {
@@ -444,6 +504,7 @@ const People = ({ mode = 'directory' }) => {
         person.name,
         person.emp_code,
         person.email,
+        person.phone_number,
         person.department,
         person.designation,
       ].some((value) => value?.toLowerCase().includes(query));
@@ -478,6 +539,7 @@ const People = ({ mode = 'directory' }) => {
     employee_code: form.emp_code,
     employee_name: form.name,
     work_email: form.email,
+    employee_phone_number: form.phone_number || null,
     employee_department: form.department,
     employee_designation: form.designation,
     employee_role: form.role,
@@ -693,7 +755,7 @@ const People = ({ mode = 'directory' }) => {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search name, ID, email or title"
+              placeholder="Search name, ID, email, phone or title"
               aria-label="Search people"
             />
           </label>
@@ -754,9 +816,19 @@ const People = ({ mode = 'directory' }) => {
                           <span className="people-avatar">
                             {person.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
                           </span>
-                          <div>
+                          <div className="people-person-details">
                             <strong>{person.name}</strong>
-                            <span>{person.emp_code} · {person.email}</span>
+                            <span>{person.emp_code}</span>
+                            <span className="people-contact-row">
+                              <span>{person.email}</span>
+                              <CopyContactButton label="Email" value={person.email} onCopied={setNotice} />
+                            </span>
+                            {person.phone_number && (
+                              <span className="people-contact-row">
+                                <span>{person.phone_number}</span>
+                                <CopyContactButton label="Phone number" value={person.phone_number} onCopied={setNotice} />
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -846,6 +918,7 @@ const People = ({ mode = 'directory' }) => {
           onClose={() => setDrawer(null)}
           onNavigate={navigateDrawer}
           onSave={savePerson}
+          onNotice={setNotice}
         />
       )}
       {credential && (
