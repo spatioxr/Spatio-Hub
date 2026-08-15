@@ -190,7 +190,14 @@ FROM public.submit_leave_request(
 
 CREATE TEMP TABLE hrms_048_queue AS
 SELECT count(*) AS request_count
-FROM public.scoped_leave_requests();
+FROM public.scoped_leave_requests() request
+WHERE request.leave_id IN (
+  SELECT id FROM hrms_048_edited_request
+  UNION ALL
+  SELECT id FROM hrms_048_rejected_request
+  UNION ALL
+  SELECT id FROM hrms_048_leave_admin_request
+);
 
 DO $$
 BEGIN
