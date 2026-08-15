@@ -28,6 +28,7 @@ project or team.
 | Access Admin Settings | No | No | Yes | Yes |
 | Update permitted own-profile fields | Own | Own | Own | Own |
 | Track work and submit BOS/EOD | Own | Own | Own | Own |
+| Operate another employee's live timer | No | No | Organisation | Organisation |
 | View timesheets | Own | Assigned project teams | Organisation | Organisation |
 | View active projects | Assigned | Assigned/owned | All | All |
 | Assign a project team | No | Owned projects | All projects | All projects |
@@ -57,6 +58,8 @@ project or team.
   Reports remain unavailable.
 - Every authorised manual time correction requires a reason and immutable audit
   history.
+- Every admin action on another employee's live timer records the actor, target,
+  action, work entry, and timestamp in immutable audit history.
 - Navigation visibility is convenience only. Supabase RLS is the enforcement
   boundary and must reject the same unauthorised reads and writes.
 - Manager read scope comes from explicit project ownership and membership.

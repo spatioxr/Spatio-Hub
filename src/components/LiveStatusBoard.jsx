@@ -1,11 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
+import { hasPermission, PERMISSIONS } from '../utils/rbac';
 import {
   appDateKey,
   formatAppClock,
   formatAppDate,
 } from '../utils/timezone';
 import { liveStatusTimeDetails } from '../utils/liveStatus';
+import AdminWorkControlModal from './AdminWorkControlModal';
 
 const STATUS_TABS = ['In', 'Break', 'Out'];
 
@@ -30,12 +33,15 @@ const formatLiveTime = (value, label) => {
 };
 
 const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
+  const { user } = useContext(AuthContext);
   const [rows, setRows] = useState([]);
   const [activeTab, setActiveTab] = useState('In');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const canManageLiveWork = hasPermission(user, PERMISSIONS.MANAGE_LIVE_WORK);
 
   const refresh = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
@@ -192,8 +198,18 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
 
               return (
                 <article
-                  className={`live-status-row ${row.is_stale ? 'stale' : ''}`}
+                  className={`live-status-row ${row.is_stale ? 'stale' : ''}${canManageLiveWork ? ' actionable' : ''}`}
                   key={row.employee_id}
+                  role={canManageLiveWork ? 'button' : undefined}
+                  tabIndex={canManageLiveWork ? 0 : undefined}
+                  aria-label={canManageLiveWork ? `Manage live work for ${row.employee_name}, currently ${row.work_status}` : undefined}
+                  onClick={canManageLiveWork ? () => setSelectedEmployee(row) : undefined}
+                  onKeyDown={canManageLiveWork ? (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSelectedEmployee(row);
+                    }
+                  } : undefined}
                 >
                   <div className="live-status-person">
                     <div className="live-status-avatar">
@@ -247,6 +263,12 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
                       Stale open entry
                     </div>
                   )}
+                  {canManageLiveWork && (
+                    <span className="live-status-manage-hint" aria-hidden="true">
+                      <i className="ri-settings-3-line" />
+                      Manage
+                    </span>
+                  )}
                 </article>
               );
             })}
@@ -259,6 +281,13 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
           ? `Updated ${formatAppClock(updatedAt)}`
           : 'Waiting for first update'}
       </div>
+      {selectedEmployee && (
+        <AdminWorkControlModal
+          employee={selectedEmployee}
+          onClose={() => setSelectedEmployee(null)}
+          onChanged={() => refresh({ quiet: true })}
+        />
+      )}
     </section>
   );
 };

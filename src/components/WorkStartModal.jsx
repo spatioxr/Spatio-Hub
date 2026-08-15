@@ -8,7 +8,16 @@ import useDialogFocus from '../hooks/useDialogFocus';
 
 const optionKey = (type, id) => `${type}:${id}`;
 
-const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
+const WorkStartModal = ({
+  mode = 'start',
+  onClose,
+  onComplete,
+  subject = null,
+  session: sessionOverride,
+  dayState: dayStateOverride,
+  startSession: startSessionOverride,
+  switchSession: switchSessionOverride,
+}) => {
   const { user } = useContext(AuthContext);
   const {
     session,
@@ -16,8 +25,12 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
     startSession,
     switchSession,
   } = useContext(WorkSessionContext);
+  const activeSession = sessionOverride ?? session;
+  const activeDayState = dayStateOverride ?? dayState;
+  const employeeId = subject?.id || user.id;
+  const isDelegated = Boolean(subject);
   const isSwitch = mode === 'switch';
-  const isReopen = !isSwitch && dayState.hasWorkToday;
+  const isReopen = !isSwitch && activeDayState.hasWorkToday;
   const [contextType, setContextType] = useState('project');
   const [contextId, setContextId] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
@@ -38,28 +51,27 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
       setLoadingOptions(true);
       setError('');
 
-      const [projectsResult, activitiesResult, recentResult] = await Promise.all([
-        supabase
-          .from('projects')
-          .select('id, code, name')
-          .is('archived_at', null)
-          .order('name', { ascending: true }),
-        supabase
-          .from('activities')
-          .select('id, name')
-          .is('archived_at', null)
-          .order('name', { ascending: true }),
+      const [contextsResult, recentResult] = await Promise.all([
+        isDelegated
+          ? supabase.rpc('admin_employee_work_contexts', { target_employee_id: employeeId })
+          : Promise.all([
+            supabase.from('projects').select('id, code, name').is('archived_at', null).order('name', { ascending: true }),
+            supabase.from('activities').select('id, name').is('archived_at', null).order('name', { ascending: true }),
+          ]),
         supabase
           .from('work_entries')
           .select('project_id, activity_id, task_description, started_at')
-          .eq('employee_id', user.id)
+          .eq('employee_id', employeeId)
           .order('started_at', { ascending: false })
           .limit(12),
       ]);
 
       if (!active) return;
 
-      const loadError = projectsResult.error || activitiesResult.error || recentResult.error;
+      const contextsError = isDelegated
+        ? contextsResult.error
+        : contextsResult.find((result) => result.error)?.error;
+      const loadError = contextsError || recentResult.error;
       if (loadError) {
         console.error('Unable to load start-work choices:', loadError.message);
         setError('Unable to load work choices. Please try again.');
@@ -67,11 +79,21 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
         return;
       }
 
-      const nextProjects = (projectsResult.data || []).filter(
-        (project) => !isSwitch || project.id !== session?.project_id,
+      const availableProjects = isDelegated
+        ? (contextsResult.data || [])
+          .filter((context) => context.context_type === 'project')
+          .map((context) => ({ id: context.context_id, code: context.context_code, name: context.context_name }))
+        : contextsResult[0].data || [];
+      const availableActivities = isDelegated
+        ? (contextsResult.data || [])
+          .filter((context) => context.context_type === 'activity')
+          .map((context) => ({ id: context.context_id, name: context.context_name }))
+        : contextsResult[1].data || [];
+      const nextProjects = availableProjects.filter(
+        (project) => !isSwitch || project.id !== activeSession?.project_id,
       );
-      const nextActivities = (activitiesResult.data || []).filter(
-        (activity) => !isSwitch || activity.id !== session?.activity_id,
+      const nextActivities = availableActivities.filter(
+        (activity) => !isSwitch || activity.id !== activeSession?.activity_id,
       );
       setProjects(nextProjects);
       setActivities(nextActivities);
@@ -87,7 +109,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
     return () => {
       active = false;
     };
-  }, [isSwitch, session?.activity_id, session?.project_id, user.id]);
+  }, [activeSession?.activity_id, activeSession?.project_id, employeeId, isDelegated, isSwitch]);
 
   const recentChoices = useMemo(() => {
     const projectMap = new Map(projects.map((project) => [
@@ -118,9 +140,9 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
   const hasContext = Boolean(contextId);
   const hasTask = isTaskDescriptionValidForMode(taskDescription, mode);
   const needsBos = !isSwitch
-    && !dayState.hasWorkToday
-    && dayState.bosRequired
-    && !dayState.bosSubmitted;
+    && !activeDayState.hasWorkToday
+    && activeDayState.bosRequired
+    && !activeDayState.bosSubmitted;
   const hasBos = !needsBos || Boolean(bosReport.trim());
   const canSubmit = hasContext && hasTask && hasBos && !loadingOptions && !submitting;
 
@@ -151,7 +173,9 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
       const selectedLabel = contextType === 'project'
         ? `${selectedOption.code} · ${selectedOption.name}`
         : selectedOption.name;
-      const submitSession = isSwitch ? switchSession : startSession;
+      const submitSession = isSwitch
+        ? switchSessionOverride || switchSession
+        : startSessionOverride || startSession;
 
       await submitSession({
         projectId: contextType === 'project' ? contextId : null,
@@ -195,14 +219,16 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
             </span>
             <h2 id="work-start-title">
               {isSwitch
-                ? 'What are you switching to?'
-                : isReopen ? 'What are you returning to?' : 'What are you working on?'}
+                ? `What ${isDelegated ? `is ${subject.name}` : 'are you'} switching to?`
+                : isReopen
+                  ? `What ${isDelegated ? `is ${subject.name}` : 'are you'} returning to?`
+                  : `What ${isDelegated ? `is ${subject.name}` : 'are you'} working on?`}
             </h2>
             <p>
               {isSwitch
-                ? 'Select the new context and describe the task you are moving to.'
+                ? `Select the new context and describe the task ${isDelegated ? `${subject.name} is` : 'you are'} moving to.`
                 : isReopen
-                  ? dayState.eodSubmitted
+                  ? activeDayState.eodSubmitted
                     ? 'Starting again will reopen today, clear the earlier EOD, and require a fresh final EOD when you finish.'
                     : 'Starting again will reopen today’s attendance. Use End Day again when you finish.'
                 : needsBos
@@ -334,7 +360,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
                 rows="4"
                 required
               />
-              <small>Required once, before your first work session today.</small>
+              <small>Required once, before {isDelegated ? `${subject.name}’s` : 'your'} first work session today.</small>
             </label>
           )}
 
@@ -344,7 +370,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
             <div className="work-start-footer-copy">
               <span>
                 {needsBos
-                  ? 'Your workday plan and first session will be saved together.'
+                  ? `${isDelegated ? `${subject.name}’s` : 'Your'} workday plan and first session will be saved together.`
                   : isSwitch
                     ? 'Choose a different context and describe the new task.'
                     : isReopen
@@ -359,7 +385,9 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
                   onClick={() => setIsWfh((current) => !current)}
                 >
                   <i className={isWfh ? 'ri-home-heart-fill' : 'ri-home-4-line'} aria-hidden="true" />
-                  {isWfh ? 'WFH today' : 'Mark today as WFH'}
+                  {isWfh
+                    ? 'WFH today'
+                    : isDelegated ? `Mark ${subject.name} as WFH today` : 'Mark today as WFH'}
                   {isWfh && <i className="ri-check-line" aria-hidden="true" />}
                 </button>
               )}

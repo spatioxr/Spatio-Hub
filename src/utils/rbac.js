@@ -18,6 +18,7 @@ export const PERMISSIONS = Object.freeze({
   ACCESS_PORTAL: 'access_portal',
   VIEW_LIVE_STATUS: 'view_live_status',
   VIEW_MANAGEMENT_LIVE_RAIL: 'view_management_live_rail',
+  MANAGE_LIVE_WORK: 'manage_live_work',
   VIEW_PEOPLE: 'view_people',
   MANAGE_PEOPLE: 'manage_people',
   ACCESS_ADMIN_SETTINGS: 'access_admin_settings',
@@ -73,6 +74,7 @@ const ROLE_PERMISSIONS = Object.freeze({
     PERMISSIONS.MANAGE_ACTIVITIES,
     PERMISSIONS.VIEW_WORK_DISTRIBUTION,
     PERMISSIONS.VIEW_MANAGEMENT_LIVE_RAIL,
+    PERMISSIONS.MANAGE_LIVE_WORK,
   ]),
   [ROLES.SUPERADMIN]: new Set(Object.values(PERMISSIONS)),
 });

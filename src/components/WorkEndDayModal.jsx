@@ -3,12 +3,20 @@ import { createPortal } from 'react-dom';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import useDialogFocus from '../hooks/useDialogFocus';
 
-const WorkEndDayModal = ({ onClose, onComplete }) => {
+const WorkEndDayModal = ({
+  onClose,
+  onComplete,
+  subject = null,
+  dayState: dayStateOverride,
+  endDay: endDayOverride,
+}) => {
   const { dayState, endDay } = useContext(WorkSessionContext);
+  const activeDayState = dayStateOverride ?? dayState;
+  const submitEndDay = endDayOverride || endDay;
   const [eodReport, setEodReport] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const needsEod = dayState.eodRequired && !dayState.eodSubmitted;
+  const needsEod = activeDayState.eodRequired && !activeDayState.eodSubmitted;
   const canSubmit = (!needsEod || Boolean(eodReport.trim())) && !submitting;
   const dialogRef = useDialogFocus(true, onClose, { closeDisabled: submitting });
 
@@ -20,7 +28,7 @@ const WorkEndDayModal = ({ onClose, onComplete }) => {
     setError('');
 
     try {
-      await endDay({ eodReport: needsEod ? eodReport.trim() : null });
+      await submitEndDay({ eodReport: needsEod ? eodReport.trim() : null });
       onComplete?.();
       onClose();
     } catch (submitError) {
@@ -49,12 +57,14 @@ const WorkEndDayModal = ({ onClose, onComplete }) => {
         <div className="work-start-header">
           <div>
             <span className="work-start-eyebrow">Final clock-out</span>
-            <h2 id="work-end-day-title">End your work day?</h2>
+            <h2 id="work-end-day-title">End {subject ? `${subject.name}’s` : 'your'} work day?</h2>
             <p>
               {needsEod
-                ? 'Submit today’s final summary to close your active session.'
-                : 'Your profile is exempt from a required end-of-day summary.'}
-              {' '}If plans change, you can reopen today and end it again later.
+                ? `Submit today’s final summary to close ${subject ? `${subject.name}’s` : 'your'} active session.`
+                : `${subject ? `${subject.name}’s profile is` : 'Your profile is'} exempt from a required end-of-day summary.`}
+              {' '}{subject
+                ? `If plans change, ${subject.name} can reopen today and end it again later.`
+                : 'If plans change, you can reopen today and end it again later.'}
             </p>
           </div>
           <button
@@ -92,7 +102,7 @@ const WorkEndDayModal = ({ onClose, onComplete }) => {
           {error && <div className="work-start-error" role="alert">{error}</div>}
 
           <div className="work-start-footer">
-            <span>You can cancel and continue working.</span>
+            <span>{subject ? `${subject.name} can` : 'You can'} continue working if you cancel.</span>
             <button
               type="submit"
               className="work-start-submit work-end-day-submit"

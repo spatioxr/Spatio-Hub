@@ -95,7 +95,7 @@ All other routes redirect to the dashboard.
 ## Important security status
 
 Authentication uses Supabase Auth sessions and the legacy employee password
-column has been retired. All 17 current Phase 1 tables enforce scoped RLS for
+column has been retired. All 18 current Phase 1 tables enforce scoped RLS for
 employee, manager, admin, and superadmin access. Every future schema issue must
 add matching RLS in the same migration that creates its tables.
 

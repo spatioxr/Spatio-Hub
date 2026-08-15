@@ -134,6 +134,10 @@ environment.
     pictures to the authenticated live-status projection and exposes the
     signed-in employee's reporting manager through a narrow self-scoped
     function for the Dashboard.
+40. `20260816000100_admin_live_work_actions.sql` adds Admin/Superadmin-only
+    live timer actions for a selected employee, preserves the existing
+    start/reopen, switch, break/resume, End Day, BOS/EOD, assignment, and work
+    mode rules, and records every delegated action in immutable audit history.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -179,8 +183,8 @@ first sign-in.
 ## Verification
 
 Run `supabase/verify/phase1_schema.sql` in the SQL editor after migrations.
-Every returned boolean must be `true`. This verifies all 17 current tables,
-RLS, anonymous denial, the 45 scoped policies, helper functions, seed
+Every returned boolean must be `true`. This verifies all 18 current tables,
+RLS, anonymous denial, the 46 scoped policies, helper functions, seed
 activities, and overlap guards.
 
 Run `supabase/verify/hrms_007_projects.sql` for the rollback-only project model
@@ -342,7 +346,7 @@ scope, anonymous denial, and direct Attendance write denial.
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager
 assigned-team scope, Admin organisation read scope, Superadmin-only leave and
-BOS/EOD controls, and direct-client write denial across all 17 Phase 1 tables.
+BOS/EOD controls, and direct-client write denial across all 18 Phase 1 tables.
 
 ## Rollback
 

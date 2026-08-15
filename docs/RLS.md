@@ -4,7 +4,7 @@ The ordered migrations in `supabase/migrations` create the Phase 1 tables and
 their policies together. Run `supabase/verify/phase1_schema.sql` afterwards and
 confirm:
 
-- all 17 tables report `rls_enabled = true`
+- all 18 tables report `rls_enabled = true`
 - only the expected authenticated policies are present
 - anonymous SELECT is denied for every table
 - the signed-in superadmin reports organisation access
@@ -24,6 +24,7 @@ confirm:
 | Audit history | Own | Assigned teams/projects | Organisation | Organisation |
 | Work requirements | Own, read-only | Own, read-only | Own, read-only | Organisation |
 | Work-requirement history | — | — | — | Organisation |
+| Delegated live-work audit | — | — | Organisation | Organisation |
 
 Managers are scoped through explicit project ownership and team membership.
 HRMS-027 regression coverage exercises Manager add/remove only on owned
@@ -145,6 +146,12 @@ identity and historical project/activity labels to the stored old/new
 snapshots without granting audit mutation privileges.
 Breaks follow the same pattern: authenticated clients use the break/resume
 functions, while direct writes to `break_entries` are denied.
+Admins and superadmins may operate an active employee's current timer only
+through the `admin_*` live-work functions. Those functions re-check the caller
+role and active target on the server, preserve BOS/EOD, assignment, work-mode,
+break, and reopen rules, and append to `admin_work_action_audit`. Employees and
+Managers cannot execute a delegated action successfully, and authenticated
+clients cannot insert, update, or delete the audit rows directly.
 
 BOS/EOD report text remains writable only within the existing own or
 superadmin row scope, and a database trigger owns the corresponding submission

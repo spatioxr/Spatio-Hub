@@ -4363,6 +4363,18 @@ button.dashboard-snapshot-card:hover {
   box-shadow: inset 3px 0 #F79009;
 }
 
+.live-status-row.actionable {
+  cursor: pointer;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+
+.live-status-row.actionable:hover,
+.live-status-row.actionable:focus-visible {
+  background: #F7FBF9;
+  box-shadow: inset 3px 0 #006742;
+  outline: 0;
+}
+
 .live-status-person {
   display: flex;
   align-items: center;
@@ -4511,6 +4523,57 @@ button.dashboard-snapshot-card:hover {
   font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.live-status-manage-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #006742;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-work-control-modal {
+  max-width: 34rem;
+}
+
+.admin-work-control-body {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.5rem;
+}
+
+.admin-work-control-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid #E7ECE9;
+  border-radius: 12px;
+  background: #F8FBFA;
+}
+
+.admin-work-control-summary div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.admin-work-control-summary strong {
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+
+.admin-work-control-summary div span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.admin-work-control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
 }
 
 .live-status-empty,
@@ -7674,6 +7737,11 @@ button.dashboard-snapshot-card:hover {
 }
 
 .live-status-board--rail .live-status-stale {
+  grid-column: 1 / -1;
+  padding-left: 3.25rem;
+}
+
+.live-status-board--rail .live-status-manage-hint {
   grid-column: 1 / -1;
   padding-left: 3.25rem;
 }
