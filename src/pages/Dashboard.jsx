@@ -32,7 +32,7 @@ const EMPTY_ATTENDANCE = Object.freeze({
   lateDays: 0,
 });
 
-const initialsFor = (name = '') => name
+const initialsFor = (name = '') => String(name || '')
   .split(/\s+/)
   .filter(Boolean)
   .map((part) => part[0])
