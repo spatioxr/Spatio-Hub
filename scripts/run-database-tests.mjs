@@ -22,6 +22,7 @@ const verificationFiles = [
   'supabase/verify/hrms_034_leave_workflow.sql',
   'supabase/verify/hrms_035_holidays_comp_off.sql',
   'supabase/verify/hrms_048_attendance_leave_reset.sql',
+  'supabase/verify/hrms_049_dashboard_sync.sql',
   'supabase/verify/hrms_041_role_launch_smoke.sql',
   'supabase/verify/hrms_042_temporary_passwords.sql',
   'supabase/verify/hrms_044_people_directory.sql',

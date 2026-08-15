@@ -84,6 +84,7 @@ All other routes redirect to the dashboard.
 - [Phase 1 scope and decisions](docs/PHASE_1.md)
 - [Phase 1 permission matrix](docs/PERMISSIONS.md)
 - [Attendance and Leave product/test contract](docs/ATTENDANCE_LEAVE.md)
+- [Dashboard product/test contract](docs/DASHBOARD.md)
 - [Phase 1 row-level security](docs/RLS.md)
 - [Database migrations and rollback](docs/DATABASE_MIGRATIONS.md)
 - [Supabase Auth setup](docs/AUTH_SETUP.md)

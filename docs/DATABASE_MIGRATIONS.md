@@ -130,6 +130,10 @@ environment.
     attendance timestamps, closes direct attendance writes, and exposes a
     personal/team/organisation-scoped read-only month projection combining
     work sessions, breaks, approved leave, holidays, WFH, and lateness.
+39. `20260815000600_dashboard_visual_sync.sql` adds existing employee profile
+    pictures to the authenticated live-status projection and exposes the
+    signed-in employee's reporting manager through a narrow self-scoped
+    function for the Dashboard.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -240,6 +244,11 @@ board check. It verifies Employee visibility of all active names and statuses,
 In/Break/Out transition timestamps, permitted activity context, hidden
 out-of-scope project context, the 24-hour stale flag, and anonymous/unlinked
 denial.
+
+Run `supabase/verify/hrms_049_dashboard_sync.sql` to confirm the live-status
+projection includes profile photos, the self-scoped reporting-manager function
+exists, anonymous execution remains denied, and authenticated execution is
+available.
 
 Run `supabase/verify/hrms_044_people_directory.sql` for the rollback-only
 People check. It verifies employee route denial, Manager project-team read-only

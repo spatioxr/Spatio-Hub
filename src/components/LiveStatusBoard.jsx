@@ -197,7 +197,9 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
                 >
                   <div className="live-status-person">
                     <div className="live-status-avatar">
-                      {initialsFor(row.employee_name)}
+                      {row.avatar_url ? (
+                        <img src={row.avatar_url} alt="" />
+                      ) : initialsFor(row.employee_name)}
                       <span className={`status-dot ${row.work_status.toLowerCase()}`} />
                     </div>
                     <div>
