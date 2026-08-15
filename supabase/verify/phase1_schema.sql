@@ -256,6 +256,27 @@ SELECT
       'public.live_work_status()',
       'EXECUTE'
     ) AS has_scoped_live_work_status,
+  EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'attendance'
+      AND column_name = 'work_mode'
+  )
+    AND to_regprocedure(
+      'public.start_work_day(uuid,uuid,text,text,text)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.live_attendance_work_modes()'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.scoped_attendance_work_modes(date,date,text,uuid)'
+    ) IS NOT NULL
+    AND NOT has_function_privilege(
+      'authenticated',
+      'public.apply_attendance_work_mode(uuid,timestamptz,timestamptz,text)',
+      'EXECUTE'
+    ) AS has_controlled_daily_work_mode,
   to_regprocedure(
     'public.personal_timesheet_entries(timestamptz,timestamptz)'
   ) IS NOT NULL

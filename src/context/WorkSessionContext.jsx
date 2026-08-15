@@ -188,13 +188,17 @@ export const WorkSessionProvider = ({ children }) => {
     projectId,
     activityId,
     bosReport,
+    workMode,
   }) => {
-    const { error: startError } = await supabase.rpc('start_work_day', {
+    const startArguments = {
       target_project_id: projectId,
       target_activity_id: activityId,
       session_task_description: LEGACY_FIRST_START_DESCRIPTION,
       beginning_of_day_report: bosReport || null,
-    });
+    };
+    if (workMode) startArguments.declared_work_mode = workMode;
+
+    const { error: startError } = await supabase.rpc('start_work_day', startArguments);
 
     if (startError) throw startError;
     await refresh();

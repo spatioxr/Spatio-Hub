@@ -67,6 +67,11 @@ const formatDuration = (seconds) => {
 
 const formatClock = formatAppClock;
 const formatDateTime = formatAppDateTime;
+const formatWorkMode = (workMode) => {
+  if (workMode === 'wfh') return 'WFH';
+  if (workMode === 'office') return 'Office';
+  return 'Not recorded';
+};
 
 const formatAuditBreaks = (breaks) => {
   if (!Array.isArray(breaks) || breaks.length === 0) return 'No breaks';
@@ -76,6 +81,11 @@ const formatAuditBreaks = (breaks) => {
 };
 
 const AUDIT_FIELDS = [
+  {
+    key: 'work-mode',
+    label: 'Work mode',
+    value: (record) => formatWorkMode(record?.work_mode),
+  },
   {
     key: 'context',
     label: 'Project or activity',
@@ -139,6 +149,7 @@ const toLocalDateTimeInput = toAppDateTimeInput;
 
 const defaultManualForm = (selectedDate) => ({
   context: '',
+  workMode: 'office',
   taskDescription: '',
   startedAt: `${selectedDate}T09:00`,
   endedAt: `${selectedDate}T10:00`,
@@ -200,6 +211,7 @@ const Timesheets = () => {
       { data: memberData, error: memberError },
       { data: projectData, error: projectError },
       { data: activityData, error: activityError },
+      { data: workModeData, error: workModeError },
     ] = await Promise.all([
       supabase.rpc('scoped_timesheet_entries', {
         requested_start_at: range.start,
@@ -218,13 +230,32 @@ const Timesheets = () => {
         .from('activities')
         .select('id, name')
         .order('name', { ascending: true }),
+      supabase.rpc('scoped_attendance_work_modes', {
+        requested_start_date: dateKey(weekStart),
+        requested_end_date: dateKey(addDays(weekStart, 7)),
+        requested_scope: scope,
+        requested_employee_id: null,
+      }),
     ]);
 
-    const fetchError = entryError || memberError || projectError || activityError;
+    const fetchError = entryError
+      || memberError
+      || projectError
+      || activityError
+      || workModeError;
     if (fetchError) {
       setError(fetchError.message || 'Unable to load your timesheet.');
     } else {
-      setEntries(entryData || []);
+      const workModeByEmployeeDay = new Map((workModeData || []).map((record) => [
+        `${record.employee_id}:${record.attendance_date}`,
+        record.work_mode,
+      ]));
+      setEntries((entryData || []).map((entry) => ({
+        ...entry,
+        work_mode: workModeByEmployeeDay.get(
+          `${entry.employee_id}:${dateKey(entry.started_at)}`,
+        ) || null,
+      })));
       setMembers(memberData || []);
       setFilterProjects(projectData || []);
       setFilterActivities(activityData || []);
@@ -399,6 +430,9 @@ const Timesheets = () => {
   const scopeCopy = SCOPE_COPY[scope];
   const isSharedScope = scope !== 'personal';
   const selectedEntries = entriesByDay[selectedDate] || [];
+  const selectedDayWorkMode = (
+    scope === 'personal' || selectedEmployeeId !== 'all'
+  ) ? selectedEntries[0]?.work_mode || null : null;
   const selectedSummary = daySummaries[selectedDate] || {
     workedSeconds: 0,
     breakSeconds: 0,
@@ -516,6 +550,7 @@ const Timesheets = () => {
     setManualContexts(availableContexts);
     setManualForm(entry ? {
       context: contextValue,
+      workMode: entry.work_mode || '',
       taskDescription: entry.task_description,
       startedAt: toLocalDateTimeInput(entry.started_at),
       endedAt: toLocalDateTimeInput(entry.ended_at),
@@ -568,6 +603,11 @@ const Timesheets = () => {
       return;
     }
 
+    if (!['office', 'wfh'].includes(manualForm.workMode)) {
+      setManualError('Select Office or WFH for this attendance day.');
+      return;
+    }
+
     if (!manualForm.taskDescription.trim() || !manualForm.reason.trim()) {
       setManualError('Task description and change reason are required.');
       return;
@@ -612,6 +652,7 @@ const Timesheets = () => {
       entry_ended_at: endedAt.toISOString(),
       entry_breaks: breaks,
       change_reason: manualForm.reason,
+      entry_work_mode: manualForm.workMode,
     };
 
     setManualSaving(true);
@@ -969,6 +1010,12 @@ const Timesheets = () => {
                   </button>
                 </div>
                 <div className="timesheet-day-totals">
+                  {selectedDayWorkMode && (
+                    <span className={`timesheet-work-mode timesheet-work-mode--${selectedDayWorkMode}`}>
+                      <small>Work mode</small>
+                      <strong>{formatWorkMode(selectedDayWorkMode)}</strong>
+                    </span>
+                  )}
                   <span>
                     <small>Worked</small>
                     <strong>{formatDuration(selectedSummary.workedSeconds)}</strong>
@@ -1148,6 +1195,23 @@ const Timesheets = () => {
                     </option>
                   ))}
                 </select>
+              </label>
+
+              <label className="timesheet-field">
+                <span>Work mode for this day</span>
+                <select
+                  value={manualForm.workMode}
+                  onChange={(event) => setManualForm((current) => ({
+                    ...current,
+                    workMode: event.target.value,
+                  }))}
+                  required
+                >
+                  <option value="" disabled>Select work mode</option>
+                  <option value="office">Office</option>
+                  <option value="wfh">Work from home</option>
+                </select>
+                <small>This applies to every session on the attendance day.</small>
               </label>
 
               <label className="timesheet-field">

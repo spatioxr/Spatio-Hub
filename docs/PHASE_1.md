@@ -9,6 +9,9 @@ The source of truth for implementation work is the [Spatio HRMS issue tracker](h
 ## Confirmed tracking workflow
 
 - An employee starts work by selecting either an assigned project or an internal activity.
+- Office is the implicit daily work mode. On the first start only, an employee
+  may use the secondary “Mark today as WFH” action; switches and same-day
+  reopens preserve that attendance-day mode.
 - The first clock-in does not ask for a task description.
 - Employees may switch projects or activities during the day.
 - Switching requires a concise task description, closes the current underlying session,
@@ -66,7 +69,7 @@ The known balance calculation issue is tracked as `HRMS-033`.
 Do not add these in phase 1 unless the tracker is deliberately changed:
 
 - payroll or invoicing
-- GPS, geofencing, facial recognition, or locations
+- GPS, geofencing, facial recognition, or physical-location tracking
 - kiosk mode or native mobile applications
 - work scheduling
 - timesheet approval periods

@@ -64,6 +64,9 @@ The company live-status board uses `live_work_status()` as a narrow
 authenticated projection. It exposes every active employee's name, employee
 code, current In/Break/Out state, daily check-in/check-out, and an active break
 start time. Context-switch timestamps are not presented as attendance.
+`live_attendance_work_modes()` exposes only the current day's self-declared
+Office/WFH mode so the UI can add a compact WFH marker without widening direct
+attendance access.
 Activity context
 is visible to authenticated employees; project context is returned only when
 the caller already passes `can_access_project`. It does not expose task text or
@@ -108,6 +111,12 @@ Managers, admins, and superadmins create or correct completed manual entries
 only through audited server functions. Managers are restricted to employees in
 their explicitly owned project teams, every change requires a reason, and
 employees cannot correct time entries.
+Daily Office/WFH mode is stored once on `attendance`. The normal first-start
+path records Office unless the employee explicitly uses the secondary WFH
+action. The controlled manual-entry overloads apply the mode to the whole
+Asia/Kolkata attendance day and include mode-only corrections in immutable
+work-entry audit history. Direct callers cannot execute the internal mode-write
+helper.
 The HRMS-023 manual-entry functions also validate the permitted project or
 activity, positive completed session ranges, non-overlapping employee time,
 and ordered non-overlapping breaks contained inside the session. Corrections

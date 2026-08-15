@@ -22,6 +22,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
   const [contextId, setContextId] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [bosReport, setBosReport] = useState('');
+  const [isWfh, setIsWfh] = useState(false);
   const [projects, setProjects] = useState([]);
   const [activities, setActivities] = useState([]);
   const [recentEntries, setRecentEntries] = useState([]);
@@ -157,6 +158,7 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
         activityId: contextType === 'activity' ? contextId : null,
         taskDescription: isSwitch ? taskDescription.trim() : '',
         bosReport: needsBos ? bosReport.trim() : null,
+        workMode: isReopen ? null : isWfh ? 'wfh' : 'office',
       });
       onComplete?.(selectedLabel);
       onClose();
@@ -339,15 +341,29 @@ const WorkStartModal = ({ mode = 'start', onClose, onComplete }) => {
           {error && <div className="work-start-error" role="alert">{error}</div>}
 
           <div className="work-start-footer">
-            <span>
-              {needsBos
-                ? 'Your workday plan and first session will be saved together.'
-                : isSwitch
-                  ? 'Choose a different context and describe the new task.'
-                  : isReopen
-                    ? 'Your original check-in and start-of-day plan will be preserved.'
-                  : 'Select exactly one work context to continue.'}
-            </span>
+            <div className="work-start-footer-copy">
+              <span>
+                {needsBos
+                  ? 'Your workday plan and first session will be saved together.'
+                  : isSwitch
+                    ? 'Choose a different context and describe the new task.'
+                    : isReopen
+                      ? 'Your original check-in and start-of-day plan will be preserved.'
+                      : 'Select exactly one work context to continue.'}
+              </span>
+              {!isSwitch && !isReopen && (
+                <button
+                  type="button"
+                  className={`work-start-wfh${isWfh ? ' active' : ''}`}
+                  aria-pressed={isWfh}
+                  onClick={() => setIsWfh((current) => !current)}
+                >
+                  <i className={isWfh ? 'ri-home-heart-fill' : 'ri-home-4-line'} aria-hidden="true" />
+                  {isWfh ? 'WFH today' : 'Mark today as WFH'}
+                  {isWfh && <i className="ri-check-line" aria-hidden="true" />}
+                </button>
+              )}
+            </div>
             <button type="submit" className="work-start-submit" disabled={!canSubmit}>
               <i
                 className={isSwitch ? 'ri-swap-line' : isReopen ? 'ri-restart-line' : 'ri-play-fill'}

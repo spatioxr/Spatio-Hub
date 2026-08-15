@@ -886,9 +886,45 @@ td {
   padding-top: 0.15rem;
 }
 
-.work-start-footer > span {
+.work-start-footer-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.work-start-footer-copy > span {
   color: var(--text-muted);
   font-size: 0.73rem;
+}
+
+.work-start-wfh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.work-start-wfh:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.work-start-wfh.active {
+  padding: 0.28rem 0.5rem;
+  border: 1px solid #b9dfd3;
+  border-radius: 999px;
+  background: var(--soft-mint);
+  color: #006742;
+  text-decoration: none;
 }
 
 .work-start-submit {
@@ -3028,7 +3064,17 @@ td {
 
 .live-status-state {
   display: grid;
+  gap: 0.35rem;
   justify-items: start;
+}
+
+.live-status-wfh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #006742;
+  font-size: 0.65rem;
+  font-weight: 700;
 }
 
 .live-status-time-summary {
@@ -4138,6 +4184,29 @@ td {
   overflow-y: auto;
   background: white;
   box-shadow: -20px 0 60px rgba(15, 23, 42, 0.16);
+}
+
+.attendance-work-mode {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #dce8e4;
+  border-radius: 8px;
+  background: #f8faf9;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.attendance-work-mode i,
+.attendance-work-mode strong {
+  color: #006742;
+}
+
+.attendance-work-mode strong {
+  font-size: 0.78rem;
 }
 
 .attendance-summary-grid {
@@ -5405,6 +5474,19 @@ td {
   gap: 0.3rem;
 }
 
+.timesheet-work-mode {
+  border-radius: 9px;
+  background: #f4f6f5;
+}
+
+.timesheet-work-mode--wfh {
+  background: var(--soft-mint);
+}
+
+.timesheet-work-mode--wfh strong {
+  color: #006742;
+}
+
 .timesheet-break-list {
   display: flex;
   flex-direction: column;
@@ -5559,6 +5641,12 @@ td {
   color: var(--text-main);
   font-size: 0.72rem;
   font-weight: 700;
+}
+
+.timesheet-field > small {
+  color: var(--text-muted);
+  font-size: 0.67rem;
+  line-height: 1.4;
 }
 
 .timesheet-field input,

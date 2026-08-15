@@ -576,6 +576,23 @@ const Attendance = () => {
                           </span>
                         </div>
                       </div>
+
+                      <div className="attendance-work-mode">
+                        <i
+                          className={selectedDateDetails.att.work_mode === 'wfh'
+                            ? 'ri-home-4-line'
+                            : 'ri-building-line'}
+                          aria-hidden="true"
+                        />
+                        <span>Work mode</span>
+                        <strong>
+                          {selectedDateDetails.att.work_mode === 'wfh'
+                            ? 'Work from home'
+                            : selectedDateDetails.att.work_mode === 'office'
+                              ? 'Office'
+                              : 'Not recorded'}
+                        </strong>
+                      </div>
                       
                       <div style={{ background: '#E8F2EF', padding: '1rem', borderRadius: 8, marginBottom: '0.5rem' }}>
                         <p style={{ fontSize: '0.8rem', color: '#006742', fontWeight: 600, marginBottom: '0.25rem' }}>Start-of-day plan</p>

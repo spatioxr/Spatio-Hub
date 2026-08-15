@@ -118,6 +118,10 @@ environment.
     the official daily attendance check-in/check-out with work-entry fallbacks,
     exposes an active break time separately, and removes context-switch timing
     from the attendance display.
+36. `20260815000300_daily_work_mode.sql` adds a nullable historical-safe daily
+    Office/WFH attendance mode, a backward-compatible first-start overload,
+    audited manual add/correction overloads, and scoped live/timesheet mode
+    projections without adding physical-location tracking.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective

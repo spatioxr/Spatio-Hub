@@ -39,15 +39,28 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
 
   const refresh = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
-    const { data, error: boardError } = await supabase.rpc('live_work_status');
+    const [
+      { data, error: boardError },
+      { data: workModeData, error: workModeError },
+    ] = await Promise.all([
+      supabase.rpc('live_work_status'),
+      supabase.rpc('live_attendance_work_modes'),
+    ]);
 
-    if (boardError) {
+    if (boardError || workModeError) {
       setError('Live status is temporarily unavailable.');
       setLoading(false);
       return;
     }
 
-    setRows(data || []);
+    const workModeByEmployee = new Map((workModeData || []).map((record) => [
+      record.employee_id,
+      record.work_mode,
+    ]));
+    setRows((data || []).map((row) => ({
+      ...row,
+      work_mode: workModeByEmployee.get(row.employee_id) || null,
+    })));
     setUpdatedAt(new Date());
     setError('');
     setLoading(false);
@@ -218,6 +231,12 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
                     <span className={`live-status-pill ${row.work_status.toLowerCase()}`}>
                       {row.work_status}
                     </span>
+                    {row.work_mode === 'wfh' && (
+                      <span className="live-status-wfh" title="Working from home">
+                        <i className="ri-home-4-line" aria-hidden="true" />
+                        WFH
+                      </span>
+                    )}
                   </div>
 
                   {row.is_stale && (
