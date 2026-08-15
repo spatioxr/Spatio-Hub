@@ -111,6 +111,9 @@ environment.
     Asia/Kolkata workday after End Day, preserves the original BOS and check-in,
     clears the provisional EOD and attendance check-out atomically, and requires
     a fresh EOD on the next final End Day.
+34. `20260815000100_live_status_check_in_and_status_since.sql` separates the
+    live board's original daily check-in from the current context, break, or out
+    transition time so context switches no longer appear to reset check-in.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective

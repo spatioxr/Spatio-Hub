@@ -16,11 +16,22 @@ DECLARE
   activity_id UUID;
   project_id UUID;
   break_work_entry_id UUID;
+  break_check_in_at TIMESTAMPTZ := public.app_day_start(
+    public.app_current_date(statement_timestamp())
+  ) + INTERVAL '3 hours';
   in_started_at TIMESTAMPTZ := public.app_day_start(
     public.app_current_date(statement_timestamp())
   );
+  out_started_at TIMESTAMPTZ := public.app_day_start(
+    public.app_current_date(statement_timestamp())
+  ) + INTERVAL '1 hour';
+  out_ended_at TIMESTAMPTZ := public.app_day_start(
+    public.app_current_date(statement_timestamp())
+  ) + INTERVAL '2 hours';
   switched_started_at TIMESTAMPTZ := statement_timestamp();
-  break_started_at TIMESTAMPTZ := statement_timestamp() - INTERVAL '30 minutes';
+  break_started_at TIMESTAMPTZ := public.app_day_start(
+    public.app_current_date(statement_timestamp())
+  ) + INTERVAL '4 hours';
 BEGIN
   SELECT employee.id, employee.auth_id
   INTO original_actor_id, actor_auth_id
@@ -172,7 +183,7 @@ BEGIN
     break_employee_id,
     activity_id,
     'Live-board Break verification.',
-    statement_timestamp() - INTERVAL '2 hours'
+    break_check_in_at
   )
   RETURNING id INTO break_work_entry_id;
 
@@ -183,6 +194,21 @@ BEGIN
   VALUES (
     break_work_entry_id,
     break_started_at
+  );
+
+  INSERT INTO public.work_entries (
+    employee_id,
+    activity_id,
+    task_description,
+    started_at,
+    ended_at
+  )
+  VALUES (
+    out_employee_id,
+    activity_id,
+    'Live-board Out verification.',
+    out_started_at,
+    out_ended_at
   );
 
   INSERT INTO public.work_entries (
@@ -220,7 +246,8 @@ BEGIN
       AND board.employee_name = 'HRMS-020 In Employee'
       AND board.employee_code = 'HRMS020IN'
       AND board.work_status = 'In'
-      AND board.status_started_at = in_started_at
+      AND board.first_check_in_at = in_started_at
+      AND board.status_started_at = switched_started_at
       AND board.context_type = 'activity'
       AND board.context_id = activity_id
       AND board.context_label = 'Pre-sales'
@@ -234,6 +261,7 @@ BEGIN
     FROM public.live_work_status() board
     WHERE board.employee_id = break_employee_id
       AND board.work_status = 'Break'
+      AND board.first_check_in_at = break_check_in_at
       AND board.status_started_at = break_started_at
       AND board.context_label = 'Pre-sales'
       AND NOT board.is_stale
@@ -246,7 +274,8 @@ BEGIN
     FROM public.live_work_status() board
     WHERE board.employee_id = out_employee_id
       AND board.work_status = 'Out'
-      AND board.status_started_at IS NULL
+      AND board.first_check_in_at = out_started_at
+      AND board.status_started_at = out_ended_at
       AND board.context_type IS NULL
       AND board.context_id IS NULL
       AND board.context_label IS NULL
@@ -298,7 +327,7 @@ SELECT
   true AS all_checks_pass,
   jsonb_build_object(
     'employee_can_see_all_active_names', true,
-    'in_status_uses_first_check_in_after_switch', true,
+    'in_status_exposes_first_check_in_and_context_since', true,
     'break_status_and_start_time_correct', true,
     'out_status_correct', true,
     'permitted_activity_context_visible', true,

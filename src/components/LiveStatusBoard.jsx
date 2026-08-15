@@ -5,6 +5,10 @@ import {
   formatAppClock,
   formatAppDate,
 } from '../utils/timezone';
+import {
+  shouldShowStatusSince,
+  statusSinceLabel,
+} from '../utils/liveStatus';
 
 const STATUS_TABS = ['In', 'Break', 'Out'];
 
@@ -16,19 +20,19 @@ const initialsFor = (name) => name
   .slice(0, 2)
   .toUpperCase();
 
-const formatStatusStart = (value) => {
-  if (!value) return 'No work recorded';
-
+const formatLiveTime = (value, label) => {
   const sameDay = appDateKey(value) === appDateKey();
   const time = formatAppClock(value);
 
-  if (sameDay) return `Since ${time}`;
-  return `Since ${formatAppDate(value, {
+  if (sameDay) return `${label} ${time}`;
+  return `${label} ${formatAppDate(value, {
     day: 'numeric',
     month: 'short',
     year: undefined,
   })}, ${time}`;
 };
+
+const formatCheckIn = (value) => formatLiveTime(value, 'Checked in');
 
 const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
   const [rows, setRows] = useState([]);
@@ -165,49 +169,74 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
           </div>
         ) : (
           <div className="live-status-list">
-            {visibleRows.map((row) => (
-              <article
-                className={`live-status-row ${row.is_stale ? 'stale' : ''}`}
-                key={row.employee_id}
-              >
-                <div className="live-status-person">
-                  <div className="live-status-avatar">
-                    {initialsFor(row.employee_name)}
-                    <span className={`status-dot ${row.work_status.toLowerCase()}`} />
-                  </div>
-                  <div>
-                    <h4>{row.employee_name}</h4>
-                    <p>{row.employee_code}</p>
-                  </div>
-                </div>
+            {visibleRows.map((row) => {
+              const showStatusSince = shouldShowStatusSince({
+                firstCheckInAt: row.first_check_in_at,
+                statusStartedAt: row.status_started_at,
+                workStatus: row.work_status,
+              });
 
-                <div className="live-status-context">
-                  <span>Current context</span>
-                  <strong>
-                    {row.context_label
-                      || (row.work_status === 'Out'
-                        ? 'Not working'
-                        : 'Restricted by access')}
-                  </strong>
-                </div>
-
-                <div className="live-status-since">
-                  <span className={`live-status-pill ${row.work_status.toLowerCase()}`}>
-                    {row.work_status}
-                  </span>
-                  <time dateTime={row.status_started_at || undefined}>
-                    {formatStatusStart(row.status_started_at)}
-                  </time>
-                </div>
-
-                {row.is_stale && (
-                  <div className="live-status-stale" title="Open for more than 24 hours">
-                    <i className="ri-alarm-warning-line" aria-hidden="true" />
-                    Stale open entry
+              return (
+                <article
+                  className={`live-status-row ${row.is_stale ? 'stale' : ''}`}
+                  key={row.employee_id}
+                >
+                  <div className="live-status-person">
+                    <div className="live-status-avatar">
+                      {initialsFor(row.employee_name)}
+                      <span className={`status-dot ${row.work_status.toLowerCase()}`} />
+                    </div>
+                    <div>
+                      <h4>{row.employee_name}</h4>
+                      <p>{row.employee_code}</p>
+                    </div>
                   </div>
-                )}
-              </article>
-            ))}
+
+                  <div className="live-status-context">
+                    <span>Current context</span>
+                    <strong>
+                      {row.context_label
+                        || (row.work_status === 'Out'
+                          ? 'Not working'
+                          : 'Restricted by access')}
+                    </strong>
+                  </div>
+
+                  <div className="live-status-since">
+                    <span className={`live-status-pill ${row.work_status.toLowerCase()}`}>
+                      {row.work_status}
+                    </span>
+                    <div className="live-status-time-details">
+                      {row.first_check_in_at ? (
+                        <time
+                          className="live-status-check-in"
+                          dateTime={row.first_check_in_at}
+                        >
+                          {formatCheckIn(row.first_check_in_at)}
+                        </time>
+                      ) : (
+                        <span className="live-status-check-in">No check-in today</span>
+                      )}
+                      {showStatusSince && (
+                        <time dateTime={row.status_started_at}>
+                          {formatLiveTime(
+                            row.status_started_at,
+                            statusSinceLabel(row.work_status),
+                          )}
+                        </time>
+                      )}
+                    </div>
+                  </div>
+
+                  {row.is_stale && (
+                    <div className="live-status-stale" title="Open for more than 24 hours">
+                      <i className="ri-alarm-warning-line" aria-hidden="true" />
+                      Stale open entry
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
       </div>

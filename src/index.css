@@ -3037,6 +3037,18 @@ td {
   font-size: 0.72rem;
 }
 
+.live-status-time-details {
+  display: grid;
+  gap: 0.15rem;
+  color: #646465;
+  font-size: 0.72rem;
+}
+
+.live-status-since .live-status-check-in {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
 .live-status-pill {
   display: inline-flex;
   min-width: 3.5rem;
@@ -6089,6 +6101,10 @@ td {
 .live-status-board--rail .live-status-since {
   grid-column: 2;
   grid-row: 1;
+  justify-items: end;
+}
+
+.live-status-board--rail .live-status-time-details {
   justify-items: end;
 }
 
