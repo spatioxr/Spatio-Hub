@@ -114,6 +114,10 @@ environment.
 34. `20260815000100_live_status_check_in_and_status_since.sql` separates the
     live board's original daily check-in from the current context, break, or out
     transition time so context switches no longer appear to reset check-in.
+35. `20260815000200_live_status_attendance_times.sql` makes the live board use
+    the official daily attendance check-in/check-out with work-entry fallbacks,
+    exposes an active break time separately, and removes context-switch timing
+    from the attendance display.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective

@@ -1,29 +1,27 @@
-const parseTimestamp = (value) => {
-  if (!value) return null;
-
-  const timestamp = new Date(value).getTime();
-  return Number.isNaN(timestamp) ? null : timestamp;
-};
-
-export const statusSinceLabel = (workStatus) => {
-  if (workStatus === 'In') return 'Context since';
-  if (workStatus === 'Break') return 'Break since';
-  if (workStatus === 'Out') return 'Out since';
-  return 'Since';
-};
-
-export const shouldShowStatusSince = ({
-  firstCheckInAt,
-  statusStartedAt,
+export const liveStatusTimeDetails = ({
+  attendanceAvailable,
+  breakStartedAt,
+  checkedInAt,
+  checkedOutAt,
   workStatus,
 }) => {
-  const statusTimestamp = parseTimestamp(statusStartedAt);
-  if (statusTimestamp === null) return false;
+  if (!attendanceAvailable) {
+    return [{ label: 'Attendance time unavailable', value: null }];
+  }
 
-  if (workStatus !== 'In') return true;
+  if (!checkedInAt) {
+    return [{ label: 'No activity today', value: null }];
+  }
 
-  const checkInTimestamp = parseTimestamp(firstCheckInAt);
-  if (checkInTimestamp === null) return true;
+  const details = [{ label: 'Checked in', value: checkedInAt }];
 
-  return statusTimestamp !== checkInTimestamp;
+  if (workStatus === 'Break' && breakStartedAt) {
+    details.push({ label: 'Break since', value: breakStartedAt });
+  }
+
+  if (workStatus === 'Out' && checkedOutAt) {
+    details.push({ label: 'Checked out', value: checkedOutAt });
+  }
+
+  return details;
 };

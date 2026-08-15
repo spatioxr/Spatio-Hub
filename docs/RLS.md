@@ -62,8 +62,9 @@ reject archived activities for new sessions.
 
 The company live-status board uses `live_work_status()` as a narrow
 authenticated projection. It exposes every active employee's name, employee
-code, current In/Break/Out state, original daily check-in, and current
-context/status transition time. Activity context
+code, current In/Break/Out state, daily check-in/check-out, and an active break
+start time. Context-switch timestamps are not presented as attendance.
+Activity context
 is visible to authenticated employees; project context is returned only when
 the caller already passes `can_access_project`. It does not expose task text or
 widen direct `employees`, `work_entries`, or `break_entries` policies. Open

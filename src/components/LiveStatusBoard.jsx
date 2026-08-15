@@ -5,10 +5,7 @@ import {
   formatAppClock,
   formatAppDate,
 } from '../utils/timezone';
-import {
-  shouldShowStatusSince,
-  statusSinceLabel,
-} from '../utils/liveStatus';
+import { liveStatusTimeDetails } from '../utils/liveStatus';
 
 const STATUS_TABS = ['In', 'Break', 'Out'];
 
@@ -31,8 +28,6 @@ const formatLiveTime = (value, label) => {
     year: undefined,
   })}, ${time}`;
 };
-
-const formatCheckIn = (value) => formatLiveTime(value, 'Checked in');
 
 const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
   const [rows, setRows] = useState([]);
@@ -170,9 +165,15 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
         ) : (
           <div className="live-status-list">
             {visibleRows.map((row) => {
-              const showStatusSince = shouldShowStatusSince({
-                firstCheckInAt: row.first_check_in_at,
-                statusStartedAt: row.status_started_at,
+              const attendanceAvailable = (
+                Object.prototype.hasOwnProperty.call(row, 'checked_in_at')
+                || Object.prototype.hasOwnProperty.call(row, 'first_check_in_at')
+              );
+              const timeDetails = liveStatusTimeDetails({
+                attendanceAvailable,
+                breakStartedAt: row.break_started_at,
+                checkedInAt: row.checked_in_at ?? row.first_check_in_at,
+                checkedOutAt: row.checked_out_at,
                 workStatus: row.work_status,
               });
 
@@ -200,32 +201,23 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
                           ? 'Not working'
                           : 'Restricted by access')}
                     </strong>
+                    <div className="live-status-time-summary">
+                      {timeDetails.map((detail) => (
+                        detail.value ? (
+                          <time key={detail.label} dateTime={detail.value}>
+                            {formatLiveTime(detail.value, detail.label)}
+                          </time>
+                        ) : (
+                          <span key={detail.label}>{detail.label}</span>
+                        )
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="live-status-since">
+                  <div className="live-status-state">
                     <span className={`live-status-pill ${row.work_status.toLowerCase()}`}>
                       {row.work_status}
                     </span>
-                    <div className="live-status-time-details">
-                      {row.first_check_in_at ? (
-                        <time
-                          className="live-status-check-in"
-                          dateTime={row.first_check_in_at}
-                        >
-                          {formatCheckIn(row.first_check_in_at)}
-                        </time>
-                      ) : (
-                        <span className="live-status-check-in">No check-in today</span>
-                      )}
-                      {showStatusSince && (
-                        <time dateTime={row.status_started_at}>
-                          {formatLiveTime(
-                            row.status_started_at,
-                            statusSinceLabel(row.work_status),
-                          )}
-                        </time>
-                      )}
-                    </div>
                   </div>
 
                   {row.is_stale && (

@@ -3026,27 +3026,32 @@ td {
   margin-top: 0.15rem;
 }
 
-.live-status-since {
+.live-status-state {
   display: grid;
   justify-items: start;
-  gap: 0.35rem;
 }
 
-.live-status-since time {
+.live-status-time-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.3rem;
+  margin-top: 0.35rem;
   color: #646465;
   font-size: 0.72rem;
+  line-height: 1.3;
 }
 
-.live-status-time-details {
-  display: grid;
-  gap: 0.15rem;
-  color: #646465;
-  font-size: 0.72rem;
+.live-status-time-summary time + time::before {
+  margin-right: 0.3rem;
+  color: #98A2B3;
+  content: '·';
 }
 
-.live-status-since .live-status-check-in {
-  color: var(--text-main);
-  font-weight: 600;
+.live-status-time-summary span {
+  display: inline;
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
 }
 
 .live-status-pill {
@@ -3136,7 +3141,7 @@ td {
     grid-column: 1;
   }
 
-  .live-status-since {
+  .live-status-state {
     grid-column: 2;
     grid-row: 1 / span 2;
   }
@@ -3162,7 +3167,7 @@ td {
   }
 
   .live-status-context,
-  .live-status-since {
+  .live-status-state {
     grid-column: 1 / -1;
     grid-row: auto;
   }
@@ -6098,14 +6103,14 @@ td {
   font-weight: 500;
 }
 
-.live-status-board--rail .live-status-since {
+.live-status-board--rail .live-status-state {
   grid-column: 2;
   grid-row: 1;
   justify-items: end;
 }
 
-.live-status-board--rail .live-status-time-details {
-  justify-items: end;
+.live-status-board--rail .live-status-time-summary span {
+  display: inline;
 }
 
 .live-status-board--rail .live-status-stale {
