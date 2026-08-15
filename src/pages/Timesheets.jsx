@@ -20,6 +20,8 @@ import {
   toAppDateTimeInput,
 } from '../utils/timezone';
 import useDialogFocus from '../hooks/useDialogFocus';
+import ContextNavigator from '../components/ContextNavigator';
+import { getSequenceNavigation } from '../utils/sequenceNavigation';
 
 const SCOPE_COPY = {
   personal: {
@@ -268,10 +270,17 @@ const Timesheets = () => {
     void loadTimesheet();
   }, [loadTimesheet, workStatus]);
 
-  const employeeOptions = useMemo(() => members.map((member) => ({
+  const orderedMembers = useMemo(() => (
+    [...members].sort((left, right) => (
+      (left.employee_name || '').localeCompare(right.employee_name || '')
+      || (left.employee_code || '').localeCompare(right.employee_code || '')
+    ))
+  ), [members]);
+
+  const employeeOptions = useMemo(() => orderedMembers.map((member) => ({
     value: member.employee_id,
     label: `${member.employee_name} (${member.employee_code})`,
-  })), [members]);
+  })), [orderedMembers]);
 
   const departmentOptions = useMemo(() => sortByLabel(
     Array.from(new Set(
@@ -316,6 +325,28 @@ const Timesheets = () => {
   const selectedMember = members.find(
     (member) => member.employee_id === selectedEmployeeId,
   );
+
+  const navigableMembers = useMemo(() => (
+    orderedMembers.filter((member) => (
+      selectedDepartment === 'all'
+      || member.employee_department === selectedDepartment
+    ))
+  ), [orderedMembers, selectedDepartment]);
+
+  const employeeNavigation = useMemo(() => (
+    getSequenceNavigation(
+      navigableMembers,
+      selectedEmployeeId,
+      (member) => member.employee_id,
+    )
+  ), [navigableMembers, selectedEmployeeId]);
+
+  const previousEmployee = employeeNavigation.current
+    ? employeeNavigation.previous
+    : navigableMembers[navigableMembers.length - 1] || null;
+  const nextEmployee = employeeNavigation.current
+    ? employeeNavigation.next
+    : navigableMembers[0] || null;
 
   const activeFilters = useMemo(() => {
     const filters = [];
@@ -812,12 +843,33 @@ const Timesheets = () => {
 
         <div className="timesheet-filter-grid">
           {isSharedScope && (
-            <label className="timesheet-filter-field">
-              <span>Employee</span>
+            <div className="timesheet-filter-field timesheet-person-filter">
+              <div className="timesheet-filter-field-heading">
+                <span>Employee</span>
+                <ContextNavigator
+                  compact
+                  ariaLabel="Browse timesheets by person"
+                  positionLabel={selectedEmployeeId === 'all'
+                    ? `${navigableMembers.length} people`
+                    : `${employeeNavigation.position} of ${employeeNavigation.total}`}
+                  previousLabel={previousEmployee
+                    ? `Previous person: ${previousEmployee.employee_name}`
+                    : 'No previous person'}
+                  nextLabel={nextEmployee
+                    ? `Next person: ${nextEmployee.employee_name}`
+                    : 'No next person'}
+                  previousDisabled={!previousEmployee}
+                  nextDisabled={!nextEmployee}
+                  disabled={loading}
+                  onPrevious={() => setSelectedEmployeeId(previousEmployee.employee_id)}
+                  onNext={() => setSelectedEmployeeId(nextEmployee.employee_id)}
+                />
+              </div>
               <select
                 value={selectedEmployeeId}
                 onChange={(event) => setSelectedEmployeeId(event.target.value)}
                 disabled={loading}
+                aria-label="Employee"
               >
                 <option value="all">
                   {scope === 'organisation' ? 'All people' : 'Entire managed team'}
@@ -826,7 +878,7 @@ const Timesheets = () => {
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
-            </label>
+            </div>
           )}
 
           <label className="timesheet-filter-field">

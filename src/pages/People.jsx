@@ -12,6 +12,8 @@ import {
   isArchivedPerson,
 } from '../utils/people.js';
 import useDialogFocus from '../hooks/useDialogFocus';
+import ContextNavigator from '../components/ContextNavigator';
+import { getSequenceNavigation } from '../utils/sequenceNavigation';
 
 const ROLE_OPTIONS = [
   { value: 'employee', label: 'Employee' },
@@ -35,6 +37,23 @@ const EMPTY_FORM = {
   is_leave_admin: false,
 };
 
+const personToForm = (person) => (
+  person
+    ? {
+      emp_code: person.emp_code || '',
+      name: person.name || '',
+      email: person.email || '',
+      department: person.department || '',
+      designation: person.designation || '',
+      role: person.role || 'employee',
+      reports_to: person.reports_to || '',
+      date_of_joining: person.date_of_joining || '',
+      status: person.status || 'Active',
+      is_leave_admin: Boolean(person.is_leave_admin),
+    }
+    : EMPTY_FORM
+);
+
 const roleLabel = (role) => ROLE_OPTIONS.find((option) => option.value === role)?.label || role;
 
 const statusTone = (status) => {
@@ -50,27 +69,17 @@ const PersonDrawer = ({
   currentUser,
   saving,
   error,
+  navigation,
   onClose,
+  onNavigate,
   onSave,
 }) => {
   const readOnly = mode === 'view';
   const drawerRef = useDialogFocus(true, onClose, { closeDisabled: saving });
-  const [form, setForm] = useState(() => (
-    person
-      ? {
-        emp_code: person.emp_code || '',
-        name: person.name || '',
-        email: person.email || '',
-        department: person.department || '',
-        designation: person.designation || '',
-        role: person.role || 'employee',
-        reports_to: person.reports_to || '',
-        date_of_joining: person.date_of_joining || '',
-        status: person.status || 'Active',
-        is_leave_admin: Boolean(person.is_leave_admin),
-      }
-      : EMPTY_FORM
-  ));
+  const initialForm = useMemo(() => personToForm(person), [person]);
+  const [form, setForm] = useState(initialForm);
+  const hasUnsavedChanges = !readOnly
+    && JSON.stringify(form) !== JSON.stringify(initialForm);
 
   const isSuperadmin = getRole(currentUser) === ROLES.SUPERADMIN;
   const availableRoles = isSuperadmin
@@ -98,6 +107,15 @@ const PersonDrawer = ({
     if (!readOnly) onSave(form);
   };
 
+  const navigateTo = (target) => {
+    if (!target || saving) return;
+    if (
+      hasUnsavedChanges
+      && !window.confirm('Discard the unsaved changes and open another person?')
+    ) return;
+    onNavigate(target);
+  };
+
   return (
     <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && onClose()}>
       <aside
@@ -118,9 +136,29 @@ const PersonDrawer = ({
                 : 'Keep this profile limited to Phase 1 work information.'}
             </p>
           </div>
-          <button type="button" className="people-icon-button" onClick={onClose} aria-label="Close">
-            <i className="ri-close-line" />
-          </button>
+          <div className="people-drawer-header-actions">
+            {person && navigation?.total > 1 && (
+              <ContextNavigator
+                compact
+                ariaLabel="Browse people"
+                positionLabel={`${navigation.position} of ${navigation.total}`}
+                previousLabel={navigation.previous
+                  ? `Previous person: ${navigation.previous.name}`
+                  : 'No previous person'}
+                nextLabel={navigation.next
+                  ? `Next person: ${navigation.next.name}`
+                  : 'No next person'}
+                previousDisabled={!navigation.previous}
+                nextDisabled={!navigation.next}
+                disabled={saving}
+                onPrevious={() => navigateTo(navigation.previous)}
+                onNext={() => navigateTo(navigation.next)}
+              />
+            )}
+            <button type="button" className="people-icon-button" onClick={onClose} aria-label="Close">
+              <i className="ri-close-line" />
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -416,6 +454,12 @@ const People = ({ mode = 'directory' }) => {
     });
   }, [department, people, role, search, status]);
 
+  const drawerNavigation = useMemo(() => (
+    drawer?.person
+      ? getSequenceNavigation(filteredPeople, drawer.person.id)
+      : null
+  ), [drawer?.person, filteredPeople]);
+
   const canEditPerson = (person) => (
     canManage && (isSuperadmin || person.role !== 'superadmin')
   );
@@ -423,6 +467,11 @@ const People = ({ mode = 'directory' }) => {
   const openDrawer = (mode, person = null) => {
     setDrawerError('');
     setDrawer({ mode, person });
+  };
+
+  const navigateDrawer = (person) => {
+    setDrawerError('');
+    setDrawer((current) => ({ ...current, person }));
   };
 
   const toRpcPayload = (form) => ({
@@ -793,7 +842,9 @@ const People = ({ mode = 'directory' }) => {
           currentUser={user}
           saving={saving}
           error={drawerError}
+          navigation={drawerNavigation}
           onClose={() => setDrawer(null)}
+          onNavigate={navigateDrawer}
           onSave={savePerson}
         />
       )}

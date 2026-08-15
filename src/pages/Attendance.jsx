@@ -12,6 +12,7 @@ import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { getRole, ROLES } from '../utils/rbac';
 import {
+  addAppDays,
   appDateKey,
   appDayRange,
   formatAppClock,
@@ -23,6 +24,8 @@ import {
   summarizeAttendanceMonth,
 } from '../utils/attendance';
 import useDialogFocus from '../hooks/useDialogFocus';
+import ContextNavigator from '../components/ContextNavigator';
+import { getSequenceNavigation } from '../utils/sequenceNavigation';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -71,6 +74,7 @@ const Attendance = () => {
   const [detailEntries, setDetailEntries] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const attendanceRequestKey = useRef('');
   const detailRequestKey = useRef('');
   const closeDayDetail = useCallback(() => {
     detailRequestKey.current = '';
@@ -117,6 +121,8 @@ const Attendance = () => {
 
   const loadAttendance = useCallback(async () => {
     if (!selectedEmployeeId || !user?.id) return;
+    const requestKey = `${selectedEmployeeId}:${bounds.start}`;
+    attendanceRequestKey.current = requestKey;
     setLoading(true);
     setError('');
 
@@ -130,6 +136,7 @@ const Attendance = () => {
       requested_employee_id: selectedEmployeeId,
     });
 
+    if (attendanceRequestKey.current !== requestKey) return;
     if (attendanceError) {
       setError(attendanceError.message || 'Unable to load this attendance month.');
     } else {
@@ -144,16 +151,38 @@ const Attendance = () => {
 
   useEffect(() => {
     closeDayDetail();
-  }, [bounds.start, closeDayDetail, selectedEmployeeId]);
+  }, [closeDayDetail, selectedEmployeeId]);
 
   const rowsByDate = useMemo(
     () => new Map(rows.map((row) => [row.attendance_date, row])),
     [rows],
   );
   const summary = useMemo(() => summarizeAttendanceMonth(rows, today), [rows, today]);
-  const selectedEmployee = selectedEmployeeId === user?.id
-    ? { employee_name: user.name, employee_code: user.emp_code }
-    : members.find((member) => member.employee_id === selectedEmployeeId);
+  const attendancePeople = useMemo(() => (
+    [
+      {
+        employee_id: user?.id,
+        employee_name: user?.name,
+        employee_code: user?.emp_code,
+      },
+      ...members,
+    ]
+      .filter((member) => member.employee_id)
+      .sort((left, right) => (
+        (left.employee_name || '').localeCompare(right.employee_name || '')
+        || (left.employee_code || '').localeCompare(right.employee_code || '')
+      ))
+  ), [members, user?.emp_code, user?.id, user?.name]);
+  const selectedEmployee = attendancePeople.find(
+    (member) => member.employee_id === selectedEmployeeId,
+  );
+  const employeeNavigation = useMemo(() => (
+    getSequenceNavigation(
+      attendancePeople,
+      selectedEmployeeId,
+      (member) => member.employee_id,
+    )
+  ), [attendancePeople, selectedEmployeeId]);
   const firstWeekday = new Date(Date.UTC(bounds.year, bounds.month, 1)).getUTCDay();
   const calendarCells = [
     ...Array.from({ length: firstWeekday }, () => null),
@@ -195,6 +224,39 @@ const Attendance = () => {
       setDetailEntries(data || []);
     }
     setDetailLoading(false);
+  };
+
+  const selectedDayDate = selectedDay?.attendance_date;
+
+  useEffect(() => {
+    if (!selectedDayDate) return;
+    const row = rowsByDate.get(selectedDayDate);
+    if (!row) return;
+    setSelectedDay((current) => (
+      current?.attendance_date === row.attendance_date
+        ? {
+          ...row,
+          state: resolveAttendanceDayState(row, today),
+        }
+        : current
+    ));
+  }, [rowsByDate, selectedDayDate, today]);
+
+  const navigateDay = (offset) => {
+    if (!selectedDay) return;
+    const date = addAppDays(selectedDay.attendance_date, offset);
+    const [year, month] = date.split('-').map(Number);
+    const row = rowsByDate.get(date);
+
+    if (year !== bounds.year || month - 1 !== bounds.month) {
+      setCurrentMonth(new Date(year, month - 1, 1));
+    }
+
+    void openDayDetail(
+      row,
+      date,
+      resolveAttendanceDayState(row || { attendance_date: date }, today),
+    );
   };
 
   return (
@@ -243,17 +305,36 @@ const Attendance = () => {
           </div>
 
           {(organisationScope || teamScope) && (
-            <label className="attendance-person-select">
-              <span>Viewing</span>
-              <select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)}>
-                <option value={user.id}>Me · {user.name}</option>
-                {members.map((member) => (
-                  <option value={member.employee_id} key={member.employee_id}>
-                    {member.employee_name} · {member.employee_code}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="attendance-person-browser">
+              <label className="attendance-person-select">
+                <span>Viewing</span>
+                <select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)}>
+                  {attendancePeople.map((member) => (
+                    <option value={member.employee_id} key={member.employee_id}>
+                      {member.employee_id === user.id ? 'Me · ' : ''}{member.employee_name} · {member.employee_code}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {employeeNavigation.total > 1 && (
+                <ContextNavigator
+                  compact
+                  ariaLabel="Browse attendance by person"
+                  positionLabel={`${employeeNavigation.position} of ${employeeNavigation.total}`}
+                  previousLabel={employeeNavigation.previous
+                    ? `Previous person: ${employeeNavigation.previous.employee_name}`
+                    : 'No previous person'}
+                  nextLabel={employeeNavigation.next
+                    ? `Next person: ${employeeNavigation.next.employee_name}`
+                    : 'No next person'}
+                  previousDisabled={!employeeNavigation.previous}
+                  nextDisabled={!employeeNavigation.next}
+                  disabled={loading}
+                  onPrevious={() => setSelectedEmployeeId(employeeNavigation.previous.employee_id)}
+                  onNext={() => setSelectedEmployeeId(employeeNavigation.next.employee_id)}
+                />
+              )}
+            </div>
           )}
         </div>
 
@@ -339,9 +420,19 @@ const Attendance = () => {
                 <h2 id="attendance-detail-title">{formatAppDate(selectedDay.attendance_date, { weekday: 'long', month: 'long' })}</h2>
                 <p>{selectedEmployee?.employee_name || 'Employee'} · {STATE_COPY[selectedDay.state].label}</p>
               </div>
-              <button type="button" className="people-icon-button" onClick={closeDayDetail} aria-label="Close attendance detail">
-                <i className="ri-close-line" />
-              </button>
+              <div className="attendance-detail-header-actions">
+                <ContextNavigator
+                  compact
+                  ariaLabel="Browse attendance days"
+                  previousLabel={`Previous day: ${formatAppDate(addAppDays(selectedDay.attendance_date, -1))}`}
+                  nextLabel={`Next day: ${formatAppDate(addAppDays(selectedDay.attendance_date, 1))}`}
+                  onPrevious={() => navigateDay(-1)}
+                  onNext={() => navigateDay(1)}
+                />
+                <button type="button" className="people-icon-button" onClick={closeDayDetail} aria-label="Close attendance detail">
+                  <i className="ri-close-line" />
+                </button>
+              </div>
             </div>
 
             {selectedDay.holiday_id && (

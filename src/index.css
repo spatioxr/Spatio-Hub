@@ -228,6 +228,12 @@
 
 .attendance-person-select select { min-height: 40px; padding: 0 0.75rem; }
 
+.attendance-person-browser {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+
 .attendance-calendar-context {
   display: flex;
   align-items: center;
@@ -381,6 +387,7 @@
 .attendance-detail-header { display: flex; justify-content: space-between; gap: 1rem; padding: 1.25rem; border-bottom: 1px solid var(--border); }
 .attendance-detail-header h2 { margin: 0.2rem 0; font-size: 1.25rem; }
 .attendance-detail-header p { color: var(--text-muted); font-size: 0.82rem; }
+.attendance-detail-header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 0.55rem; }
 
 .attendance-detail-banner {
   display: flex;
@@ -599,6 +606,8 @@
   .attendance-kpi { min-height: 72px; padding: 0.8rem; }
   .attendance-calendar-toolbar { align-items: stretch; flex-direction: column; padding: 0.9rem; }
   .attendance-person-select { min-width: 0; }
+  .attendance-person-browser { align-items: stretch; flex-direction: column; }
+  .attendance-person-browser .context-navigator { justify-content: flex-end; }
   .attendance-calendar-context { align-items: flex-start; flex-wrap: wrap; padding: 0.75rem 0.9rem; }
   .attendance-policy-chip { margin-left: 0; }
   .attendance-calendar-shell { padding: 0.8rem 0.75rem 0; }
@@ -607,6 +616,8 @@
   .attendance-detail-mode,
   .attendance-detail-note { margin-left: 0.9rem; margin-right: 0.9rem; }
   .attendance-detail-section { padding: 0.9rem; }
+  .attendance-detail-header { align-items: flex-start; flex-wrap: wrap; padding: 1rem; }
+  .attendance-detail-header-actions { width: 100%; justify-content: space-between; }
   .attendance-detail-section-heading { align-items: flex-start; flex-direction: column; gap: 0.3rem; }
   .attendance-detail-timeline .timesheet-session { grid-template-columns: 32px minmax(0, 1fr); gap: 0.6rem; }
   .attendance-detail-timeline .timesheet-context-icon { width: 32px; height: 32px; }
@@ -5999,6 +6010,62 @@ button.dashboard-snapshot-card:hover {
   min-width: 172px;
 }
 
+.context-navigator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.context-navigator-button {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: white;
+  color: var(--text-main);
+  cursor: pointer;
+  font-size: 1.15rem;
+}
+
+.context-navigator-button:hover:not(:disabled) {
+  border-color: #b8d4ca;
+  background: var(--soft-mint);
+  color: var(--primary);
+}
+
+.context-navigator-button:focus-visible {
+  outline: 3px solid rgba(0, 168, 126, 0.18);
+  outline-offset: 2px;
+}
+
+.context-navigator-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.context-navigator-position {
+  min-width: 52px;
+  color: var(--text-muted);
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.context-navigator--compact .context-navigator-button {
+  width: 32px;
+  height: 32px;
+}
+
+.context-navigator--compact .context-navigator-position {
+  min-width: 44px;
+  font-size: 0.63rem;
+}
+
 .people-action-button,
 .people-icon-button {
   display: inline-flex;
@@ -6047,6 +6114,13 @@ button.dashboard-snapshot-card:hover {
   gap: 1rem;
   padding: 1.4rem 1.5rem 1.1rem;
   border-bottom: 1px solid var(--border);
+}
+
+.people-drawer-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.55rem;
 }
 
 .people-drawer-header h2 {
@@ -6210,6 +6284,16 @@ button.dashboard-snapshot-card:hover {
   .people-filter-selects,
   .people-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .people-drawer-header {
+    flex-wrap: wrap;
+    padding: 1rem;
+  }
+
+  .people-drawer-header-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .people-drawer {
@@ -6383,9 +6467,30 @@ button.dashboard-snapshot-card:hover {
 }
 
 .timesheet-filter-field > span {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
   color: var(--text-muted);
   font-size: 0.65rem;
   font-weight: 650;
+}
+
+.timesheet-filter-field-heading {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.timesheet-filter-field-heading > span {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 650;
+}
+
+.timesheet-person-filter .context-navigator-position {
+  min-width: 54px;
 }
 
 .timesheet-filter-field select,
