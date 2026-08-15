@@ -4,7 +4,7 @@ The ordered migrations in `supabase/migrations` create the Phase 1 tables and
 their policies together. Run `supabase/verify/phase1_schema.sql` afterwards and
 confirm:
 
-- all 18 tables report `rls_enabled = true`
+- all 19 tables report `rls_enabled = true`
 - only the expected authenticated policies are present
 - anonymous SELECT is denied for every table
 - the signed-in superadmin reports organisation access
@@ -14,6 +14,7 @@ confirm:
 | Data | Employee | Manager | Admin | Superadmin |
 | --- | --- | --- | --- | --- |
 | Employee profiles | Own | Assigned project teams | Organisation | Organisation |
+| Private employee details | — | — | Organisation | Organisation |
 | Attendance | Own, read-only | Assigned project teams, read-only | Organisation, read-only | Organisation, read-only |
 | Daily reports | Own | Assigned project teams, read-only | Organisation, read-only | Organisation |
 | Leave and balances | Own | Own | Own | Organisation; decide others |
@@ -61,6 +62,14 @@ profiles are shown as Archived in the UI, lose active portal access, and retain
 operational history. `is_active_employee()` also gates the otherwise shared
 activity and holiday catalogues, and archived identities cannot update their
 profile directly.
+
+Personal email, date of birth, gender, marital status, blood group, address,
+qualification, emergency contact number, and emergency contact name are
+stored in `employee_private_details`, not in the broadly scoped employee
+directory. Only active Admin and Superadmin identities can select these rows.
+Authenticated clients have no direct insert or update grant and must use
+`upsert_employee_private_details`, which re-checks the actor role. PAN numbers
+are not stored; neither are Aadhaar numbers or last working dates.
 
 Admin Settings is available only to active Admin and Superadmin profiles. The
 route groups existing Phase 1 administration controls without widening their

@@ -21,7 +21,8 @@ WITH expected(table_name) AS (
     ('work_entry_audit'),
     ('employee_work_settings'),
     ('daily_report_settings_audit'),
-    ('admin_work_action_audit')
+    ('admin_work_action_audit'),
+    ('employee_private_details')
 ),
 actual AS (
   SELECT
@@ -48,13 +49,13 @@ policies AS (
 ),
 results AS (
 SELECT
-  (SELECT count(*) = 18 AND bool_and(table_exists) FROM actual)
+  (SELECT count(*) = 19 AND bool_and(table_exists) FROM actual)
     AS all_tables_exist,
   (SELECT bool_and(rls_enabled) FROM actual)
     AS all_rls_enabled,
   (SELECT bool_and(anon_select_denied) FROM actual)
     AS anon_select_denied,
-  (SELECT count(*) = 46 FROM policies)
+  (SELECT count(*) = 47 FROM policies)
     AS expected_policy_count,
   (SELECT bool_and(roles = ARRAY['authenticated']::name[]) FROM policies)
     AS authenticated_only,
@@ -120,6 +121,19 @@ SELECT
       'authenticated',
       'public.employees',
       'DELETE'
+    )
+    AND to_regprocedure(
+      'public.upsert_employee_private_details(uuid,text,text,date,text,text,text,text,text,text)'
+    ) IS NOT NULL
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.employee_private_details',
+      'INSERT'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.employee_private_details',
+      'UPDATE'
     ) AS has_controlled_people_directory,
   to_regprocedure('public.can_access_admin_settings()') IS NOT NULL
     AND NOT has_function_privilege(

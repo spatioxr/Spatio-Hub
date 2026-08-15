@@ -24,6 +24,18 @@ const ROLE_OPTIONS = [
 
 const STATUS_OPTIONS = ['Active', 'On Leave', 'On Notice', 'Released'];
 
+const EMPTY_PRIVATE_DETAILS = {
+  personal_email: '',
+  gender: '',
+  date_of_birth: '',
+  marital_status: '',
+  blood_group: '',
+  address: '',
+  qualification: '',
+  emergency_contact_number: '',
+  emergency_contact_name: '',
+};
+
 const EMPTY_FORM = {
   emp_code: '',
   name: '',
@@ -36,6 +48,7 @@ const EMPTY_FORM = {
   date_of_joining: '',
   status: 'Active',
   is_leave_admin: false,
+  ...EMPTY_PRIVATE_DETAILS,
 };
 
 const personToForm = (person) => (
@@ -52,6 +65,15 @@ const personToForm = (person) => (
       date_of_joining: person.date_of_joining || '',
       status: person.status || 'Active',
       is_leave_admin: Boolean(person.is_leave_admin),
+      personal_email: person.personal_email || '',
+      gender: person.gender || '',
+      date_of_birth: person.date_of_birth || '',
+      marital_status: person.marital_status || '',
+      blood_group: person.blood_group || '',
+      address: person.address || '',
+      qualification: person.qualification || '',
+      emergency_contact_number: person.emergency_contact_number || '',
+      emergency_contact_name: person.emergency_contact_name || '',
     }
     : EMPTY_FORM
 );
@@ -101,6 +123,7 @@ const PersonDrawer = ({
   onNavigate,
   onSave,
   onNotice,
+  showPrivateDetails,
 }) => {
   const readOnly = mode === 'view';
   const drawerRef = useDialogFocus(true, onClose, { closeDisabled: saving });
@@ -275,14 +298,16 @@ const PersonDrawer = ({
                 value={form.phone_number}
                 onChange={handleChange}
                 disabled={readOnly}
-                placeholder="+91 98765 43210"
+                placeholder="Not available"
                 pattern="[+]?[0-9 ()-]{7,25}"
                 maxLength="25"
                 title="Use 7–15 digits; spaces, brackets, hyphens and a leading + are allowed."
               />
               <CopyContactButton label="Phone number" value={form.phone_number} onCopied={onNotice} />
             </span>
-            {!readOnly && <small>Optional. Include the country code for international numbers.</small>}
+            {readOnly && !form.phone_number
+              ? <small>No phone number is available.</small>
+              : !readOnly && <small>Optional. Include the country code for international numbers.</small>}
           </div>
 
           <div className="people-form-grid">
@@ -307,6 +332,97 @@ const PersonDrawer = ({
               />
             </label>
           </div>
+
+          {showPrivateDetails && (
+            <section className="people-private-details" aria-labelledby="private-details-heading">
+              <div className="people-form-section-heading">
+                <div>
+                  <span className="page-eyebrow">Restricted</span>
+                  <h3 id="private-details-heading">Private employee details</h3>
+                </div>
+                <span>Admin access only</span>
+              </div>
+
+              <div className="people-form-grid">
+                <label className="people-field">
+                  <span>Personal email</span>
+                  <span className="people-contact-input">
+                    <input
+                      type="email"
+                      name="personal_email"
+                      value={form.personal_email}
+                      onChange={handleChange}
+                      disabled={readOnly}
+                      placeholder="Not available"
+                    />
+                    <CopyContactButton label="Personal email" value={form.personal_email} onCopied={onNotice} />
+                  </span>
+                </label>
+                <label className="people-field">
+                  <span>Date of birth</span>
+                  <input
+                    type="date"
+                    name="date_of_birth"
+                    value={form.date_of_birth}
+                    onChange={handleChange}
+                    disabled={readOnly}
+                  />
+                </label>
+              </div>
+
+              <div className="people-form-grid">
+                <label className="people-field">
+                  <span>Gender</span>
+                  <input name="gender" value={form.gender} onChange={handleChange} disabled={readOnly} placeholder="Not available" />
+                </label>
+                <label className="people-field">
+                  <span>Marital status</span>
+                  <input name="marital_status" value={form.marital_status} onChange={handleChange} disabled={readOnly} placeholder="Not available" />
+                </label>
+              </div>
+
+              <div className="people-form-grid">
+                <label className="people-field">
+                  <span>Blood group</span>
+                  <input name="blood_group" value={form.blood_group} onChange={handleChange} disabled={readOnly} placeholder="Not available" />
+                </label>
+                <label className="people-field">
+                  <span>Qualification</span>
+                  <input name="qualification" value={form.qualification} onChange={handleChange} disabled={readOnly} placeholder="Not available" />
+                </label>
+              </div>
+
+              <label className="people-field">
+                <span>Address</span>
+                <span className="people-contact-input people-contact-input--textarea">
+                  <textarea name="address" value={form.address} onChange={handleChange} disabled={readOnly} placeholder="Not available" rows="3" />
+                  <CopyContactButton label="Address" value={form.address} onCopied={onNotice} />
+                </span>
+              </label>
+
+              <div className="people-form-grid">
+                <label className="people-field">
+                  <span>Emergency contact name</span>
+                  <input name="emergency_contact_name" value={form.emergency_contact_name} onChange={handleChange} disabled={readOnly} placeholder="Not available" />
+                </label>
+                <label className="people-field">
+                  <span>Emergency contact number</span>
+                  <span className="people-contact-input">
+                    <input
+                      type="tel"
+                      name="emergency_contact_number"
+                      value={form.emergency_contact_number}
+                      onChange={handleChange}
+                      disabled={readOnly}
+                      placeholder="Not available"
+                      maxLength="25"
+                    />
+                    <CopyContactButton label="Emergency contact" value={form.emergency_contact_number} onCopied={onNotice} />
+                  </span>
+                </label>
+              </div>
+            </section>
+          )}
 
           <div className="people-form-grid">
             <label className="people-field">
@@ -473,10 +589,31 @@ const People = ({ mode = 'directory' }) => {
       setError(fetchError.message || 'Unable to load people.');
       setPeople([]);
     } else {
-      setPeople(data || []);
+      let visiblePeople = data || [];
+      if (canManage) {
+        const { data: privateRows, error: privateError } = await supabase
+          .from('employee_private_details')
+          .select('employee_id, personal_email, gender, date_of_birth, marital_status, blood_group, address, qualification, emergency_contact_number, emergency_contact_name');
+
+        if (privateError) {
+          setError(privateError.message || 'Unable to load private employee details.');
+          setPeople([]);
+          setLoading(false);
+          return;
+        }
+
+        const privateByEmployee = new Map(
+          (privateRows || []).map((row) => [row.employee_id, row]),
+        );
+        visiblePeople = visiblePeople.map((person) => ({
+          ...person,
+          ...(privateByEmployee.get(person.id) || EMPTY_PRIVATE_DETAILS),
+        }));
+      }
+      setPeople(visiblePeople);
     }
     setLoading(false);
-  }, []);
+  }, [canManage]);
 
   useEffect(() => {
     void fetchPeople();
@@ -546,6 +683,19 @@ const People = ({ mode = 'directory' }) => {
     manager_employee_id: form.reports_to || null,
     joining_date: form.date_of_joining || null,
     employment_status: form.status,
+  });
+
+  const toPrivateRpcPayload = (form, employeeId) => ({
+    target_employee_id: employeeId,
+    personal_email_value: form.personal_email || null,
+    gender_value: form.gender || null,
+    date_of_birth_value: form.date_of_birth || null,
+    marital_status_value: form.marital_status || null,
+    blood_group_value: form.blood_group || null,
+    address_value: form.address || null,
+    qualification_value: form.qualification || null,
+    emergency_contact_number_value: form.emergency_contact_number || null,
+    emergency_contact_name_value: form.emergency_contact_name || null,
   });
 
   const credentialErrorMessage = async (functionError) => {
@@ -624,6 +774,18 @@ const People = ({ mode = 'directory' }) => {
         await fetchPeople();
         return;
       }
+    }
+
+    const { error: privateSaveError } = await supabase.rpc(
+      'upsert_employee_private_details',
+      toPrivateRpcPayload(form, savedPerson.id),
+    );
+    if (privateSaveError) {
+      setDrawer({ mode: 'edit', person: { ...savedPerson, ...form } });
+      setDrawerError(`The profile was saved, but private details were not updated: ${privateSaveError.message}`);
+      setSaving(false);
+      await fetchPeople();
+      return;
     }
 
     setDrawer(null);
@@ -829,6 +991,9 @@ const People = ({ mode = 'directory' }) => {
                                 <CopyContactButton label="Phone number" value={person.phone_number} onCopied={setNotice} />
                               </span>
                             )}
+                            {!person.phone_number && (
+                              <span className="people-secondary">Phone not available</span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -919,6 +1084,7 @@ const People = ({ mode = 'directory' }) => {
           onNavigate={navigateDrawer}
           onSave={savePerson}
           onNotice={setNotice}
+          showPrivateDetails={canManage}
         />
       )}
       {credential && (

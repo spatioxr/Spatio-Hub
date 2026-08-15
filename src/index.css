@@ -5972,7 +5972,8 @@ button.dashboard-snapshot-card:hover {
 .people-search input,
 .people-filter-selects select,
 .people-field input,
-.people-field select {
+.people-field select,
+.people-field textarea {
   min-height: 42px;
   border: 1px solid #dbe3df;
   border-radius: 10px;
@@ -6055,9 +6056,14 @@ button.dashboard-snapshot-card:hover {
   overflow-wrap: anywhere;
 }
 
-.people-contact-input input {
+.people-contact-input input,
+.people-contact-input textarea {
   min-width: 0;
   flex: 1;
+}
+
+.people-contact-input--textarea {
+  align-items: flex-start;
 }
 
 .people-copy-button {
@@ -6298,11 +6304,59 @@ button.dashboard-snapshot-card:hover {
 }
 
 .people-field input:disabled,
-.people-field select:disabled {
+.people-field select:disabled,
+.people-field textarea:disabled {
   border-color: #edf0ee;
   background: #f7f8f7;
   color: var(--text-muted);
   opacity: 1;
+}
+
+.people-field textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid #dbe3df;
+  border-radius: 10px;
+  background: white;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  outline: none;
+  resize: vertical;
+}
+
+.people-field textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 168, 126, 0.1);
+}
+
+.people-private-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.people-form-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.people-form-section-heading h3 {
+  margin-top: 0.2rem;
+  color: var(--text-main);
+  font-size: 0.95rem;
+}
+
+.people-form-section-heading > span {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 650;
 }
 
 .people-field small {

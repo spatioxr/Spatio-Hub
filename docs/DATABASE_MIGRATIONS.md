@@ -138,6 +138,15 @@ environment.
     live timer actions for a selected employee, preserves the existing
     start/reopen, switch, break/resume, End Day, BOS/EOD, assignment, and work
     mode rules, and records every delegated action in immutable audit history.
+41. `20260816000200_people_contact_details.sql` adds optional employee phone
+    numbers to the controlled People create/edit workflow while preserving
+    direct-write denial and existing profile scope.
+42. `20260816000300_employee_private_details.sql` stores personal demographics
+    separately from the organisation directory, allows only Admin/Superadmin
+    reads, and routes all writes through a role-checked function.
+43. `20260816000400_narrow_employee_private_details.sql` removes Aadhaar and
+    last-working-date storage so the private profile contains only the
+    explicitly approved People fields.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -183,8 +192,8 @@ first sign-in.
 ## Verification
 
 Run `supabase/verify/phase1_schema.sql` in the SQL editor after migrations.
-Every returned boolean must be `true`. This verifies all 18 current tables,
-RLS, anonymous denial, the 46 scoped policies, helper functions, seed
+Every returned boolean must be `true`. This verifies all 19 current tables,
+RLS, anonymous denial, the 47 scoped policies, helper functions, seed
 activities, and overlap guards.
 
 Run `supabase/verify/hrms_007_projects.sql` for the rollback-only project model
@@ -346,7 +355,7 @@ scope, anonymous denial, and direct Attendance write denial.
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager
 assigned-team scope, Admin organisation read scope, Superadmin-only leave and
-BOS/EOD controls, and direct-client write denial across all 18 Phase 1 tables.
+BOS/EOD controls, and direct-client write denial across the original 18 Phase 1 tables.
 
 ## Rollback
 
