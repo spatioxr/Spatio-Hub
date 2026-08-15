@@ -57,3 +57,11 @@ test('a same-day return is presented as an explicit workday reopen', () => {
   assert.match(startModalSource, /original check-in and start-of-day plan will be preserved/);
   assert.match(endModalSource, /you can reopen today and end it again later/);
 });
+
+test('authentication tolerates the database-first rollout boundary', () => {
+  const authSource = sourceFor(new URL('../context/AuthContext.jsx', import.meta.url));
+
+  assert.match(authSource, /isMissingLeaveAdminColumn/);
+  assert.match(authSource, /LEGACY_EMPLOYEE_PROFILE_FIELDS/);
+  assert.match(authSource, /is_leave_admin: false/);
+});

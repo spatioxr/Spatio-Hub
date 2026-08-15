@@ -10,7 +10,7 @@ const getAuthLinkType = () => {
   return queryType || hashType;
 };
 
-const EMPLOYEE_PROFILE_FIELDS = [
+const LEGACY_EMPLOYEE_PROFILE_FIELDS = [
   'id',
   'auth_id',
   'emp_code',
@@ -25,27 +25,57 @@ const EMPLOYEE_PROFILE_FIELDS = [
   'reports_to',
   'avatar_url',
   'must_change_password',
-  'is_leave_admin',
 ].join(', ');
+
+const EMPLOYEE_PROFILE_FIELDS = `${LEGACY_EMPLOYEE_PROFILE_FIELDS}, is_leave_admin`;
+
+const isMissingLeaveAdminColumn = (error) => {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('is_leave_admin') && (
+    ['42703', 'PGRST204'].includes(error?.code)
+    || message.includes('does not exist')
+    || message.includes('schema cache')
+  );
+};
+
+const findEmployeeProfile = async (column, value) => {
+  const result = await supabase
+    .from('employees')
+    .select(EMPLOYEE_PROFILE_FIELDS)
+    .eq(column, value)
+    .maybeSingle();
+
+  if (!isMissingLeaveAdminColumn(result.error)) return result;
+
+  console.warn('Leave Admin schema is not applied; loading a legacy employee profile.');
+  const fallback = await supabase
+    .from('employees')
+    .select(LEGACY_EMPLOYEE_PROFILE_FIELDS)
+    .eq(column, value)
+    .maybeSingle();
+
+  return {
+    ...fallback,
+    data: fallback.data ? { ...fallback.data, is_leave_admin: false } : null,
+  };
+};
 
 const getEmployeeProfile = async (authUser) => {
   if (!authUser) return null;
 
-  const { data: profileByAuthId, error: authIdError } = await supabase
-    .from('employees')
-    .select(EMPLOYEE_PROFILE_FIELDS)
-    .eq('auth_id', authUser.id)
-    .maybeSingle();
+  const { data: profileByAuthId, error: authIdError } = await findEmployeeProfile(
+    'auth_id',
+    authUser.id,
+  );
 
   if (authIdError) throw authIdError;
   if (profileByAuthId) return profileByAuthId;
   if (!authUser.email) return null;
 
-  const { data: profileByEmail, error: emailError } = await supabase
-    .from('employees')
-    .select(EMPLOYEE_PROFILE_FIELDS)
-    .eq('email', authUser.email.trim().toLowerCase())
-    .maybeSingle();
+  const { data: profileByEmail, error: emailError } = await findEmployeeProfile(
+    'email',
+    authUser.email.trim().toLowerCase(),
+  );
 
   if (emailError) throw emailError;
   if (!profileByEmail) return null;
