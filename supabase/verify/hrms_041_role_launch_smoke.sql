@@ -274,7 +274,7 @@ BEGIN
     INTO ended_session
     FROM public.end_work_day(switched_session.id, NULL);
 
-    leave_date := DATE '2099-08-01'
+    leave_date := DATE '2099-08-03'
       + CASE actor.role_name
           WHEN 'employee' THEN 0
           WHEN 'manager' THEN 1
@@ -349,10 +349,7 @@ BEGIN
       ),
       public.can_access_admin_settings() = expected_admin_access,
       submitted_leave.employee_id = actor.employee_id
-        AND submitted_leave.status = CASE
-          WHEN actor.role_name = 'superadmin' THEN 'Approved'
-          ELSE 'Pending'
-        END
+        AND submitted_leave.status = 'Pending'
         AND EXISTS (
           SELECT 1
           FROM public.leaves leave_request

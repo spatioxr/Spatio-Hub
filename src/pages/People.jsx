@@ -32,6 +32,7 @@ const EMPTY_FORM = {
   reports_to: '',
   date_of_joining: '',
   status: 'Active',
+  is_leave_admin: false,
 };
 
 const roleLabel = (role) => ROLE_OPTIONS.find((option) => option.value === role)?.label || role;
@@ -66,6 +67,7 @@ const PersonDrawer = ({
         reports_to: person.reports_to || '',
         date_of_joining: person.date_of_joining || '',
         status: person.status || 'Active',
+        is_leave_admin: Boolean(person.is_leave_admin),
       }
       : EMPTY_FORM
   ));
@@ -83,7 +85,12 @@ const PersonDrawer = ({
   ));
 
   const handleChange = (event) => {
-    setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+    setForm((current) => ({
+      ...current,
+      [event.target.name]: event.target.type === 'checkbox'
+        ? event.target.checked
+        : event.target.value,
+    }));
   };
 
   const handleSubmit = (event) => {
@@ -148,6 +155,21 @@ const PersonDrawer = ({
               />
             </label>
           </div>
+
+          {isSuperadmin && !readOnly && (
+            <label className="people-access-toggle">
+              <input
+                type="checkbox"
+                name="is_leave_admin"
+                checked={form.is_leave_admin}
+                onChange={handleChange}
+              />
+              <span>
+                <strong>Leave Admin access</strong>
+                <small>Can review organisation leave, adjust balances, and manage holidays and attendance policy.</small>
+              </span>
+            </label>
+          )}
 
           <label className="people-field">
             <span>Work email *</span>
@@ -346,7 +368,7 @@ const People = ({ mode = 'directory' }) => {
 
     const { data, error: fetchError } = await supabase
       .from('employees')
-      .select('id, emp_code, name, email, department, designation, role, status, date_of_joining, reports_to, auth_id, must_change_password, temporary_password_issued_at')
+      .select('id, emp_code, name, email, department, designation, role, status, date_of_joining, reports_to, auth_id, must_change_password, temporary_password_issued_at, is_leave_admin')
       .order('name', { ascending: true });
 
     if (fetchError) {
@@ -478,6 +500,19 @@ const People = ({ mode = 'directory' }) => {
       setDrawerError(saveError.message || 'Unable to save this person.');
       setSaving(false);
       return;
+    }
+
+    if (isSuperadmin && Boolean(savedPerson.is_leave_admin) !== Boolean(form.is_leave_admin)) {
+      const { error: accessError } = await supabase.rpc('set_leave_admin_access', {
+        target_employee_id: savedPerson.id,
+        enabled: Boolean(form.is_leave_admin),
+      });
+      if (accessError) {
+        setDrawerError(`The profile was saved, but Leave Admin access was not updated: ${accessError.message}`);
+        setSaving(false);
+        await fetchPeople();
+        return;
+      }
     }
 
     setDrawer(null);
@@ -681,7 +716,10 @@ const People = ({ mode = 'directory' }) => {
                         <span className="people-secondary">{person.designation || 'No designation'}</span>
                       </td>
                       <td data-label="Role">
-                        <span className="badge primary">{roleLabel(person.role)}</span>
+                        <div className="people-role-badges">
+                          <span className="badge primary">{roleLabel(person.role)}</span>
+                          {person.is_leave_admin && <span className="badge success">Leave Admin</span>}
+                        </div>
                       </td>
                       <td data-label="Reports to">{manager?.name || 'Not assigned'}</td>
                       <td data-label="Status">

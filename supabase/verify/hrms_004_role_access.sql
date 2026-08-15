@@ -1196,7 +1196,7 @@ RESET ROLE;
 INSERT INTO hrms_004_results (check_name, check_value)
 SELECT
   'all_tables_rls_enabled',
-  count(*) = 15
+  count(*) = 17
   AND bool_and(c.relrowsecurity)
 FROM pg_class c
 JOIN pg_namespace n
@@ -1208,7 +1208,9 @@ WHERE n.nspname = 'public'
     'daily_reports',
     'leaves',
     'leave_balances',
+    'leave_balance_transactions',
     'holidays',
+    'attendance_policy',
     'projects',
     'activities',
     'project_managers',

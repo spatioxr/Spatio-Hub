@@ -66,13 +66,14 @@ external PostgreSQL connection.
 | Route | Purpose |
 | --- | --- |
 | `/` | Dashboard |
-| `/attendance` | Current attendance view; being evolved into Work Tracking |
+| `/track-work` | Live own-workday actions and today's timeline |
+| `/attendance` | Read-only factual attendance, approved leave, and holiday calendar |
 | `/timesheets` | Personal, team, and organisation timesheets |
 | `/projects` | Project definitions and scoped team assignments |
 | `/activities` | Internal activity catalogue |
 | `/people` | Permission-scoped employee directory |
 | `/admin-settings` | Phase 1 administration and work-entry requirements |
-| `/leave` | Leave management |
+| `/leave` | Working-day leave requests, balances, history, and Leave Admin workspace |
 | `/login` | Current login |
 | `/reset-password` | Required temporary-password replacement, password help, and authenticated password change |
 
@@ -82,6 +83,7 @@ All other routes redirect to the dashboard.
 
 - [Phase 1 scope and decisions](docs/PHASE_1.md)
 - [Phase 1 permission matrix](docs/PERMISSIONS.md)
+- [Attendance and Leave product/test contract](docs/ATTENDANCE_LEAVE.md)
 - [Phase 1 row-level security](docs/RLS.md)
 - [Database migrations and rollback](docs/DATABASE_MIGRATIONS.md)
 - [Supabase Auth setup](docs/AUTH_SETUP.md)
@@ -92,7 +94,7 @@ All other routes redirect to the dashboard.
 ## Important security status
 
 Authentication uses Supabase Auth sessions and the legacy employee password
-column has been retired. All 14 current Phase 1 tables enforce scoped RLS for
+column has been retired. All 17 current Phase 1 tables enforce scoped RLS for
 employee, manager, admin, and superadmin access. Every future schema issue must
 add matching RLS in the same migration that creates its tables.
 

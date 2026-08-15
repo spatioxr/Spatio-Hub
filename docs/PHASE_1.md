@@ -53,16 +53,21 @@ Department, project, activity, employee, and date filters will support visual in
 
 ## Leave
 
-Phase 1 retains the existing leave workflow and focuses on correctness:
+Phase 1 uses one working-day leave model and a separate Leave Admin capability:
 
-- balances
-- applications and reasons
-- half days
-- approval/rejection
-- history
-- holidays and comp-off where already supported
+- Monday-Friday working-day charges with company holidays excluded
+- exact half-day requests
+- editable pending requests and no privileged auto-approval
+- every request routed to the Leave Admin queue
+- no self-approval or self-balance adjustment
+- reasoned, half-day-granular balance changes with immutable history
+- approved leave reflected in read-only Attendance
+- explicit holiday and optional late-cutoff administration
 
-The known balance calculation issue is tracked as `HRMS-033`.
+Attendance is the factual calendar; Track Work owns live actions and
+Timesheets owns authorised corrections. See
+[Attendance and Leave Contract](ATTENDANCE_LEAVE.md) for the feature and test
+matrix.
 
 ## Explicit non-goals
 

@@ -36,7 +36,8 @@ project or team.
 | Correct time entries with reason | No | Assigned project teams | Organisation | Organisation |
 | View work-distribution reports | Own summary | Assigned projects | Organisation | Organisation |
 | Apply for leave | Own | Own | Own | Own |
-| Approve/reject leave | No | No | No | Organisation |
+| Approve/reject leave | Designated Leave Admin only | Designated Leave Admin only | Designated Leave Admin only | Organisation |
+| Adjust leave balances and manage holidays/late cutoff | Designated Leave Admin only | Designated Leave Admin only | Designated Leave Admin only | Organisation |
 | Configure BOS/EOD requirements | No | No | No | Organisation |
 
 ## Scope rules
@@ -61,6 +62,11 @@ project or team.
 - Manager read scope comes from explicit project ownership and membership.
   The employee-profile `reports_to` and department fields do not grant project
   or timesheet access.
+- Leave Admin is an explicit capability that only a superadmin may assign to an
+  active profile. It does not change the person's application role or grant any
+  unrelated management permission. Superadmins retain the capability by role.
+- A Leave Admin cannot decide their own request or adjust their own balance.
+  Every request, including a Superadmin request, starts Pending.
 
 ## Implementation ownership
 
@@ -73,5 +79,5 @@ project or team.
   project-team read scope.
 - `HRMS-045`: separate Admin Settings navigation and superadmin-only
   privileged-role changes.
-- `HRMS-034`: leave workflow correctness. Phase 1 keeps approvals superadmin-only
-  unless the tracker is deliberately changed.
+- `HRMS-048`: Attendance and Leave reset, working-day rules, delegated Leave
+  Admin governance, immutable balance history, and factual Attendance.

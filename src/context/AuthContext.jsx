@@ -25,6 +25,7 @@ const EMPLOYEE_PROFILE_FIELDS = [
   'reports_to',
   'avatar_url',
   'must_change_password',
+  'is_leave_admin',
 ].join(', ');
 
 const getEmployeeProfile = async (authUser) => {

@@ -122,6 +122,14 @@ environment.
     Office/WFH attendance mode, a backward-compatible first-start overload,
     audited manual add/correction overloads, and scoped live/timesheet mode
     projections without adding physical-location tracking.
+37. `20260815000400_leave_administration_reset.sql` adds delegated Leave Admin
+    access, one Monday-Friday/holiday working-day engine, pending-only requests,
+    self-decision guards, audited balance adjustments, an immutable balance
+    ledger, controlled holiday management, and optional late-cutoff policy.
+38. `20260815000500_attendance_month_projection.sql` adds durable factual
+    attendance timestamps, closes direct attendance writes, and exposes a
+    personal/team/organisation-scoped read-only month projection combining
+    work sessions, breaks, approved leave, holidays, WFH, and lateness.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -167,8 +175,8 @@ first sign-in.
 ## Verification
 
 Run `supabase/verify/phase1_schema.sql` in the SQL editor after migrations.
-Every returned boolean must be `true`. This verifies all 15 current tables,
-RLS, anonymous denial, the 43 scoped policies, helper functions, seed
+Every returned boolean must be `true`. This verifies all 17 current tables,
+RLS, anonymous denial, the 45 scoped policies, helper functions, seed
 activities, and overlap guards.
 
 Run `supabase/verify/hrms_007_projects.sql` for the rollback-only project model
@@ -303,10 +311,10 @@ changes, and explicit timezone configuration on BOS/EOD workflow functions.
 Run `supabase/verify/hrms_033_leave_balances.sql` for the rollback-only leave
 correctness check. It verifies seeded remaining balances, edit/rejection
 neutrality, exactly-once approval deductions, exact half-day arithmetic,
-superadmin auto-approval, Comp Off grants, and direct-write denial.
+pending-only privileged requests, Comp Off grants, and direct-write denial.
 
 Run `supabase/verify/hrms_034_leave_workflow.sql` for the rollback-only core
-leave hardening check. It verifies Superadmin-only organisation review,
+leave hardening check. It verifies default Superadmin organisation review,
 Employee/Admin scope, half-day and reason handling, overlap rejection,
 approval/rejection status, and balance outcomes.
 
@@ -315,10 +323,17 @@ holiday and Comp Off check. It verifies authenticated holiday reads with exact
 date values, Superadmin-only grants, half-day grant granularity, single
 deduction on approval, and matching final balance and request data.
 
+Run `supabase/verify/hrms_048_attendance_leave_reset.sql` for the rollback-only
+reset contract. It verifies delegated Leave Admin access, working-day and
+holiday charges, editable pending requests, all-request queueing, self-decision
+and self-adjustment denial, reasoned rejection, immutable ledger entries,
+approved-leave Attendance projection, original-check-in late timing, employee
+scope, anonymous denial, and direct Attendance write denial.
+
 Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager
 assigned-team scope, Admin organisation read scope, Superadmin-only leave and
-BOS/EOD controls, and direct-client write denial across all 15 Phase 1 tables.
+BOS/EOD controls, and direct-client write denial across all 17 Phase 1 tables.
 
 ## Rollback
 

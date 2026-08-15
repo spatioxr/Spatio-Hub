@@ -120,8 +120,8 @@ CREATE TEMP TABLE hrms_035_comp_request AS
 SELECT submitted.*
 FROM public.submit_leave_request(
   'Comp Off',
-  DATE '2099-08-16',
-  DATE '2099-08-16',
+  DATE '2099-08-17',
+  DATE '2099-08-17',
   true,
   'Use one half-day of Comp Off'
 ) submitted;

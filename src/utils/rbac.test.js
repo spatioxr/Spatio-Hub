@@ -107,7 +107,7 @@ test('managers can correct only their assigned scope and owned project teams', (
   assert.equal(canManageProjectTeam(manager, { manager_id: 'manager-2' }), false);
 });
 
-test('only superadmins receive privileged exception and leave permissions', () => {
+test('superadmins receive privileged exception and leave permissions by default', () => {
   for (const role of ['employee', 'manager', 'admin']) {
     assert.equal(
       hasPermission({ role, status: 'Active' }, PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS),
@@ -124,6 +124,20 @@ test('only superadmins receive privileged exception and leave permissions', () =
     hasPermission({ role: 'superadmin', status: 'Active' }, PERMISSIONS.APPROVE_LEAVE),
     true,
   );
+});
+
+test('Leave Admin is an explicit capability independent from an employee role', () => {
+  const leaveAdmin = {
+    id: 'leave-admin-1',
+    role: 'employee',
+    status: 'Active',
+    is_leave_admin: true,
+  };
+
+  assert.equal(hasPermission(leaveAdmin, PERMISSIONS.APPROVE_LEAVE), true);
+  assert.equal(hasPermission(leaveAdmin, PERMISSIONS.MANAGE_PEOPLE), false);
+  assert.equal(hasPermission(leaveAdmin, PERMISSIONS.ACCESS_ADMIN_SETTINGS), false);
+  assert.equal(hasPermission(leaveAdmin, PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS), false);
 });
 
 test('unknown roles fail closed', () => {

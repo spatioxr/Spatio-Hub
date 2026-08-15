@@ -83,6 +83,7 @@ export const getRole = (user) => normalizeRole(user?.role);
 
 export const hasPermission = (user, permission) => {
   if (!isActivePerson(user)) return false;
+  if (permission === PERMISSIONS.APPROVE_LEAVE && user?.is_leave_admin) return true;
   const permissions = ROLE_PERMISSIONS[getRole(user)];
   return permissions?.has(permission) || false;
 };
@@ -104,8 +105,8 @@ export const canManageProjectTeam = (user, project) => {
 };
 
 /**
- * Legacy department helpers remain for current leave/attendance screens.
- * Project-team scope replaces department scope as those screens are migrated.
+ * Legacy department helpers remain only for retained compatibility callers.
+ * Attendance and Leave use server-scoped projections instead.
  */
 export const getManagedDepartments = (user) => {
   if (!user?.managed_department) return [];

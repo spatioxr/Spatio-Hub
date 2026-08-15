@@ -23,7 +23,7 @@ test('core phase-1 flows expose actionable error feedback', () => {
 
   assert.match(combinedSource, /role=["']alert["']/);
   assert.match(combinedSource, />\s*Try again\s*</);
-  assert.match(combinedSource, />\s*Refresh data\s*</);
+  assert.match(combinedSource, /refresh(?:Attendance|Leave|Projects|Timesheets)/);
 });
 
 test('attendance is read-only and live work actions use controlled functions', () => {

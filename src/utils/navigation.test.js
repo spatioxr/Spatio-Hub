@@ -29,9 +29,12 @@ test('Track Work owns live actions while Attendance remains read-only history', 
   assert.match(trackWork, /requested_scope: 'personal'/);
   assert.match(trackWork, /Today’s timeline/);
   assert.match(attendance, /heading="Attendance calendar"/);
+  assert.match(attendance, /supabase\.rpc\('scoped_attendance_month'/);
   assert.doesNotMatch(attendance, /Edit Attendance/);
+  assert.doesNotMatch(attendance, /BOS|EOD/);
+  assert.doesNotMatch(attendance, /\.from\('daily_reports'\)/);
   assert.doesNotMatch(attendance, /\.from\('attendance'\)[\s\S]*\.update\(/);
-  assert.match(attendance, /Work sessions and corrections remain in Timesheets/);
+  assert.match(attendance, /Work actions stay in Track Work; corrections stay in Timesheets/);
 });
 
 test('Manager+ live status is part of the application shell and settings stay role gated', () => {

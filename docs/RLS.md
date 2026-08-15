@@ -4,7 +4,7 @@ The ordered migrations in `supabase/migrations` create the Phase 1 tables and
 their policies together. Run `supabase/verify/phase1_schema.sql` afterwards and
 confirm:
 
-- all 15 tables report `rls_enabled = true`
+- all 17 tables report `rls_enabled = true`
 - only the expected authenticated policies are present
 - anonymous SELECT is denied for every table
 - the signed-in superadmin reports organisation access
@@ -14,10 +14,11 @@ confirm:
 | Data | Employee | Manager | Admin | Superadmin |
 | --- | --- | --- | --- | --- |
 | Employee profiles | Own | Assigned project teams | Organisation | Organisation |
-| Attendance | Own | Assigned project teams, read-only | Organisation, read-only | Organisation |
+| Attendance | Own, read-only | Assigned project teams, read-only | Organisation, read-only | Organisation, read-only |
 | Daily reports | Own | Assigned project teams, read-only | Organisation, read-only | Organisation |
-| Leave and balances | Own | Own | Own | Organisation |
-| Holidays | Read | Read | Read | Read/write |
+| Leave and balances | Own | Own | Own | Organisation; decide others |
+| Leave Admin projections | Capability-gated | Capability-gated | Capability-gated | Organisation |
+| Holidays/policy | Read | Read | Read | Controlled write |
 | Projects/assignments | Assigned | Assigned/managed | Organisation | Organisation |
 | Work entries/breaks | Own | Assigned teams/projects, read-only | Organisation, read-only | Organisation |
 | Audit history | Own | Assigned teams/projects | Organisation | Organisation |
@@ -30,6 +31,20 @@ projects, denies Manager project setup and outside-project changes, confirms
 Admin/Superadmin override, rejects duplicate membership, and denies Employee
 assignment operations at the server boundary.
 Neither `reports_to` nor department grants Manager access.
+
+Attendance month reads use `scoped_attendance_month()`. It reuses the
+server-validated timesheet member scope, returns calendar/holiday/approved
+leave facts and factual attendance timestamps, hides another employee's leave
+type unless the caller is a Leave Admin, and grants no direct attendance write
+path. The workday functions and audited Timesheet correction functions remain
+the only mutation boundary.
+
+Leave review uses `can_manage_leave()` and the `employees.is_leave_admin`
+capability. Only a superadmin can assign the capability. Submission, pending
+edit, decision, balance adjustment, holiday, and policy mutations are
+security-definer functions with input and actor checks; direct leave,
+attendance, balance, ledger, holiday, and policy writes are denied. The balance
+ledger is RLS-scoped and rejects updates/deletion at a trigger boundary.
 
 The People directory uses the existing employee row scope, while UI access is
 limited to Manager, Admin, and Superadmin. Employees retain access to their own

@@ -6,8 +6,9 @@ import { WorkSessionContext } from '../context/WorkSessionContext';
 import Layout from '../components/Layout';
 import LiveStatusBoard from '../components/LiveStatusBoard';
 import { supabase } from '../utils/supabaseClient';
-import { getManagedDepartments, hasPermission, PERMISSIONS } from '../utils/rbac';
+import { hasPermission, PERMISSIONS } from '../utils/rbac';
 import { appDateKey, formatAppDate } from '../utils/timezone';
+import { summarizeAttendanceMonth } from '../utils/attendance';
 import useDialogFocus from '../hooks/useDialogFocus';
 
 const Dashboard = () => {
@@ -24,13 +25,9 @@ const Dashboard = () => {
   // Supabase State
   const [totalEmployees, setTotalEmployees] = useState(0);
 
-  const [toastMessage, setToastMessage] = useState('');
-
   const [holidays, setHolidays] = useState([]);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
-  const [newHolidayName, setNewHolidayName] = useState('');
-  const [newHolidayDate, setNewHolidayDate] = useState('');
-  const [attendanceCounts, setAttendanceCounts] = useState({ present: 0, absent: 0 });
+  const [attendanceSummary, setAttendanceSummary] = useState({ completedDays: 0, leaveDays: 0 });
   const holidayDialogRef = useDialogFocus(
     showHolidayModal,
     () => setShowHolidayModal(false),
@@ -45,47 +42,28 @@ const Dashboard = () => {
   const fetchData = async () => {
     if (!user) return;
 
-    if (user.role === 'admin' || user.role === 'manager' || user.role === 'head' || user.role === 'superadmin') {
-      let countQuery = supabase.from('employees').select('id', { count: 'exact', head: true });
-      if (user.role === 'admin' || user.role === 'manager') {
-        const allowedDepts = getManagedDepartments(user);
-        if (allowedDepts.length > 0) {
-          countQuery = countQuery.or(`department.in.(${allowedDepts.join(',')}),reports_to.eq.${user.id}`);
-        } else {
-          countQuery = countQuery.eq('reports_to', user.id);
-        }
-      }
-      const { count: totalCount } = await countQuery;
-      setTotalEmployees(totalCount || 0);
-
-      // Fetch today's attendance counts
-      const today = appDateKey();
-      let attQuery = supabase.from('attendance').select('employee_id').eq('date', today);
-      
-      if (user.role === 'admin' || user.role === 'manager') {
-        // Get employee ids in department first
-        let deptEmpsQuery = supabase.from('employees').select('id');
-        const allowedDepts = getManagedDepartments(user);
-        if (allowedDepts.length > 0) {
-          deptEmpsQuery = deptEmpsQuery.or(`department.in.(${allowedDepts.join(',')}),reports_to.eq.${user.id}`);
-        } else {
-          deptEmpsQuery = deptEmpsQuery.eq('reports_to', user.id);
-        }
-        
-        const { data: deptEmps } = await deptEmpsQuery;
-        const deptIds = (deptEmps || []).map(e => e.id);
-        if (deptIds.length > 0) {
-          attQuery = attQuery.in('employee_id', deptIds);
-        } else {
-          attQuery = attQuery.eq('id', '00000000-0000-0000-0000-000000000000'); // match none
-        }
-      }
-      
-      const { data: attData } = await attQuery;
-      const present = (attData || []).length;
-      const absent = (totalCount || 0) - present;
-      setAttendanceCounts({ present, absent: Math.max(0, absent) });
+    const today = appDateKey();
+    const [year, month] = today.split('-').map(Number);
+    const nextMonth = new Date(Date.UTC(year, month, 1));
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, '0')}-01`;
+    const requests = [
+      supabase.rpc('scoped_attendance_month', {
+        requested_start_date: startDate,
+        requested_end_date: endDate,
+        requested_scope: 'personal',
+        requested_employee_id: user.id,
+      }),
+    ];
+    if (user.role !== 'employee') {
+      requests.push(supabase.from('employees').select('id', { count: 'exact', head: true }));
     }
+
+    const [attendanceResult, peopleResult] = await Promise.all(requests);
+    if (!attendanceResult.error) {
+      setAttendanceSummary(summarizeAttendanceMonth(attendanceResult.data || [], today));
+    }
+    if (peopleResult) setTotalEmployees(peopleResult.count || 0);
   };
 
   useEffect(() => {
@@ -93,62 +71,28 @@ const Dashboard = () => {
     fetchHolidays();
   }, [user, workStatus]);
 
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(''), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
-
   if (!user) return <Navigate to="/login" replace />;
-
-  const handleAddHoliday = async (e) => {
-    e.preventDefault();
-    if (!newHolidayName || !newHolidayDate) return;
-    const { error } = await supabase.from('holidays').insert({ name: newHolidayName, date: newHolidayDate });
-    if (error) {
-      if (error.message.includes('relation "public.holidays" does not exist')) {
-        showToast('Please run the SQL script to create holidays table.');
-      } else {
-        showToast('Failed to add holiday.');
-      }
-    } else {
-      setNewHolidayName('');
-      setNewHolidayDate('');
-      fetchHolidays();
-      showToast('Holiday added successfully!');
-    }
-  };
-
-  const showToast = (message) => {
-    setToastMessage(message);
-  };
 
   // Content configuration based on user roles
   const isEmployee = user.role === 'employee';
-  const isSuperAdmin = user.role === 'superadmin';
   const isNormalAdmin = user.role === 'admin';
   const canViewLiveStatus = hasPermission(user, PERMISSIONS.VIEW_LIVE_STATUS);
   const hasManagementLiveRail = hasPermission(user, PERMISSIONS.VIEW_MANAGEMENT_LIVE_RAIL);
-  const myLeaveRequests = getMyRequests();
   const myLeaveBalance = getUserBalance(user.id);
-  const approvedDays = (type) => myLeaveRequests
-    .filter((request) => request.type === type && request.status === 'Approved')
-    .reduce((total, request) => total + Number(request.days || 0), 0);
 
   // Stats Card Configs
   const renderStats = () => {
     if (isEmployee) {
       return (
         <div className="dashboard-kpi-grid">
-          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive orange-theme" onClick={() => navigate('/track-work')}>
+          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive orange-theme" onClick={() => navigate('/attendance')}>
             <i className="ri-arrow-right-s-line card-chevron"></i>
             <div className="card-icon-wrapper">
               <i className="ri-calendar-line"></i>
             </div>
             <div className="card-info">
               <span className="card-label">My Attendance</span>
-              <span className="card-value" style={{ fontSize: '1rem', color: '#646465', fontWeight: 500 }}>View Calendar →</span>
+              <span className="card-value" style={{ fontSize: '1rem', color: '#646465', fontWeight: 500 }}>{attendanceSummary.completedDays} completed · {attendanceSummary.leaveDays} leave</span>
             </div>
           </button>
 
@@ -173,23 +117,19 @@ const Dashboard = () => {
               <i className="ri-group-line"></i>
             </div>
             <div className="card-info">
-              <span className="card-label">{isNormalAdmin ? 'Department Employees' : 'Total Employees'}</span>
+              <span className="card-label">{isNormalAdmin ? 'People in scope' : 'Total Employees'}</span>
               <span className="card-value">{totalEmployees}</span>
             </div>
           </div>
 
-          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive orange-theme" onClick={() => navigate('/track-work')}>
+          <button type="button" className="dashboard-card-custom dashboard-card-custom--interactive orange-theme" onClick={() => navigate('/attendance')}>
             <i className="ri-arrow-right-s-line card-chevron"></i>
             <div className="card-icon-wrapper">
               <i className="ri-calendar-line"></i>
             </div>
             <div className="card-info">
               <span className="card-label">Attendance</span>
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline', marginTop: '0.2rem' }}>
-                <span className="card-value" style={{ color: '#00A87E', fontSize: '1.5rem' }}>{attendanceCounts.present} <span style={{ fontSize: '0.7rem', color: '#646465', fontWeight: 500 }}>Present</span></span>
-                <span style={{ color: '#E2E8F0' }}>|</span>
-                <span className="card-value" style={{ color: '#494949', fontSize: '1.5rem' }}>{attendanceCounts.absent} <span style={{ fontSize: '0.7rem', color: '#646465', fontWeight: 500 }}>Absent</span></span>
-              </div>
+              <span className="card-value" style={{ fontSize: '1rem', color: '#646465', fontWeight: 500 }}>{attendanceSummary.completedDays} completed · {attendanceSummary.leaveDays} leave</span>
             </div>
           </button>
 
@@ -287,7 +227,7 @@ const Dashboard = () => {
         </div> {/* End Left Column */}
 
         {/* Right Column: Leave Lists — only for admins */}
-        {!isEmployee && (
+        {hasPermission(user, PERMISSIONS.APPROVE_LEAVE) && (
         <div className="card">
           <h3 className="font-bold mb-4" style={{ fontSize: '1.125rem', color: 'var(--text-main)' }}>
             Members on Leave Today
@@ -348,7 +288,7 @@ const Dashboard = () => {
               <div className="leave-metric-values">
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Used</span>
-                  <span className="leave-metric-num">{approvedDays('Sick Leave')}</span>
+                  <span className="leave-metric-num">{myLeaveBalance['Sick Leave']?.used ?? 0}</span>
                 </div>
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Available</span>
@@ -367,7 +307,7 @@ const Dashboard = () => {
               <div className="leave-metric-values">
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Used</span>
-                  <span className="leave-metric-num">{approvedDays('Casual Leave')}</span>
+                  <span className="leave-metric-num">{myLeaveBalance['Casual Leave']?.used ?? 0}</span>
                 </div>
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Available</span>
@@ -386,7 +326,7 @@ const Dashboard = () => {
               <div className="leave-metric-values">
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Used</span>
-                  <span className="leave-metric-num">{approvedDays('Comp Off')}</span>
+                  <span className="leave-metric-num">{myLeaveBalance['Comp Off']?.used ?? 0}</span>
                 </div>
                 <div className="leave-metric-col">
                   <span className="leave-metric-label">Available</span>
@@ -398,13 +338,6 @@ const Dashboard = () => {
 
         </div>
       </div>
-
-      {toastMessage && (
-        <div className="toast-success-bottom">
-          <i className="ri-checkbox-circle-fill" style={{ color: '#00A884', fontSize: '1.25rem' }}></i>
-          {toastMessage}
-        </div>
-      )}
 
       {/* Holiday Modal */}
       {showHolidayModal && (
@@ -429,35 +362,6 @@ const Dashboard = () => {
             </div>
             
             <div className="holiday-calendar-view" style={{ display: 'grid', gap: '1.5rem' }}>
-              {isSuperAdmin && (
-                <div style={{ background: '#F4F4F4', padding: '1rem', borderRadius: '8px', border: '1px solid #E8E8E8' }}>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.75rem', color: '#000000' }}>Add New Holiday</h4>
-                  <form onSubmit={handleAddHoliday} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', color: '#646465', marginBottom: '0.25rem' }}>Holiday Name</label>
-                      <textarea
-                        className="salary-input"
-                        value={newHolidayName}
-                        onChange={e => setNewHolidayName(e.target.value)}
-                        placeholder="e.g. Christmas Day — National Holiday"
-                        required
-                        rows={2}
-                        style={{ margin: 0, resize: 'none', width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                      <div style={{ flex: '1 1 200px' }}>
-                        <label style={{ display: 'block', fontSize: '0.8rem', color: '#646465', marginBottom: '0.25rem' }}>Date</label>
-                        <input type="date" className="salary-input" value={newHolidayDate} onChange={e => setNewHolidayDate(e.target.value)} required style={{ margin: 0, width: '100%', boxSizing: 'border-box' }} />
-                      </div>
-                      <button type="submit" className="btn-teal" style={{ height: '42px', display: 'flex', alignItems: 'center', flexShrink: 0, padding: '0 1rem' }}>
-                        <i className="ri-add-line" style={{ marginRight: '0.25rem' }}></i> Add
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
-
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
                 {holidays.map(h => {
                   const d = h.date;

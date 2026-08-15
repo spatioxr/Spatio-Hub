@@ -9,7 +9,9 @@ WITH expected(table_name) AS (
     ('daily_reports'),
     ('leaves'),
     ('leave_balances'),
+    ('leave_balance_transactions'),
     ('holidays'),
+    ('attendance_policy'),
     ('projects'),
     ('activities'),
     ('project_managers'),
@@ -45,13 +47,13 @@ policies AS (
 ),
 results AS (
 SELECT
-  (SELECT count(*) = 15 AND bool_and(table_exists) FROM actual)
+  (SELECT count(*) = 17 AND bool_and(table_exists) FROM actual)
     AS all_tables_exist,
   (SELECT bool_and(rls_enabled) FROM actual)
     AS all_rls_enabled,
   (SELECT bool_and(anon_select_denied) FROM actual)
     AS anon_select_denied,
-  (SELECT count(*) = 43 FROM policies)
+  (SELECT count(*) = 45 FROM policies)
     AS expected_policy_count,
   (SELECT bool_and(roles = ARRAY['authenticated']::name[]) FROM policies)
     AS authenticated_only,
@@ -185,6 +187,9 @@ SELECT
     'public.submit_leave_request(text,date,date,boolean,text)'
   ) IS NOT NULL
     AND to_regprocedure(
+      'public.leave_working_days(date,date,boolean)'
+    ) IS NOT NULL
+    AND to_regprocedure(
       'public.update_pending_leave_request(uuid,text,date,date,boolean,text)'
     ) IS NOT NULL
     AND to_regprocedure(
@@ -193,6 +198,36 @@ SELECT
     AND to_regprocedure(
       'public.grant_comp_off_balance(uuid,numeric)'
     ) IS NOT NULL
+    AND to_regprocedure(
+      'public.adjust_leave_balance(uuid,text,numeric,text)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.scoped_leave_requests()'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.leave_admin_balance_overview()'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.leave_balance_history(uuid)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.set_leave_admin_access(uuid,boolean)'
+    ) IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'employees'
+        AND column_name = 'is_leave_admin'
+        AND is_nullable = 'NO'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM pg_trigger
+      WHERE tgrelid = 'public.leave_balance_transactions'::regclass
+        AND tgname = 'leave_balance_transactions_prevent_mutation'
+        AND NOT tgisinternal
+    )
     AND NOT has_function_privilege(
       'anon',
       'public.decide_leave_request(uuid,boolean,text)',
@@ -277,6 +312,36 @@ SELECT
       'public.apply_attendance_work_mode(uuid,timestamptz,timestamptz,text)',
       'EXECUTE'
     ) AS has_controlled_daily_work_mode,
+  to_regprocedure(
+    'public.scoped_attendance_month(date,date,text,uuid)'
+  ) IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'attendance'
+        AND column_name = 'checked_in_at'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'attendance'
+        AND column_name = 'checked_out_at'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM pg_policies
+      WHERE schemaname = 'public'
+        AND tablename = 'attendance'
+        AND policyname = 'attendance_insert_controlled'
+        AND with_check = 'false'
+    )
+    AND NOT has_function_privilege(
+      'anon',
+      'public.scoped_attendance_month(date,date,text,uuid)',
+      'EXECUTE'
+    ) AS has_read_only_attendance_projection,
   to_regprocedure(
     'public.personal_timesheet_entries(timestamptz,timestamptz)'
   ) IS NOT NULL

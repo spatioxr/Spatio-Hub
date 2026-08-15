@@ -1,100 +1,123 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
+import AppState from '../components/AppState';
 import { AuthContext } from '../context/AuthContext';
 import { LeaveContext } from '../context/LeaveContext';
-import { supabase } from '../utils/supabaseClient';
-import AppState from '../components/AppState';
-import { appDateKey, formatAppDate } from '../utils/timezone';
+import { appDateKey, formatAppClock, formatAppDate } from '../utils/timezone';
 import { calculateLeaveDays, canReviewLeave } from '../utils/leave';
 import useDialogFocus from '../hooks/useDialogFocus';
 
-const LEAVE_TYPES = ['Sick Leave', 'Comp Off', 'Casual Leave'];
+const LEAVE_TYPES = ['Sick Leave', 'Casual Leave', 'Comp Off'];
 
-const LEAVE_COLORS = {
-  'Sick Leave': { bg: '#FFF2F2', color: '#EE5D50', icon: 'ri-heart-pulse-line' },
-  'Comp Off': { bg: '#EDF4FE', color: '#4318FF', icon: 'ri-sun-line' },
-  'Casual Leave': { bg: '#F0FDF9', color: '#00A884', icon: 'ri-umbrella-line' },
+const LEAVE_META = {
+  'Sick Leave': { icon: 'ri-heart-pulse-line', tone: 'rose' },
+  'Casual Leave': { icon: 'ri-umbrella-line', tone: 'green' },
+  'Comp Off': { icon: 'ri-sun-line', tone: 'blue' },
 };
 
-const statusBadge = (status) => {
-  const map = { Approved: 'success', Pending: 'warning', Rejected: 'danger' };
-  return <span className={`badge ${map[status] || 'warning'}`}>{status}</span>;
+const statusTone = (status) => ({
+  Approved: 'success',
+  Pending: 'warning',
+  Rejected: 'danger',
+}[status] || 'neutral');
+
+const formatAmount = (amount) => {
+  const value = Number(amount || 0);
+  return `${value > 0 ? '+' : ''}${value}`;
 };
 
-// Component for Superadmin to grant Comp Off days
-const GrantCompOffModal = ({ onClose, onGrant }) => {
-  const [employees, setEmployees] = useState([]);
-  const [selectedEmp, setSelectedEmp] = useState('');
-  const [days, setDays] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+const RequestTable = ({ requests, own, actionId, onEdit, onDecide }) => (
+  <div className="table-wrap leave-request-table-wrap">
+    <table className="leave-request-table">
+      <thead>
+        <tr>
+          {!own && <th>Employee</th>}
+          <th>Request</th>
+          <th>Dates</th>
+          <th>Days</th>
+          <th>Status</th>
+          <th>Reason / decision</th>
+          <th aria-label="Actions" />
+        </tr>
+      </thead>
+      <tbody>
+        {requests.map((request) => (
+          <tr key={request.id}>
+            {!own && (
+              <td data-label="Employee">
+                <div className="leave-person-cell">
+                  <span>{request.employee_name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span>
+                  <div><strong>{request.employee_name}</strong><small>{request.employee_code} · {request.employee_department || 'No department'}</small></div>
+                </div>
+              </td>
+            )}
+            <td data-label="Request">
+              <span className={`leave-type-chip leave-type-chip--${LEAVE_META[request.type]?.tone || 'green'}`}>
+                <i className={LEAVE_META[request.type]?.icon} /> {request.type}
+              </span>
+              <small className="leave-request-created">Requested {formatAppDate(request.created_at)}</small>
+            </td>
+            <td data-label="Dates">
+              <strong>{formatAppDate(request.from_date, { month: 'short' })}</strong>
+              <small>{request.from_date === request.to_date ? 'One date' : `to ${formatAppDate(request.to_date, { month: 'short' })}`}</small>
+            </td>
+            <td data-label="Days"><strong>{request.days}</strong></td>
+            <td data-label="Status"><span className={`badge ${statusTone(request.status)}`}>{request.status}</span></td>
+            <td data-label="Reason / decision">
+              <span className="leave-request-reason">{request.reason}</span>
+              {request.rejection_comment && <small className="leave-decision-note">{request.rejection_comment}</small>}
+              {request.decided_at && <small>Decided {formatAppDate(request.decided_at)}{request.decided_by_name ? ` by ${request.decided_by_name}` : ''}</small>}
+            </td>
+            <td className="leave-request-actions">
+              {own && request.status === 'Pending' && (
+                <button type="button" className="btn btn-outline" onClick={() => onEdit(request)}>
+                  <i className="ri-pencil-line" /> Edit
+                </button>
+              )}
+              {!own && request.status === 'Pending' && (
+                <>
+                  <button type="button" className="btn leave-approve-button" disabled={actionId === request.id} onClick={() => onDecide(request, true)}>
+                    <i className="ri-check-line" /> Approve
+                  </button>
+                  <button type="button" className="btn btn-outline leave-reject-button" disabled={actionId === request.id} onClick={() => onDecide(request, false)}>
+                    <i className="ri-close-line" /> Reject
+                  </button>
+                </>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+const DecisionDialog = ({ decision, submitting, error, onClose, onSubmit }) => {
+  const [comment, setComment] = useState('');
   const dialogRef = useDialogFocus(true, onClose, { closeDisabled: submitting });
-
-  useEffect(() => {
-    supabase.from('employees').select('id, name').order('name').then(({ data, error: loadError }) => {
-      setEmployees(data || []);
-      if (loadError) setError(loadError.message || 'Unable to load employees.');
-    });
-  }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedEmp || days <= 0) return;
-    setSubmitting(true);
-    setError('');
-    const result = await onGrant(selectedEmp, Number(days));
-    if (result?.error && !result.committed) {
-      setError(result.error.message || 'Unable to grant Comp Off.');
-      setSubmitting(false);
-      return;
-    }
-    onClose();
-    setSubmitting(false);
-  };
+  const rejecting = decision.approve === false;
 
   return (
-    <div className="salary-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div
-        ref={dialogRef}
-        className="salary-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="grant-comp-off-title"
-        tabIndex="-1"
-      >
-        <div className="salary-modal-header">
-          <div>
-            <h3 className="salary-modal-title" id="grant-comp-off-title">Grant Comp Off</h3>
-            <p className="salary-modal-sub">Add Comp Off days to an employee&apos;s balance</p>
-          </div>
-          <button type="button" className="salary-modal-close" onClick={onClose} aria-label="Close Grant Comp Off"><i className="ri-close-line" aria-hidden="true" /></button>
+    <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && !submitting && onClose()}>
+      <section ref={dialogRef} className="leave-decision-dialog" role="dialog" aria-modal="true" aria-labelledby="leave-decision-title" tabIndex="-1">
+        <div className={`leave-decision-icon${rejecting ? ' leave-decision-icon--reject' : ''}`}>
+          <i className={rejecting ? 'ri-close-line' : 'ri-check-line'} />
         </div>
-        <form onSubmit={handleSubmit}>
-          {error && (
-            <div className="leave-form-msg error" role="alert">
-              <i className="ri-error-warning-fill" />
-              {error}
-            </div>
-          )}
-          <div className="salary-field">
-            <label className="salary-field-label" htmlFor="comp-off-employee">Employee <span className="salary-required">*</span></label>
-            <select id="comp-off-employee" className="salary-input" value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} required>
-              <option value="">-- Select Employee --</option>
-              {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
-          </div>
-          <div className="salary-field">
-            <label className="salary-field-label" htmlFor="comp-off-days">Days to Add <span className="salary-required">*</span></label>
-            <input id="comp-off-days" className="salary-input" type="number" min="0.5" step="0.5" value={days} onChange={e => setDays(e.target.value)} required />
-          </div>
-          <div className="salary-modal-actions">
-            <button type="button" className="salary-cancel-btn" onClick={onClose} disabled={submitting}>Cancel</button>
-            <button type="submit" className="salary-submit-btn" disabled={submitting} style={{ background: '#003B2C' }}>
-              {submitting ? 'Granting...' : 'Grant Days'}
-            </button>
-          </div>
-        </form>
-      </div>
+        <span className="page-eyebrow">HR decision</span>
+        <h2 id="leave-decision-title">{rejecting ? 'Reject' : 'Approve'} {decision.request.employee_name}&apos;s request?</h2>
+        <p>{decision.request.type} · {decision.request.days} day(s) · {formatAppDate(decision.request.from_date)} to {formatAppDate(decision.request.to_date)}</p>
+        <label className="people-field">
+          <span>{rejecting ? 'Rejection reason *' : 'Decision note (optional)'}</span>
+          <textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder={rejecting ? 'Explain why this request is not approved' : 'Add a note for the employee'} disabled={submitting} />
+        </label>
+        {error && <div className="people-feedback people-feedback--error" role="alert">{error}</div>}
+        <div className="leave-decision-actions">
+          <button type="button" className="btn btn-outline" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button type="button" className={`btn${rejecting ? ' leave-reject-confirm' : ''}`} onClick={() => onSubmit(comment)} disabled={submitting || (rejecting && !comment.trim())}>
+            {submitting ? 'Saving…' : rejecting ? 'Confirm rejection' : 'Confirm approval'}
+          </button>
+        </div>
+      </section>
     </div>
   );
 };
@@ -102,277 +125,215 @@ const GrantCompOffModal = ({ onClose, onGrant }) => {
 const Leave = () => {
   const { user } = useContext(AuthContext);
   const {
-    applyLeave, updateLeave, getUserBalance, getMyRequests, getPendingForApproval,
-    approveLeave, rejectLeave, grantCompOff, getLeaveHistory, refreshLeaveData,
-    holidays, loading, loadError
+    requests,
+    holidays,
+    balance,
+    adminOverview,
+    attendancePolicy,
+    applyLeave,
+    updateLeave,
+    approveLeave,
+    rejectLeave,
+    adjustBalance,
+    saveHoliday,
+    removeHoliday,
+    setLateCutoff,
+    loadBalanceHistory,
+    refreshLeaveData,
+    loading,
+    loadError,
   } = useContext(LeaveContext);
-
+  const leaveAdmin = canReviewLeave(user);
   const [activeTab, setActiveTab] = useState('my');
   const [form, setForm] = useState({ type: 'Sick Leave', from: '', to: '', reason: '', isHalfDay: false });
-  const [editingLeaveId, setEditingLeaveId] = useState(null);
-  const [formMsg, setFormMsg] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [formMessage, setFormMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showGrantModal, setShowGrantModal] = useState(false);
-  const [historyMonth, setHistoryMonth] = useState('');
-  const [historyDepartment, setHistoryDepartment] = useState('');
-  const [selectedLeaveReason, setSelectedLeaveReason] = useState(null); // { reason, type }
-  const [rejectTarget, setRejectTarget] = useState(null); // { id } to reject
-  const [rejectComment, setRejectComment] = useState('');
-  const [rejecting, setRejecting] = useState(false);
-  const [rejectError, setRejectError] = useState('');
-  const [actionId, setActionId] = useState(null);
-  const [actionMsg, setActionMsg] = useState(null);
-  const reasonDialogRef = useDialogFocus(
-    Boolean(selectedLeaveReason),
-    () => setSelectedLeaveReason(null),
-  );
-  const rejectDialogRef = useDialogFocus(
-    Boolean(rejectTarget),
-    () => setRejectTarget(null),
-    { closeDisabled: rejecting },
-  );
+  const [decision, setDecision] = useState(null);
+  const [decisionError, setDecisionError] = useState('');
+  const [actionId, setActionId] = useState('');
+  const [notice, setNotice] = useState(null);
+  const [adjustment, setAdjustment] = useState({ employeeId: '', type: 'Sick Leave', amount: '1', reason: '' });
+  const [adjusting, setAdjusting] = useState(false);
+  const [historyEmployeeId, setHistoryEmployeeId] = useState('');
+  const [transactions, setTransactions] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [holidayForm, setHolidayForm] = useState({ name: '', date: '' });
+  const [holidaySaving, setHolidaySaving] = useState(false);
+  const [lateEnabled, setLateEnabled] = useState(Boolean(attendancePolicy?.late_after));
+  const [lateTime, setLateTime] = useState(attendancePolicy?.late_after?.slice(0, 5) || '10:30');
+  const [policySaving, setPolicySaving] = useState(false);
 
-  const balance = user ? getUserBalance(user.id) : {};
-  const myRequests = getMyRequests();
-  const pendingApprovals = getPendingForApproval();
+  const myRequests = useMemo(
+    () => requests.filter((request) => request.employee_id === user?.id),
+    [requests, user?.id],
+  );
+  const pendingRequests = useMemo(
+    () => requests.filter((request) => request.status === 'Pending' && request.employee_id !== user?.id),
+    [requests, user?.id],
+  );
   const upcomingHolidays = holidays.filter((holiday) => holiday.date >= appDateKey());
+  const previewDays = calculateLeaveDays(form.from, form.to, form.isHalfDay, holidays);
 
-  const canApprove = canReviewLeave(user);
-  const canViewApprovals = canApprove;
-  const isSuperAdmin = canApprove;
+  useEffect(() => {
+    setLateEnabled(Boolean(attendancePolicy?.late_after));
+    setLateTime(attendancePolicy?.late_after?.slice(0, 5) || '10:30');
+  }, [attendancePolicy]);
 
-  const leaveHistory = getLeaveHistory();
-  const filteredHistory = leaveHistory.filter(r => {
-    let match = true;
-    if (historyMonth) {
-      const fromMonth = (r.from_date || r.from || '').substring(0, 7);
-      if (fromMonth !== historyMonth) match = false;
-    }
-    if (isSuperAdmin && historyDepartment) {
-      if (r.employees?.department !== historyDepartment) match = false;
-    }
-    return match;
-  });
-
-  const handleFormChange = (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setForm(prev => {
-      const nextForm = { ...prev, [e.target.name]: value };
-      if (nextForm.isHalfDay) nextForm.to = nextForm.from; // Lock "to" date if half day
-      return nextForm;
+  useEffect(() => {
+    if (!leaveAdmin || activeTab !== 'balances') return;
+    const targetId = historyEmployeeId || adminOverview[0]?.employee_id || '';
+    if (!targetId) return;
+    if (!historyEmployeeId) setHistoryEmployeeId(targetId);
+    setHistoryLoading(true);
+    void loadBalanceHistory(targetId).then(({ data, error }) => {
+      setTransactions(error ? [] : data);
+      if (error) setNotice({ type: 'error', text: error.message || 'Unable to load balance history.' });
+      setHistoryLoading(false);
     });
-    setFormMsg(null);
+  }, [activeTab, adminOverview, historyEmployeeId, leaveAdmin, loadBalanceHistory]);
+
+  const changeForm = (event) => {
+    const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+    setForm((current) => {
+      const next = { ...current, [event.target.name]: value };
+      if (event.target.name === 'from' && next.isHalfDay) next.to = value;
+      if (event.target.name === 'isHalfDay' && value) next.to = next.from;
+      return next;
+    });
+    setFormMessage(null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.from || !form.to) {
-      setFormMsg({ type: 'error', text: 'Please select both From and To dates.' });
+  const submitRequest = async (event) => {
+    event.preventDefault();
+    if (!form.from || !form.to || previewDays <= 0) {
+      setFormMessage({ type: 'error', text: 'Choose a date range containing at least one company working day.' });
       return;
     }
-    if (!form.reason || !form.reason.trim()) {
-      setFormMsg({ type: 'error', text: 'Leave reason is mandatory.' });
-      return;
-    }
-    if (new Date(form.to) < new Date(form.from)) {
-      setFormMsg({ type: 'error', text: '"To" date cannot be before "From" date.' });
-      return;
-    }
-
-    const days = calculateLeaveDays(form.from, form.to, form.isHalfDay);
-    const bal = balance[form.type];
-    
-    if (bal && days > bal.remaining && !(editingLeaveId)) {
-      setFormMsg({ type: 'error', text: `Insufficient balance. You have ${bal.remaining} day(s) remaining for ${form.type}.` });
-      return;
-    }
-
-    // Check for duplicate/overlapping leaves
-    const { data: existingLeaves, error: overlapError } = await supabase
-      .from('leaves')
-      .select('id, from_date, to_date')
-      .eq('employee_id', user.id)
-      .neq('status', 'Rejected');
-
-    if (overlapError) {
-      setFormMsg({
-        type: 'error',
-        text: overlapError.message || 'Unable to check existing leave requests.',
-      });
-      return;
-    }
-    
-    const newFrom = new Date(form.from).getTime();
-    const newTo = new Date(form.to).getTime();
-    const hasOverlap = existingLeaves?.some(l => {
-      if (editingLeaveId && l.id === editingLeaveId) return false;
-      const exFrom = new Date(l.from_date).getTime();
-      const exTo = new Date(l.to_date).getTime();
-      return (newFrom <= exTo && newTo >= exFrom);
-    });
-
-    if (hasOverlap) {
-      setFormMsg({ type: 'error', text: 'You already have a leave request overlapping these dates.' });
+    if (!form.reason.trim()) {
+      setFormMessage({ type: 'error', text: 'A leave reason is required.' });
       return;
     }
 
     setSubmitting(true);
-    let result;
-    if (editingLeaveId) {
-      result = await updateLeave({
-        id: editingLeaveId,
-        type: form.type,
-        from: form.from,
-        to: form.to,
-        reason: form.reason,
-        isHalfDay: form.isHalfDay,
-      });
-    } else {
-      result = await applyLeave({
-        type: form.type,
-        from: form.from,
-        to: form.to,
-        reason: form.reason,
-        isHalfDay: form.isHalfDay,
-      });
-    }
+    const operation = editingId
+      ? updateLeave({ ...form, id: editingId })
+      : applyLeave(form);
+    const result = await operation;
+    setSubmitting(false);
 
-    if (result?.error && !result.committed) {
-      setFormMsg({
-        type: 'error',
-        text: result.error.message || 'Unable to save the leave request.',
-      });
-      setSubmitting(false);
+    if (result.error && !result.committed) {
+      setFormMessage({ type: 'error', text: result.error.message || 'Unable to save the leave request.' });
       return;
     }
 
-    setFormMsg(result?.error
-      ? {
-          type: 'error',
-          text: 'The request was saved, but the latest leave data could not be refreshed.',
-          retry: true,
-        }
-      : {
-          type: 'success',
-          text: editingLeaveId
-            ? `Leave request updated successfully! (${days} day${days > 1 ? 's' : ''})`
-            : isSuperAdmin
-              ? `Leave request submitted and auto-approved! (${days} day${days > 1 ? 's' : ''})`
-              : `Leave request submitted successfully! Awaiting approval. (${days} day${days > 1 ? 's' : ''})`,
-        });
-
+    setFormMessage({
+      type: result.error ? 'error' : 'success',
+      text: result.error
+        ? 'The request was saved, but the latest data could not be refreshed.'
+        : editingId ? 'Pending request updated.' : 'Request sent to the HR leave queue.',
+    });
     setForm({ type: 'Sick Leave', from: '', to: '', reason: '', isHalfDay: false });
-    setEditingLeaveId(null);
-    setSubmitting(false);
+    setEditingId(null);
   };
 
-  const handleEditLeave = (leave) => {
-    setEditingLeaveId(leave.id);
+  const editRequest = (request) => {
+    setEditingId(request.id);
     setForm({
-      type: leave.type,
-      from: leave.from_date || leave.from,
-      to: leave.to_date || leave.to,
-      reason: leave.reason || '',
-      isHalfDay: leave.days === 0.5
+      type: request.type,
+      from: request.from_date,
+      to: request.to_date,
+      reason: request.reason,
+      isHalfDay: Number(request.days) === 0.5,
     });
-    setFormMsg(null);
-    // scroll to top smoothly
+    setFormMessage(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleGrant = async (employeeId, daysToAdd) => {
-    const result = await grantCompOff(employeeId, daysToAdd);
-    setActionMsg(result?.error
-      ? {
-          type: 'error',
-          text: result.committed
-            ? 'Comp Off was granted, but the latest balances could not be refreshed.'
-            : (result.error.message || 'Unable to grant Comp Off.'),
-          retry: Boolean(result.committed),
-        }
-      : { type: 'success', text: `${daysToAdd} Comp Off day(s) granted.` });
-    return result;
-  };
-
-  const handleApprove = async (requestId) => {
-    setActionId(requestId);
-    setActionMsg(null);
-    const result = await approveLeave(requestId);
-    setActionMsg(result?.error
-      ? {
-          type: 'error',
-          text: result.committed
-            ? 'The leave was approved, but the latest data could not be refreshed.'
-            : (result.error.message || 'Unable to approve the leave request.'),
-          retry: Boolean(result.committed),
-        }
-      : { type: 'success', text: 'Leave request approved and balance updated.' });
-    setActionId(null);
-  };
-
-  const handleReject = async () => {
-    if (!rejectTarget) return;
-    setRejecting(true);
-    setRejectError('');
-    const result = await rejectLeave(rejectTarget.id, rejectComment);
-    if (result?.error && !result.committed) {
-      setRejectError(result.error.message || 'Unable to reject the leave request.');
-      setRejecting(false);
+  const submitDecision = async (comment) => {
+    setActionId(decision.request.id);
+    setSubmitting(true);
+    setDecisionError('');
+    const result = decision.approve
+      ? await approveLeave(decision.request.id, comment)
+      : await rejectLeave(decision.request.id, comment);
+    setSubmitting(false);
+    setActionId('');
+    if (result.error && !result.committed) {
+      setDecisionError(result.error.message || 'Unable to save the decision.');
       return;
     }
-    setActionMsg(result?.error
-      ? {
-          type: 'error',
-          text: 'The leave was rejected, but the latest data could not be refreshed.',
-          retry: true,
-        }
-      : { type: 'success', text: 'Leave request rejected without changing the balance.' });
-    setRejectTarget(null);
-    setRejectComment('');
-    setRejecting(false);
+    setDecision(null);
+    setNotice({ type: result.error ? 'error' : 'success', text: result.error ? 'Decision saved; refresh failed.' : `Request ${decision.approve ? 'approved' : 'rejected'}.` });
   };
 
-  const roleLabel = (role) => {
-    if (role === 'superadmin') return 'Super Admin';
-    if (role === 'admin') return 'Admin';
-    return 'Employee';
+  const submitAdjustment = async (event) => {
+    event.preventDefault();
+    if (!adjustment.employeeId || !adjustment.reason.trim()) return;
+    setAdjusting(true);
+    const result = await adjustBalance({
+      ...adjustment,
+      amount: Number(adjustment.amount),
+    });
+    setAdjusting(false);
+    if (result.error && !result.committed) {
+      setNotice({ type: 'error', text: result.error.message || 'Unable to adjust the balance.' });
+      return;
+    }
+    setNotice({ type: result.error ? 'error' : 'success', text: result.error ? 'Adjustment saved; refresh failed.' : 'Balance adjustment recorded in immutable history.' });
+    setAdjustment((current) => ({ ...current, reason: '' }));
+    setHistoryEmployeeId(adjustment.employeeId);
+    const history = await loadBalanceHistory(adjustment.employeeId);
+    if (!history.error) setTransactions(history.data);
+  };
+
+  const submitHoliday = async (event) => {
+    event.preventDefault();
+    setHolidaySaving(true);
+    const result = await saveHoliday(holidayForm);
+    setHolidaySaving(false);
+    if (result.error && !result.committed) {
+      setNotice({ type: 'error', text: result.error.message || 'Unable to save the holiday.' });
+      return;
+    }
+    setHolidayForm({ name: '', date: '' });
+    setNotice({ type: result.error ? 'error' : 'success', text: result.error ? 'Holiday saved; refresh failed.' : 'Company holiday added.' });
+  };
+
+  const deleteHoliday = async (holiday) => {
+    if (!window.confirm(`Remove ${holiday.name} from the company holiday calendar?`)) return;
+    const result = await removeHoliday(holiday.id);
+    setNotice({
+      type: result.error ? 'error' : 'success',
+      text: result.error
+        ? result.error.message || 'Unable to remove the holiday.'
+        : 'Company holiday removed.',
+    });
+  };
+
+  const savePolicy = async (event) => {
+    event.preventDefault();
+    setPolicySaving(true);
+    const result = await setLateCutoff(lateEnabled ? lateTime : null);
+    setPolicySaving(false);
+    setNotice({
+      type: result.error ? 'error' : 'success',
+      text: result.error ? result.error.message || 'Unable to save attendance policy.' : lateEnabled ? `Late timing is now after ${lateTime}.` : 'Late timing is disabled.',
+    });
   };
 
   if (loading) {
     return (
-      <Layout
-        title="Leave"
-        eyebrow="Time away"
-        heading="Leave"
-        description="Manage your balance, requests and approvals in one place."
-      >
-        <div className="card">
-          <AppState
-            type="loading"
-            title="Loading leave details"
-            message="Your balances and requests are being prepared."
-          />
-        </div>
+      <Layout title="Leave" eyebrow="Time away" heading="Leave" description="Plan time away and follow every request from one place.">
+        <div className="card"><AppState type="loading" title="Loading leave" message="Reconciling balances, requests and holidays." /></div>
       </Layout>
     );
   }
 
   if (loadError) {
     return (
-      <Layout
-        title="Leave"
-        eyebrow="Time away"
-        heading="Leave"
-        description="Manage your balance, requests and approvals in one place."
-      >
-        <div className="card">
-          <AppState
-            type="error"
-            title="Leave details could not be loaded"
-            message={loadError.message || 'Try loading the leave page again.'}
-            action={<button className="btn-teal" onClick={() => refreshLeaveData()}>Try again</button>}
-          />
-        </div>
+      <Layout title="Leave" eyebrow="Time away" heading="Leave" description="Plan time away and follow every request from one place.">
+        <div className="card"><AppState type="error" title="Leave could not be loaded" message={loadError.message} action={<button type="button" className="btn" onClick={() => refreshLeaveData()}>Try again</button>} /></div>
       </Layout>
     );
   }
@@ -382,579 +343,161 @@ const Leave = () => {
       title="Leave"
       eyebrow="Time away"
       heading="Leave"
-      description="Manage your balance, requests and approvals in one place."
+      description="See available days, request working-day leave and follow HR decisions. Attendance updates after approval."
+      actions={leaveAdmin ? <span className="leave-admin-badge"><i className="ri-shield-user-line" /> Leave Admin</span> : null}
     >
+      {notice && <div className={`people-feedback people-feedback--${notice.type}`} role={notice.type === 'error' ? 'alert' : 'status'}>{notice.text}</div>}
 
-      {/* ── Balance Cards ── */}
-      <div className="leave-balance-grid">
-        {LEAVE_TYPES.map(type => {
-          const info = LEAVE_COLORS[type];
-          const b = balance[type] || { remaining: 0 };
+      <section className="leave-balance-overview" aria-label="My leave balances">
+        {LEAVE_TYPES.map((type) => {
+          const item = balance[type];
+          const meta = LEAVE_META[type];
           return (
-            <div key={type} className="leave-balance-card" style={{ borderTop: `4px solid ${info.color}` }}>
-              <div className="leave-balance-header">
-                <div className="leave-balance-icon" style={{ background: info.bg, color: info.color }}>
-                  <i className={info.icon} />
-                </div>
-                <span className="leave-balance-type">{type}</span>
-              </div>
-              <div className="leave-balance-nums" style={{ justifyContent: 'center' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div className="leave-balance-val" style={{ color: info.color, fontSize: '2rem' }}>{b.remaining}</div>
-                  <div className="leave-balance-label">Remaining Days</div>
-                </div>
-              </div>
-            </div>
+            <article className={`leave-balance-summary leave-balance-summary--${meta.tone}`} key={type}>
+              <span className="leave-balance-summary-icon"><i className={meta.icon} /></span>
+              <div className="leave-balance-summary-title"><span>{type}</span><strong>{item.remaining}</strong><small>available days</small></div>
+              <div className="leave-balance-summary-breakdown"><span><strong>{item.pending}</strong> pending</span><span><strong>{item.used}</strong> used this year</span></div>
+            </article>
           );
         })}
-      </div>
+      </section>
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div className="leave-section-header">
-          <div>
-            <h3 className="font-bold">Upcoming Holidays</h3>
-            <p className="text-muted text-sm" style={{ marginTop: '0.25rem' }}>
-              Company holidays are shown in India Standard Time.
-            </p>
-          </div>
-          <span className="leave-tab-count">{upcomingHolidays.length}</span>
-        </div>
-        {upcomingHolidays.length === 0 ? (
-          <AppState
-            compact
-            type="empty"
-            title="No upcoming holidays"
-            message="New company holidays will appear here when they are added."
-          />
-        ) : (
-          <div className="leave-holiday-grid">
-            {upcomingHolidays.map((holiday) => (
-              <div className="leave-holiday-item" key={holiday.id}>
-                <div className="leave-holiday-date">
-                  <strong>{formatAppDate(holiday.date, { day: '2-digit' })}</strong>
-                  <span>{formatAppDate(holiday.date, {
-                    weekday: 'long',
-                    day: undefined,
-                    month: undefined,
-                    year: undefined,
-                  })}</span>
-                </div>
-                <div>
-                  <div className="font-bold">{holiday.name}</div>
-                  <div className="text-muted text-sm">{formatAppDate(holiday.date)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Main Content ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-        {/* Top: Apply Form */}
-        <div className="card">
-          <div className="leave-section-header">
-            <h3 className="font-bold">Apply for Leave</h3>
-            {isSuperAdmin && (
-              <span className="leave-auto-badge">
-                <i className="ri-flashlight-line" /> Auto-approved
-              </span>
-            )}
+      <div className="leave-primary-grid">
+        <section className="card leave-apply-card" aria-labelledby="leave-apply-title">
+          <div className="track-work-section-heading">
+            <div><span className="page-eyebrow">My request</span><h2 id="leave-apply-title">{editingId ? 'Edit pending request' : 'Request leave'}</h2></div>
+            {editingId && <button type="button" className="btn btn-outline" onClick={() => { setEditingId(null); setForm({ type: 'Sick Leave', from: '', to: '', reason: '', isHalfDay: false }); }}>Cancel edit</button>}
           </div>
 
-          {formMsg && (
-            <div
-              className={`leave-form-msg ${formMsg.type}`}
-              role={formMsg.type === 'error' ? 'alert' : 'status'}
-            >
-              <i className={formMsg.type === 'success' ? 'ri-checkbox-circle-fill' : 'ri-error-warning-fill'} />
-              {formMsg.text}
-              {formMsg.retry && (
-                <button type="button" className="btn btn-outline" onClick={() => refreshLeaveData()}>
-                  Refresh data
-                </button>
-              )}
+          {formMessage && <div className={`leave-inline-message leave-inline-message--${formMessage.type}`} role={formMessage.type === 'error' ? 'alert' : 'status'}>{formMessage.text}</div>}
+
+          <form className="leave-request-form" onSubmit={submitRequest}>
+            <label><span>Leave type</span><select name="type" value={form.type} onChange={changeForm}>{LEAVE_TYPES.map((type) => <option key={type}>{type}</option>)}</select></label>
+            <div className="leave-form-dates">
+              <label><span>From</span><input type="date" name="from" value={form.from} onChange={changeForm} required /></label>
+              <label><span>To</span><input type="date" name="to" value={form.to} onChange={changeForm} disabled={form.isHalfDay} required /></label>
             </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="input-group">
-                <label htmlFor="leave-type">Leave Type</label>
-                <select id="leave-type" name="type" value={form.type} onChange={handleFormChange}>
-                  {LEAVE_TYPES.map(t => (
-                    <option key={t} value={t}>
-                      {t} ({(balance[t]?.remaining ?? 0)} days left)
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="input-group">
-                <label htmlFor="leave-from">From</label>
-                <input id="leave-from" type="date" name="from" value={form.from} onChange={handleFormChange} required />
-              </div>
-              <div className="input-group">
-                <label htmlFor="leave-to">To</label>
-                <input id="leave-to" type="date" name="to" value={form.to} onChange={handleFormChange} required disabled={form.isHalfDay} />
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-                  <input type="checkbox" name="isHalfDay" checked={form.isHalfDay} onChange={handleFormChange} />
-                  Half Day (0.5 days)
-                </label>
-              </div>
-              <div className="input-group">
-                <label htmlFor="leave-reason">Reason</label>
-                <input
-                  id="leave-reason"
-                  type="text"
-                  name="reason"
-                  value={form.reason}
-                  onChange={handleFormChange}
-                  placeholder="Enter reason"
-                />
-              </div>
+            <label className="leave-half-day-toggle"><input type="checkbox" name="isHalfDay" checked={form.isHalfDay} onChange={changeForm} /><span><strong>Half day</strong><small>Exactly 0.5 on one company working day</small></span></label>
+            <label><span>Reason</span><textarea name="reason" value={form.reason} onChange={changeForm} placeholder="Briefly explain the request" required /></label>
+            <div className="leave-request-preview">
+              <span><i className="ri-calendar-check-line" /><strong>{previewDays}</strong> chargeable day{previewDays === 1 ? '' : 's'}</span>
+              <small>Weekends and company holidays are excluded automatically.</small>
             </div>
-
-            {/* Reason replaced in grid */}
-
-            {form.from && form.to && new Date(form.to) >= new Date(form.from) && (
-              <div className="leave-days-preview">
-                <i className="ri-calendar-event-line" />
-                <strong>
-                  {calculateLeaveDays(form.from, form.to, form.isHalfDay)} day(s)
-                </strong> requested
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="btn-teal"
-              style={{ marginTop: '1rem' }}
-              disabled={submitting}
-            >
-              <i className="ri-send-plane-line" />
-              {editingLeaveId ? 'Update Request' : isSuperAdmin ? 'Submit & Auto-Approve' : 'Submit Request'}
-            </button>
+            <button type="submit" className="btn" disabled={submitting}>{submitting ? 'Saving…' : editingId ? 'Update request' : 'Send to HR'}</button>
           </form>
-        </div>
+        </section>
 
-        {/* Bottom: Tabs + History */}
-        <div>
-          {/* ── Tab Navigation ── */}
-          <div className="salary-tabs" style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <button
-              className={`salary-tab-btn${activeTab === 'my' ? ' active' : ''}`}
-              onClick={() => setActiveTab('my')}
-            >
-              <i className="ri-file-list-3-line" /> My Leaves
-              <span className="leave-tab-count" style={{ marginLeft: '0.25rem', background: '#E2E8F0', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem', color: '#1E293B' }}>{myRequests.length}</span>
-            </button>
-            {canViewApprovals && (
-              <button
-                className={`salary-tab-btn${activeTab === 'approvals' ? ' active' : ''}`}
-                onClick={() => setActiveTab('approvals')}
-              >
-                <i className="ri-checkbox-circle-line" /> Pending Approvals
-                {pendingApprovals.length > 0 && (
-                  <span className="leave-tab-count pending" style={{ marginLeft: '0.25rem', background: '#FEE2E2', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem', color: '#991B1B' }}>{pendingApprovals.length}</span>
-                )}
-              </button>
-            )}
-            {canViewApprovals && (
-              <button
-                className={`salary-tab-btn${activeTab === 'history' ? ' active' : ''}`}
-                onClick={() => setActiveTab('history')}
-              >
-                <i className="ri-history-line" /> Leave History
-              </button>
-            )}
-
-            {isSuperAdmin && (
-              <button className="salary-add-btn" onClick={() => setShowGrantModal(true)} style={{ marginLeft: 'auto', background: '#003B2C' }}>
-                <i className="ri-award-line" /> Grant Comp Off
-              </button>
-            )}
-          </div>
-
-          {/* Top/Left: History or Approvals */}
-          <div className="card">
-            {actionMsg && (
-              <div className={`leave-form-msg ${actionMsg.type}`} role={actionMsg.type === 'error' ? 'alert' : 'status'}>
-                <i className={actionMsg.type === 'success' ? 'ri-checkbox-circle-fill' : 'ri-error-warning-fill'} />
-                {actionMsg.text}
-                {actionMsg.retry && (
-                  <button type="button" className="btn btn-outline" onClick={() => refreshLeaveData()}>
-                    Refresh data
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* My Leaves Tab */}
-            {activeTab === 'my' && (
-              <>
-                <div className="leave-section-header">
-                  <h3 className="font-bold">My Leave History</h3>
-                  <span className="text-muted text-sm">{myRequests.length} request{myRequests.length !== 1 ? 's' : ''}</span>
-                </div>
-                {myRequests.length === 0 ? (
-                  <AppState
-                    compact
-                    type="empty"
-                    title="No leave requests yet"
-                    message="Apply for leave above and your request will appear here."
-                  />
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Leave Type</th>
-                          <th>From</th>
-                          <th>To</th>
-                          <th>Days</th>
-                          <th>Status</th>
-                          <th>Applied On</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {myRequests.map(row => (
-                          <tr key={row.id}>
-                            <td>
-                              <span className="leave-type-pill" style={{
-                                background: LEAVE_COLORS[row.type]?.bg,
-                                color: LEAVE_COLORS[row.type]?.color
-                              }}>
-                                <i className={LEAVE_COLORS[row.type]?.icon} /> {row.type}
-                              </span>
-                            </td>
-                            <td>{row.from_date || row.from}</td>
-                            <td>{row.to_date || row.to}</td>
-                            <td><strong>{row.days}</strong></td>
-                            <td>{statusBadge(row.status)}</td>
-                            <td style={{ color: '#A3AED0' }}>{formatAppDate(row.created_at || row.appliedOn || new Date())}</td>
-                            <td>
-                              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <button
-                                  style={{ background: 'none', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.25rem 0.6rem', cursor: 'pointer', color: '#003B2C', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
-                                  onClick={() => setSelectedLeaveReason({ reason: row.reason || 'No reason provided.', type: row.type, comment: row.rejection_comment, status: row.status })}
-                                >
-                                  <i className="ri-eye-line" /> View
-                                </button>
-                                {row.status === 'Pending' && (
-                                  <button
-                                    style={{ background: 'none', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.25rem 0.6rem', cursor: 'pointer', color: '#64748B', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
-                                    onClick={() => handleEditLeave(row)}
-                                  >
-                                    <i className="ri-pencil-line" /> Edit
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Pending Approvals Tab */}
-            {activeTab === 'approvals' && canViewApprovals && (
-              <>
-                <div className="leave-section-header">
-                  <h3 className="font-bold">Pending Approvals</h3>
-                  <span className="text-muted text-sm">{pendingApprovals.length} pending</span>
-                </div>
-                {pendingApprovals.length === 0 ? (
-                  <AppState
-                    compact
-                    type="success"
-                    title="You are all caught up"
-                    message="There are no pending leave requests to review."
-                  />
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Employee</th>
-                          <th>Role</th>
-                          <th>Leave Type</th>
-                          <th>From</th>
-                          <th>To</th>
-                          <th>Days</th>
-                          <th>Status</th>
-                          <th></th>
-                          {canApprove && <th>Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pendingApprovals.map(row => (
-                          <tr key={row.id}>
-                            <td>
-                              <div className="leave-approval-user">
-                                <div className="leave-approval-avatar">
-                                  {(row.employees?.name || row.userName || 'User').split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                </div>
-                                <span>{row.employees?.name || row.userName}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <span className="badge primary">{roleLabel(row.employees?.role || row.userRole)}</span>
-                            </td>
-                            <td>
-                              <span className="leave-type-pill" style={{
-                                background: LEAVE_COLORS[row.type]?.bg,
-                                color: LEAVE_COLORS[row.type]?.color
-                              }}>
-                                <i className={LEAVE_COLORS[row.type]?.icon} /> {row.type}
-                              </span>
-                            </td>
-                            <td>{row.from_date || row.from}</td>
-                            <td>{row.to_date || row.to}</td>
-                            <td><strong>{row.days}</strong></td>
-                            <td>{statusBadge(row.status)}</td>
-                            <td>
-                              <button
-                                style={{ background: 'none', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.25rem 0.6rem', cursor: 'pointer', color: '#46ff18ff', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
-                                onClick={() => setSelectedLeaveReason({ reason: row.reason || 'No reason provided.', type: row.type, comment: row.rejection_comment, status: row.status })}
-                              >
-                                <i className="ri-eye-line" /> View
-                              </button>
-                            </td>
-                            {canApprove && (
-                              <td>
-                                <div className="leave-action-btns">
-                                  {row.status === 'Pending' && (
-                                    <>
-                                      <button
-                                        className="leave-action-approve"
-                                        onClick={() => handleApprove(row.id)}
-                                        disabled={actionId === row.id}
-                                        title="Approve"
-                                      >
-                                        <i className="ri-check-line" /> {actionId === row.id ? 'Approving...' : 'Approve'}
-                                      </button>
-                                      <button
-                                        className="leave-action-reject"
-                                        onClick={() => {
-                                          setRejectTarget(row);
-                                          setRejectComment('');
-                                          setRejectError('');
-                                        }}
-                                        disabled={actionId === row.id}
-                                        title="Reject"
-                                      >
-                                        <i className="ri-close-line" /> Reject
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Leave History Tab */}
-            {activeTab === 'history' && canViewApprovals && (
-              <>
-                <div className="leave-section-header">
-                  <h3 className="font-bold">Leave History</h3>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <input
-                      type="month"
-                      className="salary-input"
-                      value={historyMonth}
-                      onChange={e => setHistoryMonth(e.target.value)}
-                      style={{ padding: '0.25rem 0.5rem', margin: 0, width: '150px' }}
-                    />
-                    {isSuperAdmin && (
-                      <select
-                        className="salary-input"
-                        value={historyDepartment}
-                        onChange={e => setHistoryDepartment(e.target.value)}
-                        style={{ padding: '0.25rem 0.5rem', margin: 0, width: '150px' }}
-                      >
-                        <option value="">All Departments</option>
-                        <option value="Development">Development</option>
-                        <option value="Design">Design</option>
-                        <option value="Operations">Operations</option>
-                        <option value="Sales">Sales</option>
-                      </select>
-                    )}
-                  </div>
-                </div>
-                {filteredHistory.length === 0 ? (
-                  <AppState
-                    compact
-                    type="empty"
-                    title="No matching leave history"
-                    message="Adjust the month or department filter to see more results."
-                  />
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Employee</th>
-                          <th>Role</th>
-                          <th>Leave Type</th>
-                          <th>From</th>
-                          <th>To</th>
-                          <th>Days</th>
-                          <th>Status</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredHistory.map(row => (
-                          <tr key={row.id}>
-                            <td>
-                              <div className="leave-approval-user">
-                                <div className="leave-approval-avatar">
-                                  {(row.employees?.name || row.userName || 'User').split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                </div>
-                                <span>{row.employees?.name || row.userName}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <span className="badge primary">{roleLabel(row.employees?.role || row.userRole)}</span>
-                            </td>
-                            <td>
-                              <span className="leave-type-pill" style={{
-                                background: LEAVE_COLORS[row.type]?.bg,
-                                color: LEAVE_COLORS[row.type]?.color
-                              }}>
-                                <i className={LEAVE_COLORS[row.type]?.icon} /> {row.type}
-                              </span>
-                            </td>
-                            <td>{row.from_date || row.from}</td>
-                            <td>{row.to_date || row.to}</td>
-                            <td><strong>{row.days}</strong></td>
-                            <td>{statusBadge(row.status)}</td>
-                            <td>
-                              <button
-                                style={{ background: 'none', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.25rem 0.6rem', cursor: 'pointer', color: '#003B2C', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
-                                onClick={() => setSelectedLeaveReason({ reason: row.reason || 'No reason provided.', type: row.type, comment: row.rejection_comment, status: row.status })}
-                              >
-                                <i className="ri-eye-line" /> View
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-        </div>
+        <section className="card leave-holiday-card" aria-labelledby="leave-upcoming-title">
+          <div className="track-work-section-heading"><div><span className="page-eyebrow">Company calendar</span><h2 id="leave-upcoming-title">Upcoming holidays</h2></div><span>{upcomingHolidays.length}</span></div>
+          {upcomingHolidays.length === 0 ? (
+            <AppState compact type="empty" title="No upcoming holidays" message="New company holidays will appear here." />
+          ) : (
+            <ol className="leave-holiday-list">
+              {upcomingHolidays.slice(0, 6).map((holiday) => (
+                <li key={holiday.id}>
+                  <time><strong>{formatAppDate(holiday.date, { day: '2-digit', month: undefined, year: undefined })}</strong><span>{formatAppDate(holiday.date, { month: 'short', day: undefined, year: undefined })}</span></time>
+                  <div><strong>{holiday.name}</strong><span>{formatAppDate(holiday.date, { weekday: 'long', day: undefined, month: undefined, year: undefined })}</span></div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       </div>
 
-      {showGrantModal && (
-        <GrantCompOffModal
-          onClose={() => setShowGrantModal(false)}
-          onGrant={handleGrant}
-        />
+      <nav className="leave-workspace-tabs" aria-label="Leave workspace">
+        <button type="button" className={activeTab === 'my' ? 'active' : ''} onClick={() => setActiveTab('my')}><i className="ri-file-list-3-line" /> My requests <span>{myRequests.length}</span></button>
+        {leaveAdmin && <button type="button" className={activeTab === 'queue' ? 'active' : ''} onClick={() => setActiveTab('queue')}><i className="ri-inbox-archive-line" /> HR queue <span>{pendingRequests.length}</span></button>}
+        {leaveAdmin && <button type="button" className={activeTab === 'balances' ? 'active' : ''} onClick={() => setActiveTab('balances')}><i className="ri-scales-3-line" /> Balances</button>}
+        {leaveAdmin && <button type="button" className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}><i className="ri-calendar-settings-line" /> Holidays & policy</button>}
+      </nav>
+
+      {activeTab === 'my' && (
+        <section className="card leave-workspace-card">
+          <div className="track-work-section-heading"><div><span className="page-eyebrow">Request history</span><h2>My leave requests</h2></div><span>{myRequests.length} total</span></div>
+          {myRequests.length === 0 ? <AppState compact type="empty" title="No requests yet" message="Your first request will appear here." /> : <RequestTable requests={myRequests} own actionId={actionId} onEdit={editRequest} />}
+        </section>
       )}
 
-      {/* Reason View Modal */}
-      {selectedLeaveReason && (
-        <div className="salary-modal-overlay" onClick={() => setSelectedLeaveReason(null)}>
-          <div
-            ref={reasonDialogRef}
-            className="salary-modal"
-            style={{ maxWidth: 420 }}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="leave-details-title"
-            tabIndex="-1"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="salary-modal-header">
-              <div>
-                <h3 className="salary-modal-title" id="leave-details-title">Leave Details</h3>
-                <p className="salary-modal-sub" style={{ textTransform: 'capitalize' }}>{selectedLeaveReason.type}</p>
-              </div>
-              <button type="button" className="salary-modal-close" onClick={() => setSelectedLeaveReason(null)} aria-label="Close leave details"><i className="ri-close-line" aria-hidden="true" /></button>
-            </div>
-            <div style={{ padding: '0 0 1rem' }}>
-              <p style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: '0.25rem', fontWeight: 600 }}>Reason</p>
-              <p style={{ color: '#1E293B', lineHeight: 1.6 }}>{selectedLeaveReason.reason || '—'}</p>
-              {selectedLeaveReason.comment && (
-                <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: '#FFF2F2', borderRadius: 8, borderLeft: '4px solid #EE5D50' }}>
-                  <p style={{ fontSize: '0.85rem', color: '#EE5D50', fontWeight: 600, marginBottom: '0.25rem' }}>Rejection Comment</p>
-                  <p style={{ color: '#7F1D1D', lineHeight: 1.6 }}>{selectedLeaveReason.comment}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {activeTab === 'queue' && leaveAdmin && (
+        <section className="card leave-workspace-card">
+          <div className="track-work-section-heading"><div><span className="page-eyebrow">Organisation review</span><h2>HR leave queue</h2></div><span>{pendingRequests.length} awaiting decision</span></div>
+          {pendingRequests.length === 0 ? <AppState compact type="success" title="Queue clear" message="There are no requests waiting for an HR decision." /> : <RequestTable requests={pendingRequests} actionId={actionId} onDecide={(request, approve) => { setDecision({ request, approve }); setDecisionError(''); }} />}
+        </section>
       )}
 
-      {/* Reject with Comment Modal */}
-      {rejectTarget && (
-        <div className="salary-modal-overlay" onClick={() => setRejectTarget(null)}>
-          <div
-            ref={rejectDialogRef}
-            className="salary-modal"
-            style={{ maxWidth: 420 }}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="reject-leave-title"
-            tabIndex="-1"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="salary-modal-header">
-              <div>
-                <h3 className="salary-modal-title" id="reject-leave-title">Reject Leave Request</h3>
-                <p className="salary-modal-sub">Add a comment for {rejectTarget.employees?.name}</p>
-              </div>
-              <button type="button" className="salary-modal-close" onClick={() => setRejectTarget(null)} aria-label="Close reject leave dialog"><i className="ri-close-line" aria-hidden="true" /></button>
+      {activeTab === 'balances' && leaveAdmin && (
+        <div className="leave-admin-grid">
+          <section className="card leave-adjustment-card">
+            <div className="track-work-section-heading"><div><span className="page-eyebrow">Audited change</span><h2>Adjust a balance</h2></div></div>
+            <form className="leave-admin-form" onSubmit={submitAdjustment}>
+              <label><span>Employee</span><select value={adjustment.employeeId} onChange={(event) => setAdjustment((current) => ({ ...current, employeeId: event.target.value }))} required><option value="">Choose employee</option>{adminOverview.filter((person) => person.employee_id !== user.id).map((person) => <option value={person.employee_id} key={person.employee_id}>{person.employee_name} · {person.employee_code}</option>)}</select><small>Leave Admins cannot change their own balance.</small></label>
+              <label><span>Leave type</span><select value={adjustment.type} onChange={(event) => setAdjustment((current) => ({ ...current, type: event.target.value }))}>{LEAVE_TYPES.map((type) => <option key={type}>{type}</option>)}</select></label>
+              <label><span>Signed adjustment</span><input type="number" min="-50" max="50" step="0.5" value={adjustment.amount} onChange={(event) => setAdjustment((current) => ({ ...current, amount: event.target.value }))} required /><small>Use a positive value to add days and a negative value to reverse days.</small></label>
+              <label><span>Reason</span><textarea value={adjustment.reason} onChange={(event) => setAdjustment((current) => ({ ...current, reason: event.target.value }))} placeholder="Required for immutable history" required /></label>
+              <button type="submit" className="btn" disabled={adjusting}>{adjusting ? 'Recording…' : 'Record adjustment'}</button>
+            </form>
+          </section>
+
+          <section className="card leave-balance-directory">
+            <div className="track-work-section-heading"><div><span className="page-eyebrow">Current balances</span><h2>Employee balances</h2></div><span>{adminOverview.length} people</span></div>
+            <div className="leave-balance-directory-list">
+              {adminOverview.map((person) => (
+                <button type="button" className={historyEmployeeId === person.employee_id ? 'active' : ''} onClick={() => setHistoryEmployeeId(person.employee_id)} key={person.employee_id}>
+                  <span className="leave-directory-avatar">{person.employee_name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span>
+                  <div><strong>{person.employee_name}</strong><small>{person.employee_department || 'No department'}</small></div>
+                  <span><b>{person.sick_leave}</b> SL · <b>{person.casual_leave}</b> CL · <b>{person.comp_off}</b> CO</span>
+                </button>
+              ))}
             </div>
-            <div className="salary-field">
-              <label className="salary-field-label" htmlFor="rejection-comment">Rejection Comment <span style={{ color: '#A3AED0', fontWeight: 400 }}>(optional)</span></label>
-              <textarea
-                id="rejection-comment"
-                className="salary-input"
-                style={{ minHeight: 100, resize: 'none' }}
-                placeholder="Explain why the leave is being rejected..."
-                value={rejectComment}
-                onChange={e => setRejectComment(e.target.value)}
-                disabled={rejecting}
-              />
-            </div>
-            {rejectError && (
-              <div className="leave-form-msg error" role="alert">
-                <i className="ri-error-warning-fill" />
-                {rejectError}
-              </div>
+          </section>
+
+          <section className="card leave-ledger-card">
+            <div className="track-work-section-heading"><div><span className="page-eyebrow">Immutable history</span><h2>Balance ledger</h2></div></div>
+            {historyLoading ? <AppState compact type="loading" title="Loading ledger" message="Collecting balance changes." /> : transactions.length === 0 ? <AppState compact type="empty" title="No balance history" message="Choose an employee or record an adjustment." /> : (
+              <ol className="leave-ledger-list">
+                {transactions.map((transaction) => (
+                  <li key={transaction.transaction_id}>
+                    <span className={Number(transaction.amount) > 0 ? 'positive' : 'negative'}>{formatAmount(transaction.amount)}</span>
+                    <div><strong>{transaction.leave_type}</strong><p>{transaction.reason}</p><small>{formatAppDate(transaction.created_at)} · {formatAppClock(transaction.created_at)}{transaction.created_by_name ? ` · ${transaction.created_by_name}` : ''}</small></div>
+                    <span className="badge neutral">{transaction.transaction_type.replace('_', ' ')}</span>
+                  </li>
+                ))}
+              </ol>
             )}
-            <div className="salary-modal-actions">
-              <button className="salary-cancel-btn" onClick={() => setRejectTarget(null)} disabled={rejecting}>Cancel</button>
-              <button
-                className="salary-submit-btn"
-                style={{ background: '#EE5D50' }}
-                onClick={handleReject}
-                disabled={rejecting}
-              >
-                <i className="ri-close-circle-line" /> {rejecting ? 'Rejecting...' : 'Confirm Reject'}
-              </button>
-            </div>
-          </div>
+          </section>
         </div>
       )}
+
+      {activeTab === 'settings' && leaveAdmin && (
+        <div className="leave-settings-grid">
+          <section className="card">
+            <div className="track-work-section-heading"><div><span className="page-eyebrow">Company calendar</span><h2>Add a holiday</h2></div></div>
+            <form className="leave-admin-form" onSubmit={submitHoliday}>
+              <label><span>Holiday name</span><input value={holidayForm.name} onChange={(event) => setHolidayForm((current) => ({ ...current, name: event.target.value }))} placeholder="Holiday name" required /></label>
+              <label><span>Date</span><input type="date" value={holidayForm.date} onChange={(event) => setHolidayForm((current) => ({ ...current, date: event.target.value }))} required /></label>
+              <button type="submit" className="btn" disabled={holidaySaving}>{holidaySaving ? 'Saving…' : 'Add holiday'}</button>
+            </form>
+            <ol className="leave-settings-holidays">
+              {holidays.map((holiday) => (
+                <li key={holiday.id}><div><strong>{holiday.name}</strong><span>{formatAppDate(holiday.date, { weekday: 'long', month: 'long' })}</span></div>{holiday.date >= appDateKey() && <button type="button" onClick={() => deleteHoliday(holiday)} aria-label={`Remove ${holiday.name}`}><i className="ri-delete-bin-line" /></button>}</li>
+              ))}
+            </ol>
+          </section>
+
+          <section className="card">
+            <div className="track-work-section-heading"><div><span className="page-eyebrow">Attendance policy</span><h2>Late timing</h2></div></div>
+            <p className="leave-settings-copy">Lateness is based only on the original daily check-in. Context switches never change it.</p>
+            <form className="leave-admin-form" onSubmit={savePolicy}>
+              <label className="leave-half-day-toggle"><input type="checkbox" checked={lateEnabled} onChange={(event) => setLateEnabled(event.target.checked)} /><span><strong>Enable a company late cutoff</strong><small>Leave disabled until HR has confirmed the policy.</small></span></label>
+              <label><span>Late after</span><input type="time" value={lateTime} onChange={(event) => setLateTime(event.target.value)} disabled={!lateEnabled} required={lateEnabled} /><small>A check-in exactly at this time is on time; the next minute is late.</small></label>
+              <button type="submit" className="btn" disabled={policySaving}>{policySaving ? 'Saving…' : 'Save policy'}</button>
+            </form>
+            <div className="leave-policy-note"><i className="ri-information-line" /><span>Working days are Monday–Friday. Weekends and company holidays do not consume leave.</span></div>
+          </section>
+        </div>
+      )}
+
+      {decision && <DecisionDialog decision={decision} submitting={submitting} error={decisionError} onClose={() => setDecision(null)} onSubmit={submitDecision} />}
     </Layout>
   );
 };

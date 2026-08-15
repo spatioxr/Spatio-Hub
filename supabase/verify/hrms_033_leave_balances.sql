@@ -104,8 +104,8 @@ CREATE TEMP TABLE hrms_033_approved_request AS
 SELECT submitted.*
 FROM public.submit_leave_request(
   'Sick Leave',
-  DATE '2099-05-03',
   DATE '2099-05-04',
+  DATE '2099-05-05',
   false,
   'Approve exactly once.'
 ) submitted;
@@ -114,8 +114,8 @@ CREATE TEMP TABLE hrms_033_half_day_request AS
 SELECT submitted.*
 FROM public.submit_leave_request(
   'Sick Leave',
-  DATE '2099-05-05',
-  DATE '2099-05-05',
+  DATE '2099-05-06',
+  DATE '2099-05-06',
   true,
   'Approve an exact half day.'
 ) submitted;
@@ -166,14 +166,14 @@ $$;
 SELECT public.decide_leave_request(id, true, NULL)
 FROM hrms_033_half_day_request;
 
-CREATE TEMP TABLE hrms_033_auto_approved AS
+CREATE TEMP TABLE hrms_033_superadmin_request AS
 SELECT submitted.*
 FROM public.submit_leave_request(
   'Casual Leave',
-  DATE '2099-05-06',
-  DATE '2099-05-06',
+  DATE '2099-05-07',
+  DATE '2099-05-07',
   false,
-  'Superadmin auto-approval must deduct once.'
+  'Privileged users still require an independent decision.'
 ) submitted;
 
 SELECT public.grant_comp_off_balance(
@@ -237,10 +237,10 @@ checks AS (
       AS approvals_deduct_once_with_half_day_precision,
     (SELECT casual_leave = 12 AND comp_off = 1.5 FROM employee_balance)
       AS rejection_does_not_deduct_and_grant_is_exact,
-    (SELECT status = 'Approved' FROM hrms_033_auto_approved)
-      AS superadmin_request_auto_approves,
-    (SELECT casual_leave = 11 FROM superadmin_balance)
-      AS auto_approval_deducts_once,
+    (SELECT status = 'Pending' FROM hrms_033_superadmin_request)
+      AS every_request_enters_the_hr_queue,
+    (SELECT casual_leave = 12 FROM superadmin_balance)
+      AS pending_privileged_request_does_not_deduct,
     (SELECT repeated_rejection_blocked FROM hrms_033_guards)
       AS repeated_rejection_is_idempotently_blocked,
     (SELECT repeated_approval_blocked FROM hrms_033_guards)
@@ -253,7 +253,7 @@ checks AS (
       DATE '2099-05-10',
       DATE '2099-05-12',
       false
-    ) = 3 AS whole_day_duration_is_inclusive,
+    ) = 2 AS whole_day_duration_excludes_weekends,
     NOT has_function_privilege(
       'anon',
       'public.decide_leave_request(uuid,boolean,text)',
