@@ -48,6 +48,7 @@ const EMPTY_FORM = {
   date_of_joining: '',
   status: 'Active',
   is_leave_admin: false,
+  is_downtime_manager: false,
   ...EMPTY_PRIVATE_DETAILS,
 };
 
@@ -65,6 +66,7 @@ const personToForm = (person) => (
       date_of_joining: person.date_of_joining || '',
       status: person.status || 'Active',
       is_leave_admin: Boolean(person.is_leave_admin),
+      is_downtime_manager: Boolean(person.is_downtime_manager),
       personal_email: person.personal_email || '',
       gender: person.gender || '',
       date_of_birth: person.date_of_birth || '',
@@ -254,18 +256,32 @@ const PersonDrawer = ({
           </div>
 
           {isSuperadmin && !readOnly && (
-            <label className="people-access-toggle">
-              <input
-                type="checkbox"
-                name="is_leave_admin"
-                checked={form.is_leave_admin}
-                onChange={handleChange}
-              />
-              <span>
-                <strong>Leave Admin access</strong>
-                <small>Can review organisation leave, adjust balances, and manage holidays and attendance policy.</small>
-              </span>
-            </label>
+            <div className="people-access-toggles">
+              <label className="people-access-toggle">
+                <input
+                  type="checkbox"
+                  name="is_leave_admin"
+                  checked={form.is_leave_admin}
+                  onChange={handleChange}
+                />
+                <span>
+                  <strong>Leave Admin access</strong>
+                  <small>Can review organisation leave, adjust balances, and manage holidays and attendance policy.</small>
+                </span>
+              </label>
+              <label className="people-access-toggle">
+                <input
+                  type="checkbox"
+                  name="is_downtime_manager"
+                  checked={form.is_downtime_manager}
+                  onChange={handleChange}
+                />
+                <span>
+                  <strong>Downtime Manager access</strong>
+                  <small>Can start, end, schedule, correct and cancel organisation-wide downtime.</small>
+                </span>
+              </label>
+            </div>
           )}
 
           <div className="people-field">
@@ -582,7 +598,7 @@ const People = ({ mode = 'directory' }) => {
 
     const { data, error: fetchError } = await supabase
       .from('employees')
-      .select('id, emp_code, name, email, phone_number, department, designation, role, status, date_of_joining, reports_to, auth_id, must_change_password, temporary_password_issued_at, is_leave_admin')
+      .select('id, emp_code, name, email, phone_number, department, designation, role, status, date_of_joining, reports_to, auth_id, must_change_password, temporary_password_issued_at, is_leave_admin, is_downtime_manager')
       .order('name', { ascending: true });
 
     if (fetchError) {
@@ -770,6 +786,22 @@ const People = ({ mode = 'directory' }) => {
       });
       if (accessError) {
         setDrawerError(`The profile was saved, but Leave Admin access was not updated: ${accessError.message}`);
+        setSaving(false);
+        await fetchPeople();
+        return;
+      }
+    }
+
+    if (
+      isSuperadmin
+      && Boolean(savedPerson.is_downtime_manager) !== Boolean(form.is_downtime_manager)
+    ) {
+      const { error: accessError } = await supabase.rpc('set_downtime_manager_access', {
+        target_employee_id: savedPerson.id,
+        enabled: Boolean(form.is_downtime_manager),
+      });
+      if (accessError) {
+        setDrawerError(`The profile was saved, but Downtime Manager access was not updated: ${accessError.message}`);
         setSaving(false);
         await fetchPeople();
         return;
@@ -1005,6 +1037,7 @@ const People = ({ mode = 'directory' }) => {
                         <div className="people-role-badges">
                           <span className="badge primary">{roleLabel(person.role)}</span>
                           {person.is_leave_admin && <span className="badge success">Leave Admin</span>}
+                          {person.is_downtime_manager && <span className="badge warning">Downtime Manager</span>}
                         </div>
                       </td>
                       <td data-label="Reports to">{manager?.name || 'Not assigned'}</td>

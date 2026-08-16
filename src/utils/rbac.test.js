@@ -140,6 +140,35 @@ test('Leave Admin is an explicit capability independent from an employee role', 
   assert.equal(hasPermission(leaveAdmin, PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS), false);
 });
 
+test('Downtime Manager is an explicit capability independent from an employee role', () => {
+  const downtimeManager = {
+    id: 'downtime-manager-1',
+    role: 'manager',
+    status: 'Active',
+    is_downtime_manager: true,
+  };
+
+  assert.equal(
+    hasPermission(downtimeManager, PERMISSIONS.MANAGE_ORGANISATION_DOWNTIME),
+    true,
+  );
+  assert.equal(hasPermission(downtimeManager, PERMISSIONS.ACCESS_ADMIN_SETTINGS), false);
+  assert.equal(
+    hasPermission(
+      { role: 'admin', status: 'Active' },
+      PERMISSIONS.MANAGE_ORGANISATION_DOWNTIME,
+    ),
+    false,
+  );
+  assert.equal(
+    hasPermission(
+      { role: 'superadmin', status: 'Active' },
+      PERMISSIONS.MANAGE_ORGANISATION_DOWNTIME,
+    ),
+    true,
+  );
+});
+
 test('unknown roles fail closed', () => {
   assert.equal(hasPermission({ role: 'unknown', status: 'Active' }, PERMISSIONS.ACCESS_PORTAL), false);
   assert.equal(getTimesheetScope({ role: 'unknown', status: 'Active' }), 'none');

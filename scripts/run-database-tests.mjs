@@ -33,6 +33,7 @@ const verificationFiles = [
   'supabase/verify/hrms_050_admin_live_work_actions.sql',
   'supabase/verify/hrms_051_people_contact_details.sql',
   'supabase/verify/hrms_052_employee_private_details.sql',
+  'supabase/verify/hrms_053_organisation_downtime.sql',
 ];
 
 const psqlArguments = [

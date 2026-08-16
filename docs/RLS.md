@@ -4,7 +4,7 @@ The ordered migrations in `supabase/migrations` create the Phase 1 tables and
 their policies together. Run `supabase/verify/phase1_schema.sql` afterwards and
 confirm:
 
-- all 19 tables report `rls_enabled = true`
+- all 21 tables report `rls_enabled = true`
 - only the expected authenticated policies are present
 - anonymous SELECT is denied for every table
 - the signed-in superadmin reports organisation access
@@ -26,6 +26,7 @@ confirm:
 | Work requirements | Own, read-only | Own, read-only | Own, read-only | Organisation |
 | Work-requirement history | — | — | — | Organisation |
 | Delegated live-work audit | — | — | Organisation | Organisation |
+| Organisation downtime | Read; capability-gated write | Read; capability-gated write | Read; capability-gated write | Read/write |
 
 Managers are scoped through explicit project ownership and team membership.
 HRMS-027 regression coverage exercises Manager add/remove only on owned
@@ -179,6 +180,16 @@ Work-entry and BOS/EOD-settings audit rows are inserted atomically by their
 controlled functions. Authenticated clients have no insert, update, or delete
 privileges on audit history, and database triggers also reject audit updates
 and deletion.
+
+Organisation downtime uses `organisation_downtime_events` and immutable
+`organisation_downtime_audit` rows. Every active employee may read the narrow
+period and active-event projections. Only a Superadmin or an active profile
+with the separately assigned Downtime Manager capability may start/end a live
+incident, create a scheduled or historical interval, correct one with a reason,
+or cancel one with a reason. Active non-cancelled intervals cannot overlap,
+direct authenticated writes are denied, and period projections clip duration
+at the requested boundary and current time. Downtime remains separate from
+employee work, breaks, attendance facts, and project scope.
 
 `supabase/verify/hrms_004_role_access.sql` exercises the complete policy model
 as real Employee, Manager, Admin, and Superadmin Auth identities with the

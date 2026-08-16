@@ -34,16 +34,25 @@ const LEGACY_EMPLOYEE_PROFILE_FIELDS = [
   'must_change_password',
 ].join(', ');
 
-const EMPLOYEE_PROFILE_FIELDS = `${LEGACY_EMPLOYEE_PROFILE_FIELDS}, is_leave_admin`;
+const LEAVE_ADMIN_PROFILE_FIELDS = `${LEGACY_EMPLOYEE_PROFILE_FIELDS}, is_leave_admin`;
+const EMPLOYEE_PROFILE_FIELDS = `${LEAVE_ADMIN_PROFILE_FIELDS}, is_downtime_manager`;
 
-const isMissingLeaveAdminColumn = (error) => {
+const isMissingProfileColumn = (error, column) => {
   const message = String(error?.message || '').toLowerCase();
-  return message.includes('is_leave_admin') && (
+  return message.includes(column) && (
     ['42703', 'PGRST204'].includes(error?.code)
     || message.includes('does not exist')
     || message.includes('schema cache')
   );
 };
+
+const isMissingLeaveAdminColumn = (error) => (
+  isMissingProfileColumn(error, 'is_leave_admin')
+);
+
+const isMissingDowntimeManagerColumn = (error) => (
+  isMissingProfileColumn(error, 'is_downtime_manager')
+);
 
 const findEmployeeProfile = async (column, value) => {
   const result = await supabase
@@ -52,7 +61,23 @@ const findEmployeeProfile = async (column, value) => {
     .eq(column, value)
     .maybeSingle();
 
-  if (!isMissingLeaveAdminColumn(result.error)) return result;
+  if (!isMissingDowntimeManagerColumn(result.error)) return result;
+
+  console.warn('Organisation downtime schema is not applied; loading the previous employee profile.');
+  const previousResult = await supabase
+    .from('employees')
+    .select(LEAVE_ADMIN_PROFILE_FIELDS)
+    .eq(column, value)
+    .maybeSingle();
+
+  if (!isMissingLeaveAdminColumn(previousResult.error)) {
+    return {
+      ...previousResult,
+      data: previousResult.data
+        ? { ...previousResult.data, is_downtime_manager: false }
+        : null,
+    };
+  }
 
   console.warn('Leave Admin schema is not applied; loading a legacy employee profile.');
   const fallback = await supabase
@@ -63,7 +88,9 @@ const findEmployeeProfile = async (column, value) => {
 
   return {
     ...fallback,
-    data: fallback.data ? { ...fallback.data, is_leave_admin: false } : null,
+    data: fallback.data
+      ? { ...fallback.data, is_leave_admin: false, is_downtime_manager: false }
+      : null,
   };
 };
 

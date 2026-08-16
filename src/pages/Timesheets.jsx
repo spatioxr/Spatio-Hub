@@ -21,6 +21,7 @@ import {
 } from '../utils/timezone';
 import useDialogFocus from '../hooks/useDialogFocus';
 import ContextNavigator from '../components/ContextNavigator';
+import OrganisationDowntimePanel from '../components/OrganisationDowntimePanel';
 import { getSequenceNavigation } from '../utils/sequenceNavigation';
 
 const SCOPE_COPY = {
@@ -960,6 +961,11 @@ const Timesheets = () => {
           </small>
         </article>
       </section>
+
+      <OrganisationDowntimePanel
+        startDate={dateKey(weekStart)}
+        endDate={dateKey(addDays(weekStart, 6))}
+      />
 
       <section className="surface timesheet-week">
         <div className="timesheet-week-toolbar">

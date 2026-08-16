@@ -22,7 +22,9 @@ WITH expected(table_name) AS (
     ('employee_work_settings'),
     ('daily_report_settings_audit'),
     ('admin_work_action_audit'),
-    ('employee_private_details')
+    ('employee_private_details'),
+    ('organisation_downtime_events'),
+    ('organisation_downtime_audit')
 ),
 actual AS (
   SELECT
@@ -49,13 +51,13 @@ policies AS (
 ),
 results AS (
 SELECT
-  (SELECT count(*) = 19 AND bool_and(table_exists) FROM actual)
+  (SELECT count(*) = 21 AND bool_and(table_exists) FROM actual)
     AS all_tables_exist,
   (SELECT bool_and(rls_enabled) FROM actual)
     AS all_rls_enabled,
   (SELECT bool_and(anon_select_denied) FROM actual)
     AS anon_select_denied,
-  (SELECT count(*) = 47 FROM policies)
+  (SELECT count(*) = 49 FROM policies)
     AS expected_policy_count,
   (SELECT bool_and(roles = ARRAY['authenticated']::name[]) FROM policies)
     AS authenticated_only,
@@ -255,6 +257,60 @@ SELECT
         AND tgname = 'leaves_prevent_active_overlap'
         AND NOT tgisinternal
     ) AS has_controlled_leave_balance_workflow,
+  EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'employees'
+      AND column_name = 'is_downtime_manager'
+      AND is_nullable = 'NO'
+  )
+    AND to_regprocedure(
+      'public.set_downtime_manager_access(uuid,boolean)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.start_organisation_downtime(text,text,text)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.end_organisation_downtime(uuid)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.create_organisation_downtime(text,text,text,timestamptz,timestamptz)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.update_organisation_downtime(uuid,text,text,text,timestamptz,timestamptz,text)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.cancel_organisation_downtime(uuid,text)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.organisation_downtime_for_period(timestamptz,timestamptz)'
+    ) IS NOT NULL
+    AND to_regprocedure(
+      'public.active_organisation_downtime()'
+    ) IS NOT NULL
+    AND NOT has_function_privilege(
+      'anon',
+      'public.organisation_downtime_for_period(timestamptz,timestamptz)',
+      'EXECUTE'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.organisation_downtime_events',
+      'INSERT'
+    )
+    AND NOT has_table_privilege(
+      'authenticated',
+      'public.organisation_downtime_audit',
+      'UPDATE'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM pg_trigger
+      WHERE tgrelid = 'public.organisation_downtime_audit'::regclass
+        AND tgname = 'organisation_downtime_audit_prevent_mutation'
+        AND NOT tgisinternal
+    ) AS has_controlled_organisation_downtime,
   to_regprocedure(
     'public.set_daily_report_requirements(uuid,boolean,boolean)'
   ) IS NOT NULL

@@ -36,6 +36,7 @@ export const PERMISSIONS = Object.freeze({
   MANAGE_ACTIVITIES: 'manage_activities',
   VIEW_WORK_DISTRIBUTION: 'view_work_distribution',
   APPROVE_LEAVE: 'approve_leave',
+  MANAGE_ORGANISATION_DOWNTIME: 'manage_organisation_downtime',
   MANAGE_BOS_EOD_EXCEPTIONS: 'manage_bos_eod_exceptions',
 });
 
@@ -86,6 +87,10 @@ export const getRole = (user) => normalizeRole(user?.role);
 export const hasPermission = (user, permission) => {
   if (!isActivePerson(user)) return false;
   if (permission === PERMISSIONS.APPROVE_LEAVE && user?.is_leave_admin) return true;
+  if (
+    permission === PERMISSIONS.MANAGE_ORGANISATION_DOWNTIME
+    && user?.is_downtime_manager
+  ) return true;
   const permissions = ROLE_PERMISSIONS[getRole(user)];
   return permissions?.has(permission) || false;
 };

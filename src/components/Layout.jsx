@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import PageHeader from './PageHeader';
 import LiveStatusBoard from './LiveStatusBoard';
+import OrganisationDowntimeBanner from './OrganisationDowntimeBanner';
 import { hasPermission, PERMISSIONS } from '../utils/rbac';
 
 const Layout = ({
@@ -36,6 +37,7 @@ const Layout = ({
           liveStatusOpen={liveStatusOpen}
           onLiveStatusToggle={() => setLiveStatusOpen((current) => !current)}
         />
+        <OrganisationDowntimeBanner />
         <main className="content-area" id="main-content" tabIndex="-1">
           <div className="content-inner">
             <PageHeader

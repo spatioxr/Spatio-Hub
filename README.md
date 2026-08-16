@@ -8,6 +8,7 @@ The current product work is intentionally limited to phase 1:
 - project or internal-activity time tracking
 - task descriptions on context switches, breaks, and BOS/EOD reports
 - personal, team, and organisation timesheets
+- planned and real-time organisation downtime reporting
 - project/activity administration
 - leave requests, balances, and approvals
 
@@ -95,7 +96,7 @@ All other routes redirect to the dashboard.
 ## Important security status
 
 Authentication uses Supabase Auth sessions and the legacy employee password
-column has been retired. All 19 current Phase 1 tables enforce scoped RLS for
+column has been retired. All 21 current Phase 1 tables enforce scoped RLS for
 employee, manager, admin, and superadmin access. Every future schema issue must
 add matching RLS in the same migration that creates its tables.
 

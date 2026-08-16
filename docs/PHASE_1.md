@@ -25,6 +25,10 @@ The source of truth for implementation work is the [Spatio HRMS issue tracker](h
   the employee submits a fresh EOD when ending again.
 - Superadmin may make BOS or EOD optional for selected employees.
 - Managers, admins, and superadmins may correct permitted time entries with a required reason and immutable audit history.
+- Organisation downtime is recorded separately from employee work and breaks.
+  A Superadmin-assigned Downtime Manager can start/end a live incident or
+  record a scheduled/past interval; everyone can see it and reporting never
+  multiplies it into estimated employee-hours.
 
 Example internal activities include pre-sales, proposal creation, estimation, demo-video production, and marketing-material production.
 

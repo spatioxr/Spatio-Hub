@@ -35,6 +35,8 @@ project or team.
 | Create, edit, archive projects | No | No | Yes | Yes |
 | Create, edit, archive activities | No | No | Yes | Yes |
 | Correct time entries with reason | No | Assigned project teams | Organisation | Organisation |
+| View organisation downtime | Yes | Yes | Yes | Yes |
+| Record/correct organisation downtime | Downtime Manager capability only | Downtime Manager capability only | Downtime Manager capability only | Organisation |
 | View work-distribution reports | Own summary | Assigned projects | Organisation | Organisation |
 | Apply for leave | Own | Own | Own | Own |
 | Approve/reject leave | Designated Leave Admin only | Designated Leave Admin only | Designated Leave Admin only | Organisation |
@@ -70,6 +72,11 @@ project or team.
   unrelated management permission. Superadmins retain the capability by role.
 - A Leave Admin cannot decide their own request or adjust their own balance.
   Every request, including a Superadmin request, starts Pending.
+- Downtime Manager is a separate explicit capability that only a superadmin may
+  assign to an active profile. It does not widen People, project, employee, or
+  timesheet scope. Superadmins retain the capability by role.
+- Organisation downtime is never written into employee work entries or breaks,
+  never stops a timer automatically, and is not multiplied by employee count.
 
 ## Implementation ownership
 

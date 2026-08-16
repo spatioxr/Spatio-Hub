@@ -22,7 +22,13 @@ import {
   appDayRange,
   formatAppClock,
   formatAppDate,
+  formatAppDateTime,
 } from '../utils/timezone';
+import {
+  downtimeCategoryLabel,
+  downtimeStatusLabel,
+  sumDowntimeSeconds,
+} from '../utils/downtime';
 
 const MAX_RANGE_DAYS = 31;
 
@@ -143,6 +149,7 @@ const WorkDistribution = () => {
   const [draftRange, setDraftRange] = useState({ start: initialStart, end: today });
   const [appliedRange, setAppliedRange] = useState({ start: initialStart, end: today });
   const [entries, setEntries] = useState([]);
+  const [downtimeEvents, setDowntimeEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rangeError, setRangeError] = useState('');
@@ -159,18 +166,27 @@ const WorkDistribution = () => {
     setError('');
 
     const range = appDayRange(appliedRange.start, appliedRange.end);
-    const { data, error: fetchError } = await supabase.rpc('scoped_timesheet_entries', {
-      requested_start_at: range.start,
-      requested_end_at: range.end,
-      requested_scope: analyticsScope,
-      requested_employee_id: null,
-    });
+    const [entryResult, downtimeResult] = await Promise.all([
+      supabase.rpc('scoped_timesheet_entries', {
+        requested_start_at: range.start,
+        requested_end_at: range.end,
+        requested_scope: analyticsScope,
+        requested_employee_id: null,
+      }),
+      supabase.rpc('organisation_downtime_for_period', {
+        requested_start_at: range.start,
+        requested_end_at: range.end,
+      }),
+    ]);
+    const fetchError = entryResult.error || downtimeResult.error;
 
     if (fetchError) {
       setEntries([]);
+      setDowntimeEvents([]);
       setError(fetchError.message || 'Unable to load work-distribution analytics.');
     } else {
-      setEntries(data || []);
+      setEntries(entryResult.data || []);
+      setDowntimeEvents(downtimeResult.data || []);
     }
     setLoading(false);
   }, [analyticsScope, appliedRange]);
@@ -262,8 +278,9 @@ const WorkDistribution = () => {
       breakSeconds,
       sessions: filteredEntries.length,
       employees: new Set(filteredEntries.map((entry) => entry.employee_id)).size,
+      downtimeSeconds: sumDowntimeSeconds(downtimeEvents),
     };
-  }, [filteredEntries]);
+  }, [downtimeEvents, filteredEntries]);
 
   const distributions = useMemo(() => ({
     projects: aggregateEntries(
@@ -326,9 +343,9 @@ const WorkDistribution = () => {
   };
 
   const exportCsv = () => {
-    if (visibleEntries.length === 0) return;
+    if (visibleEntries.length === 0 && downtimeEvents.length === 0) return;
 
-    const csv = buildWorkDistributionCsv(visibleEntries, summary);
+    const csv = buildWorkDistributionCsv(visibleEntries, summary, downtimeEvents);
     const downloadUrl = URL.createObjectURL(new Blob([csv], {
       type: 'text/csv;charset=utf-8',
     }));
@@ -372,10 +389,10 @@ const WorkDistribution = () => {
           type="button"
           className="btn btn-outline analytics-export-button"
           onClick={exportCsv}
-          disabled={loading || Boolean(error) || visibleEntries.length === 0}
-          title={visibleEntries.length > 0
-            ? `Export ${visibleEntries.length} filtered ${visibleEntries.length === 1 ? 'entry' : 'entries'}`
-            : 'No entries are available to export'}
+          disabled={loading || Boolean(error) || (visibleEntries.length === 0 && downtimeEvents.length === 0)}
+          title={visibleEntries.length > 0 || downtimeEvents.length > 0
+            ? `Export ${visibleEntries.length} filtered work ${visibleEntries.length === 1 ? 'entry' : 'entries'} and ${downtimeEvents.length} downtime ${downtimeEvents.length === 1 ? 'event' : 'events'}`
+            : 'No work or downtime is available to export'}
         >
           <i className="ri-download-2-line" />
           Export CSV
@@ -544,7 +561,33 @@ const WorkDistribution = () => {
               <span className="analytics-kpi-icon analytics-kpi-icon--violet"><i className="ri-team-line" /></span>
               <div><span>Active employees</span><strong>{summary.employees}</strong></div>
             </article>
+            <article className="card analytics-kpi">
+              <span className="analytics-kpi-icon analytics-kpi-icon--danger"><i className="ri-alarm-warning-line" /></span>
+              <div><span>Organisation downtime</span><strong>{formatDuration(summary.downtimeSeconds)}</strong></div>
+            </article>
           </section>
+
+          {downtimeEvents.length > 0 && (
+            <section className="card analytics-downtime-panel" aria-labelledby="analytics-downtime-title">
+              <div>
+                <span className="page-eyebrow">Separate company measure</span>
+                <h2 id="analytics-downtime-title">Downtime in this reporting period</h2>
+                <p>These events are not multiplied by employee count and do not change worked or break time.</p>
+              </div>
+              <ol>
+                {downtimeEvents.map((event) => (
+                  <li key={event.downtime_event_id}>
+                    <div>
+                      <strong>{event.title}</strong>
+                      <span>{downtimeCategoryLabel(event.category)} · {downtimeStatusLabel(event.event_status)}</span>
+                    </div>
+                    <span>{formatAppDateTime(event.started_at)}{event.ended_at ? ` – ${formatAppDateTime(event.ended_at)}` : ''}</span>
+                    <b>{formatDuration(event.recorded_seconds)}</b>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
 
           {entries.length === 0 ? (
             <AppState

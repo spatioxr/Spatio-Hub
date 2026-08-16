@@ -21,7 +21,7 @@ export const workDistributionCsvFilename = ({ start, end }) => (
   `spatio-work-distribution_${start}_to_${end}.csv`
 );
 
-export const buildWorkDistributionCsv = (entries, summary) => {
+export const buildWorkDistributionCsv = (entries, summary, downtimeEvents = []) => {
   const headers = [
     'Employee',
     'Employee code',
@@ -67,10 +67,47 @@ export const buildWorkDistributionCsv = (entries, summary) => {
     Math.max(0, Math.floor(Number(summary.workedSeconds) || 0)),
   ];
 
+  const downtimeHeaders = [
+    'ORGANISATION DOWNTIME',
+    'Category',
+    'Status',
+    'Start (ISO 8601)',
+    'End (ISO 8601)',
+    'Recorded duration',
+    'Recorded seconds',
+    'Notes',
+  ];
+  const downtimeRows = downtimeEvents.map((event) => [
+    event.title,
+    event.category,
+    event.event_status,
+    isoTimestamp(event.started_at),
+    isoTimestamp(event.ended_at),
+    formatDuration(event.recorded_seconds),
+    Math.max(0, Math.floor(Number(event.recorded_seconds) || 0)),
+    event.notes || '',
+  ]);
+  const downtimeTotal = [
+    'DOWNTIME TOTAL',
+    '',
+    '',
+    '',
+    '',
+    formatDuration(summary.downtimeSeconds),
+    Math.max(0, Math.floor(Number(summary.downtimeSeconds) || 0)),
+    '',
+  ];
+
   return `\uFEFF${[
     headers,
     ...rows,
     [],
     totalsRow,
+    ...(downtimeEvents.length > 0 ? [
+      [],
+      downtimeHeaders,
+      ...downtimeRows,
+      downtimeTotal,
+    ] : []),
   ].map((row) => row.map(csvCell).join(',')).join('\r\n')}\r\n`;
 };
