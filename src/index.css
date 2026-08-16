@@ -5621,6 +5621,12 @@ button.dashboard-snapshot-card:hover {
   background: rgba(15, 23, 42, 0.42);
 }
 
+.drawer-backdrop--center {
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
 .drawer {
   position: fixed;
   inset: 0 0 0 auto;

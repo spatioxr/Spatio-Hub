@@ -66,7 +66,7 @@ const DowntimeDialog = ({ mode, event, saving, error, onClose, onSubmit }) => {
         : 'Add scheduled or past downtime';
 
   return (
-    <div className="drawer-backdrop" onClick={(clickEvent) => clickEvent.target === clickEvent.currentTarget && onClose()}>
+    <div className="drawer-backdrop drawer-backdrop--center" onClick={(clickEvent) => clickEvent.target === clickEvent.currentTarget && onClose()}>
       <section
         ref={dialogRef}
         className="downtime-dialog"
@@ -196,7 +196,7 @@ const DowntimeDialog = ({ mode, event, saving, error, onClose, onSubmit }) => {
 const DowntimeHistoryDialog = ({ event, history, loading, error, onClose }) => {
   const dialogRef = useDialogFocus(true, onClose);
   return (
-    <div className="drawer-backdrop" onClick={(clickEvent) => clickEvent.target === clickEvent.currentTarget && onClose()}>
+    <div className="drawer-backdrop drawer-backdrop--center" onClick={(clickEvent) => clickEvent.target === clickEvent.currentTarget && onClose()}>
       <section ref={dialogRef} className="downtime-dialog" role="dialog" aria-modal="true" aria-labelledby="downtime-history-title" tabIndex="-1">
         <div className="downtime-dialog-heading">
           <div>

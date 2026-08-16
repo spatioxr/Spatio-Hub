@@ -98,7 +98,7 @@ const DecisionDialog = ({ decision, submitting, error, onClose, onSubmit }) => {
   const rejecting = decision.approve === false;
 
   return (
-    <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && !submitting && onClose()}>
+    <div className="drawer-backdrop drawer-backdrop--center" onClick={(event) => event.target === event.currentTarget && !submitting && onClose()}>
       <section ref={dialogRef} className="leave-decision-dialog" role="dialog" aria-modal="true" aria-labelledby="leave-decision-title" tabIndex="-1">
         <div className={`leave-decision-icon${rejecting ? ' leave-decision-icon--reject' : ''}`}>
           <i className={rejecting ? 'ri-close-line' : 'ri-check-line'} />
