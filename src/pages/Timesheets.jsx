@@ -1,4 +1,11 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import Layout from '../components/Layout';
 import AppState from '../components/AppState';
 import { AuthContext } from '../context/AuthContext';
@@ -23,6 +30,18 @@ import useDialogFocus from '../hooks/useDialogFocus';
 import ContextNavigator from '../components/ContextNavigator';
 import OrganisationDowntimePanel from '../components/OrganisationDowntimePanel';
 import { getSequenceNavigation } from '../utils/sequenceNavigation';
+import {
+  ATTENDANCE_DAY_STATES,
+  resolveAttendanceDayState,
+} from '../utils/attendance';
+import {
+  dateKeysInRange,
+  monthBounds,
+  nextManualEntryRange,
+  suggestedBreakRange,
+  summarizeEmployeesForMonth,
+  summarizeTimesheetDays,
+} from '../utils/timesheet';
 
 const SCOPE_COPY = {
   personal: {
@@ -35,13 +54,13 @@ const SCOPE_COPY = {
     label: 'Managed by me',
     eyebrow: 'Project teams',
     heading: 'Team timesheets',
-    description: 'Weekly work for people assigned to projects you manage.',
+    description: 'Work entries for people assigned to projects you manage.',
   },
   organisation: {
     label: 'Organisation',
     eyebrow: 'Organisation',
     heading: 'Organisation timesheets',
-    description: 'Company-wide weekly totals with a clear path to each person.',
+    description: 'Company-wide totals with a clear path to each person.',
   },
 };
 
@@ -84,6 +103,11 @@ const formatAuditBreaks = (breaks) => {
 };
 
 const AUDIT_FIELDS = [
+  {
+    key: 'status',
+    label: 'Entry status',
+    value: (record) => record?.voided_at ? 'Voided' : 'Active',
+  },
   {
     key: 'work-mode',
     label: 'Work mode',
@@ -144,6 +168,24 @@ const formatWeekRange = (weekStart) => {
   return `${start} – ${end}`;
 };
 
+const formatMonthTitle = (date) => formatAppDate(date, {
+  day: undefined,
+  month: 'long',
+  year: 'numeric',
+});
+
+const MONTH_DAY_STATE_COPY = {
+  [ATTENDANCE_DAY_STATES.NOT_APPLICABLE]: 'Before joining',
+  [ATTENDANCE_DAY_STATES.FUTURE]: 'Future',
+  [ATTENDANCE_DAY_STATES.HOLIDAY]: 'Holiday',
+  [ATTENDANCE_DAY_STATES.WEEKEND]: 'Weekend',
+  [ATTENDANCE_DAY_STATES.LEAVE]: 'Leave',
+  [ATTENDANCE_DAY_STATES.HALF_LEAVE_WORKED]: 'Half leave',
+  [ATTENDANCE_DAY_STATES.WORKING]: 'Open entry',
+  [ATTENDANCE_DAY_STATES.COMPLETED]: 'Recorded',
+  [ATTENDANCE_DAY_STATES.NO_RECORD]: 'No time',
+};
+
 const sortByLabel = (options) => (
   [...options].sort((left, right) => left.label.localeCompare(right.label))
 );
@@ -179,9 +221,11 @@ const Timesheets = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedProjectId, setSelectedProjectId] = useState('all');
   const [selectedActivityId, setSelectedActivityId] = useState('all');
+  const [viewMode, setViewMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
   const [entries, setEntries] = useState([]);
+  const [voidedEntries, setVoidedEntries] = useState([]);
   const [members, setMembers] = useState([]);
   const [filterProjects, setFilterProjects] = useState([]);
   const [filterActivities, setFilterActivities] = useState([]);
@@ -198,25 +242,48 @@ const Timesheets = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
+  const [monthAttendance, setMonthAttendance] = useState([]);
+  const [monthAttendanceLoading, setMonthAttendanceLoading] = useState(false);
+  const [voidEditor, setVoidEditor] = useState(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidError, setVoidError] = useState('');
+  const [voidSaving, setVoidSaving] = useState(false);
+  const manualContextRef = useRef(null);
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
     [weekStart],
   );
 
+  const currentMonth = useMemo(() => monthBounds(selectedDate), [selectedDate]);
+  const periodBounds = viewMode === 'month'
+    ? { start: currentMonth.start, end: currentMonth.end }
+    : { start: dateKey(weekStart), end: dateKey(addDays(weekStart, 6)) };
+  const periodDateKeys = useMemo(
+    () => dateKeysInRange(periodBounds.start, periodBounds.end),
+    [periodBounds.end, periodBounds.start],
+  );
+
   const loadTimesheet = useCallback(async () => {
     setLoading(true);
     setError('');
 
-    const range = appDayRange(dateKey(weekStart), dateKey(addDays(weekStart, 6)));
+    const range = appDayRange(periodBounds.start, periodBounds.end);
     const [
       { data: entryData, error: entryError },
+      { data: voidedEntryData, error: voidedEntryError },
       { data: memberData, error: memberError },
       { data: projectData, error: projectError },
       { data: activityData, error: activityError },
       { data: workModeData, error: workModeError },
     ] = await Promise.all([
       supabase.rpc('scoped_timesheet_entries', {
+        requested_start_at: range.start,
+        requested_end_at: range.end,
+        requested_scope: scope,
+        requested_employee_id: null,
+      }),
+      supabase.rpc('scoped_voided_timesheet_entries', {
         requested_start_at: range.start,
         requested_end_at: range.end,
         requested_scope: scope,
@@ -234,14 +301,15 @@ const Timesheets = () => {
         .select('id, name')
         .order('name', { ascending: true }),
       supabase.rpc('scoped_attendance_work_modes', {
-        requested_start_date: dateKey(weekStart),
-        requested_end_date: dateKey(addDays(weekStart, 7)),
+        requested_start_date: periodBounds.start,
+        requested_end_date: dateKey(addDays(new Date(`${periodBounds.end}T12:00:00Z`), 1)),
         requested_scope: scope,
         requested_employee_id: null,
       }),
     ]);
 
     const fetchError = entryError
+      || voidedEntryError
       || memberError
       || projectError
       || activityError
@@ -259,17 +327,56 @@ const Timesheets = () => {
           `${entry.employee_id}:${dateKey(entry.started_at)}`,
         ) || null,
       })));
+      setVoidedEntries(voidedEntryData || []);
       setMembers(memberData || []);
       setFilterProjects(projectData || []);
       setFilterActivities(activityData || []);
     }
     setLoading(false);
     return { error: fetchError || null };
-  }, [scope, weekStart]);
+  }, [periodBounds.end, periodBounds.start, scope]);
 
   useEffect(() => {
     void loadTimesheet();
   }, [loadTimesheet, workStatus]);
+
+  const monthEmployeeId = scope === 'personal'
+    ? user?.id
+    : selectedEmployeeId === 'all' ? null : selectedEmployeeId;
+
+  useEffect(() => {
+    let active = true;
+    if (viewMode !== 'month' || !monthEmployeeId) {
+      setMonthAttendance([]);
+      setMonthAttendanceLoading(false);
+      return undefined;
+    }
+
+    const loadMonthAttendance = async () => {
+      setMonthAttendanceLoading(true);
+      const { data, error: attendanceError } = await supabase.rpc(
+        'scoped_attendance_month',
+        {
+          requested_start_date: currentMonth.start,
+          requested_end_date: dateKey(addDays(new Date(`${currentMonth.end}T12:00:00Z`), 1)),
+          requested_scope: scope,
+          requested_employee_id: monthEmployeeId,
+        },
+      );
+      if (!active) return;
+      setMonthAttendance(attendanceError ? [] : data || []);
+      if (attendanceError) {
+        setNotice({
+          type: 'error',
+          text: attendanceError.message || 'The attendance context for this month could not be loaded.',
+        });
+      }
+      setMonthAttendanceLoading(false);
+    };
+
+    void loadMonthAttendance();
+    return () => { active = false; };
+  }, [currentMonth.end, currentMonth.start, monthEmployeeId, scope, viewMode]);
 
   const orderedMembers = useMemo(() => (
     [...members].sort((left, right) => (
@@ -418,33 +525,20 @@ const Timesheets = () => {
   ]);
 
   const entriesByDay = useMemo(() => {
-    const grouped = Object.fromEntries(weekDays.map((day) => [dateKey(day), []]));
+    const grouped = Object.fromEntries(periodDateKeys.map((day) => [day, []]));
     filteredEntries.forEach((entry) => {
       const key = dateKey(entry.started_at);
       if (grouped[key]) grouped[key].push(entry);
     });
     return grouped;
-  }, [filteredEntries, weekDays]);
+  }, [filteredEntries, periodDateKeys]);
 
-  const daySummaries = useMemo(() => (
-    Object.fromEntries(weekDays.map((day) => {
-      const key = dateKey(day);
-      const dayEntries = entriesByDay[key] || [];
-      return [key, {
-        workedSeconds: dayEntries.reduce(
-          (total, entry) => total + Number(entry.worked_seconds || 0),
-          0,
-        ),
-        breakSeconds: dayEntries.reduce(
-          (total, entry) => total + Number(entry.break_seconds || 0),
-          0,
-        ),
-        sessionCount: dayEntries.length,
-      }];
-    }))
-  ), [entriesByDay, weekDays]);
+  const daySummaries = useMemo(
+    () => summarizeTimesheetDays(filteredEntries, periodDateKeys),
+    [filteredEntries, periodDateKeys],
+  );
 
-  const weeklySummary = useMemo(() => (
+  const periodSummary = useMemo(() => (
     Object.values(daySummaries).reduce(
       (summary, day) => ({
         workedSeconds: summary.workedSeconds + day.workedSeconds,
@@ -455,6 +549,42 @@ const Timesheets = () => {
       { workedSeconds: 0, breakSeconds: 0, sessionCount: 0, activeDays: 0 },
     )
   ), [daySummaries]);
+
+  const monthEmployeeSummaries = useMemo(() => {
+    const scopedMembers = members.filter((member) => (
+      selectedDepartment === 'all'
+      || member.employee_department === selectedDepartment
+    ));
+    return summarizeEmployeesForMonth(filteredEntries, scopedMembers);
+  }, [filteredEntries, members, selectedDepartment]);
+
+  const monthAttendanceByDate = useMemo(
+    () => new Map(monthAttendance.map((row) => [row.attendance_date, row])),
+    [monthAttendance],
+  );
+
+  const filteredVoidedEntries = useMemo(() => voidedEntries.filter((entry) => {
+    const employeeMatches = selectedEmployeeId === 'all'
+      || entry.employee_id === selectedEmployeeId;
+    const departmentMatches = selectedDepartment === 'all'
+      || entry.employee_department === selectedDepartment;
+    const projectFilterActive = selectedProjectId !== 'all';
+    const activityFilterActive = selectedActivityId !== 'all';
+    const contextMatches = !projectFilterActive && !activityFilterActive
+      || (projectFilterActive && entry.context_type === 'project' && entry.context_id === selectedProjectId)
+      || (activityFilterActive && entry.context_type === 'activity' && entry.context_id === selectedActivityId);
+    return employeeMatches && departmentMatches && contextMatches;
+  }), [
+    selectedActivityId,
+    selectedDepartment,
+    selectedEmployeeId,
+    selectedProjectId,
+    voidedEntries,
+  ]);
+
+  const selectedVoidedEntries = filteredVoidedEntries.filter(
+    (entry) => dateKey(entry.started_at) === selectedDate,
+  );
 
   const visibleEmployeeCount = useMemo(() => (
     new Set(filteredEntries.map((entry) => entry.employee_id)).size
@@ -469,7 +599,26 @@ const Timesheets = () => {
     workedSeconds: 0,
     breakSeconds: 0,
     sessionCount: 0,
+    hasOpenSession: false,
   };
+  const monthCalendarCells = useMemo(() => {
+    const leading = new Date(Date.UTC(
+      currentMonth.year,
+      currentMonth.month - 1,
+      1,
+    )).getUTCDay();
+    return [
+      ...Array.from({ length: leading }, () => null),
+      ...periodDateKeys,
+    ];
+  }, [currentMonth.month, currentMonth.year, periodDateKeys]);
+  const monthDisplayEmployee = scope === 'personal'
+    ? {
+      employee_id: user?.id,
+      employee_name: user?.name,
+      employee_code: user?.emp_code,
+    }
+    : selectedMember;
   const canCorrectTime = hasPermission(user, PERMISSIONS.CORRECT_SCOPED_TIME_ENTRIES);
   const canCorrectPersonal = [ROLES.ADMIN, ROLES.SUPERADMIN].includes(userRole);
   const canUseManualEditor = canCorrectTime && (scope !== 'personal' || canCorrectPersonal);
@@ -500,6 +649,21 @@ const Timesheets = () => {
     setSelectedDate(dateKey(nextDate));
   };
 
+  const moveMonth = (offset) => {
+    const [year, month, day] = selectedDate.split('-').map(Number);
+    const nextMonth = new Date(Date.UTC(year, month - 1 + offset, 1, 12));
+    const nextBounds = monthBounds(nextMonth);
+    const nextDay = Math.min(day, nextBounds.days);
+    setSelectedDate(`${nextBounds.start.slice(0, 8)}${String(nextDay).padStart(2, '0')}`);
+  };
+
+  const changeViewMode = (nextView) => {
+    setViewMode(nextView);
+    if (nextView === 'week') {
+      setWeekStart(startOfWeek(new Date(`${selectedDate}T12:00:00Z`)));
+    }
+  };
+
   const jumpToDate = (value) => {
     if (!value) return;
     const nextDate = new Date(`${value}T12:00:00Z`);
@@ -526,7 +690,7 @@ const Timesheets = () => {
     setManualError('');
   };
 
-  const openManualEditor = async (mode, entry = null) => {
+  const openManualEditor = async (mode, entry = null, options = {}) => {
     const employee = entry
       ? {
         employee_id: entry.employee_id,
@@ -542,7 +706,7 @@ const Timesheets = () => {
 
     setManualError('');
     setManualContextsLoading(true);
-    setManualEditor({ mode, entry, employee });
+    setManualEditor({ mode, entry, employee, focus: options.focus || null });
 
     const { data, error: contextError } = await supabase.rpc(
       'manual_time_entry_contexts',
@@ -580,6 +744,7 @@ const Timesheets = () => {
         : '';
 
     setManualContexts(availableContexts);
+    const suggestedRange = nextManualEntryRange(selectedDate, selectedEntries);
     setManualForm(entry ? {
       context: contextValue,
       workMode: entry.work_mode || '',
@@ -593,9 +758,13 @@ const Timesheets = () => {
       reason: '',
     } : {
       ...defaultManualForm(selectedDate),
+      ...suggestedRange,
       context: contextValue,
     });
     setManualContextsLoading(false);
+    if (options.focus === 'context') {
+      window.requestAnimationFrame(() => manualContextRef.current?.focus());
+    }
   };
 
   const updateManualBreak = (index, field, value) => {
@@ -619,7 +788,7 @@ const Timesheets = () => {
       ...current,
       breaks: [
         ...current.breaks,
-        { startedAt: current.startedAt, endedAt: current.endedAt },
+        suggestedBreakRange(current.startedAt, current.endedAt),
       ],
     }));
   };
@@ -627,6 +796,7 @@ const Timesheets = () => {
   const saveManualEntry = async (event) => {
     event.preventDefault();
     if (!manualEditor) return;
+    const saveIntent = event.nativeEvent.submitter?.value || 'close';
 
     setManualError('');
 
@@ -707,20 +877,83 @@ const Timesheets = () => {
       const actionLabel = manualEditor.mode === 'edit'
         ? 'Time entry corrected.'
         : 'Manual time entry added.';
-      setManualEditor(null);
-      setManualContexts([]);
       const refreshResult = await loadTimesheet();
+      if (manualEditor.mode === 'edit' || saveIntent === 'close') {
+        setManualEditor(null);
+        setManualContexts([]);
+      } else {
+        const nextDate = saveIntent === 'next-day'
+          ? dateKey(addDays(new Date(`${selectedDate}T12:00:00Z`), 1))
+          : selectedDate;
+        const nextRange = saveIntent === 'next-day'
+          ? nextManualEntryRange(nextDate)
+          : nextManualEntryRange(selectedDate, [{ ended_at: endedAt.toISOString() }]);
+        if (saveIntent === 'next-day') {
+          setSelectedDate(nextDate);
+          setWeekStart(startOfWeek(new Date(`${nextDate}T12:00:00Z`)));
+        }
+        setManualEditor((current) => ({ ...current, mode: 'create', entry: null }));
+        setManualForm((current) => ({
+          ...defaultManualForm(nextDate),
+          ...nextRange,
+          context: current.context,
+          workMode: current.workMode,
+        }));
+      }
       setNotice({
         type: refreshResult.error ? 'error' : 'success',
         text: refreshResult.error
           ? `${actionLabel} The latest timesheet could not be refreshed; use Try again below.`
-          : actionLabel,
+          : saveIntent === 'next-day'
+            ? `${actionLabel} Ready for the next day.`
+            : saveIntent === 'another'
+              ? `${actionLabel} Add the next entry below.`
+              : actionLabel,
       });
     } catch (saveError) {
       setManualError(saveError.message || 'Unable to save the manual time entry.');
     } finally {
       setManualSaving(false);
     }
+  };
+
+  const closeVoidEditor = () => {
+    if (voidSaving) return;
+    setVoidEditor(null);
+    setVoidReason('');
+    setVoidError('');
+  };
+
+  const saveVoidEntry = async (event) => {
+    event.preventDefault();
+    if (!voidEditor) return;
+    if (!voidReason.trim()) {
+      setVoidError('A reason is required so the change remains auditable.');
+      return;
+    }
+
+    setVoidSaving(true);
+    setVoidError('');
+    const { error: saveError } = await supabase.rpc('void_manual_time_entry', {
+      target_work_entry_id: voidEditor.work_entry_id,
+      change_reason: voidReason.trim(),
+    });
+    if (saveError) {
+      setVoidError(saveError.message || 'Unable to void this time entry.');
+      setVoidSaving(false);
+      return;
+    }
+
+    const refreshResult = await loadTimesheet();
+    setVoidSaving(false);
+    setVoidEditor(null);
+    setVoidReason('');
+    setNotice({
+      type: refreshResult.error ? 'error' : 'success',
+      text: refreshResult.error
+        ? 'Entry voided, but the latest timesheet could not be refreshed.'
+        : 'Entry voided. It is excluded from totals and retained in history.',
+    });
   };
 
   const closeHistory = () => {
@@ -760,6 +993,9 @@ const Timesheets = () => {
     { closeDisabled: manualSaving },
   );
   const historyViewerRef = useDialogFocus(Boolean(historyViewer), closeHistory);
+  const voidEditorRef = useDialogFocus(Boolean(voidEditor), closeVoidEditor, {
+    closeDisabled: voidSaving,
+  });
 
   return (
     <Layout
@@ -827,11 +1063,39 @@ const Timesheets = () => {
         </section>
       )}
 
+      <section className="surface timesheet-view-controls" aria-label="Timesheet view">
+        <div className="app-tabs" role="tablist" aria-label="Timesheet period">
+          <button
+            type="button"
+            className={`app-tab${viewMode === 'week' ? ' active' : ''}`}
+            role="tab"
+            aria-selected={viewMode === 'week'}
+            onClick={() => changeViewMode('week')}
+          >
+            Week
+          </button>
+          <button
+            type="button"
+            className={`app-tab${viewMode === 'month' ? ' active' : ''}`}
+            role="tab"
+            aria-selected={viewMode === 'month'}
+            onClick={() => changeViewMode('month')}
+          >
+            Month
+          </button>
+        </div>
+        <span>
+          {viewMode === 'week'
+            ? formatWeekRange(weekStart)
+            : formatMonthTitle(currentMonth.start)}
+        </span>
+      </section>
+
       <section className="surface timesheet-filter-panel" aria-label="Timesheet filters">
         <div className="timesheet-filter-heading">
           <div>
             <span className="page-eyebrow">Filters</span>
-            <h3>Focus this week</h3>
+            <h3>Focus this {viewMode}</h3>
             <p>Project and activity selections are combined; other filters narrow the result.</p>
           </div>
           {activeFilters.length > 0 && (
@@ -938,35 +1202,38 @@ const Timesheets = () => {
         )}
       </section>
 
-      <section className="timesheet-summary" aria-label="Weekly summary">
+      <section className="timesheet-summary" aria-label={`${viewMode === 'week' ? 'Weekly' : 'Monthly'} summary`}>
         <article className="timesheet-summary-card timesheet-summary-card--primary">
           <span>
-            {selectedMember ? `${selectedMember.employee_name} · worked` : 'Worked this week'}
+            {selectedMember
+              ? `${selectedMember.employee_name} · worked`
+              : `Worked this ${viewMode}`}
           </span>
-          <strong>{formatDuration(weeklySummary.workedSeconds)}</strong>
+          <strong>{formatDuration(periodSummary.workedSeconds)}</strong>
           <small>Break time is excluded</small>
         </article>
         <article className="timesheet-summary-card">
           <span>Breaks</span>
-          <strong>{formatDuration(weeklySummary.breakSeconds)}</strong>
-          <small>Across {weeklySummary.sessionCount} session{weeklySummary.sessionCount === 1 ? '' : 's'}</small>
+          <strong>{formatDuration(periodSummary.breakSeconds)}</strong>
+          <small>Across {periodSummary.sessionCount} session{periodSummary.sessionCount === 1 ? '' : 's'}</small>
         </article>
         <article className="timesheet-summary-card">
           <span>{isSharedScope ? 'People with entries' : 'Active days'}</span>
-          <strong>{isSharedScope ? visibleEmployeeCount : weeklySummary.activeDays}</strong>
+          <strong>{isSharedScope ? visibleEmployeeCount : periodSummary.activeDays}</strong>
           <small>
             {isSharedScope
               ? `${members.length} available in this scope`
-              : 'of 7 days in this week'}
+              : viewMode === 'week' ? 'of 7 days in this week' : `of ${currentMonth.days} days in this month`}
           </small>
         </article>
       </section>
 
       <OrganisationDowntimePanel
-        startDate={dateKey(weekStart)}
-        endDate={dateKey(addDays(weekStart, 6))}
+        startDate={periodBounds.start}
+        endDate={periodBounds.end}
       />
 
+      {viewMode === 'week' ? (
       <section className="surface timesheet-week">
         <div className="timesheet-week-toolbar">
           <div className="timesheet-week-navigation">
@@ -1068,6 +1335,14 @@ const Timesheets = () => {
                   </button>
                 </div>
                 <div className="timesheet-day-totals">
+                  <span className={`timesheet-day-status${selectedSummary.hasOpenSession ? ' timesheet-day-status--open' : ''}`}>
+                    <small>Day status</small>
+                    <strong>
+                      {selectedSummary.hasOpenSession
+                        ? 'Open entry'
+                        : selectedSummary.sessionCount ? 'Recorded' : 'No time'}
+                    </strong>
+                  </span>
                   {selectedDayWorkMode && (
                     <span className={`timesheet-work-mode timesheet-work-mode--${selectedDayWorkMode}`}>
                       <small>Work mode</small>
@@ -1150,10 +1425,34 @@ const Timesheets = () => {
                             <button
                               type="button"
                               className="timesheet-edit-button"
+                              onClick={() => openManualEditor('edit', entry, { focus: 'context' })}
+                            >
+                              <i className="ri-folder-transfer-line" />
+                              Change project
+                            </button>
+                          )}
+                          {canUseManualEditor && entry.ended_at && (
+                            <button
+                              type="button"
+                              className="timesheet-edit-button"
                               onClick={() => openManualEditor('edit', entry)}
                             >
                               <i className="ri-pencil-line" />
                               Correct entry
+                            </button>
+                          )}
+                          {canUseManualEditor && entry.ended_at && (
+                            <button
+                              type="button"
+                              className="timesheet-edit-button timesheet-edit-button--danger"
+                              onClick={() => {
+                                setVoidEditor(entry);
+                                setVoidReason('');
+                                setVoidError('');
+                              }}
+                            >
+                              <i className="ri-close-circle-line" />
+                              Void entry
                             </button>
                           )}
                         </div>
@@ -1175,10 +1474,188 @@ const Timesheets = () => {
                   ))}
                 </ol>
               )}
+              {selectedVoidedEntries.length > 0 && (
+                <details className="timesheet-voided-list">
+                  <summary>{selectedVoidedEntries.length} voided entr{selectedVoidedEntries.length === 1 ? 'y' : 'ies'}</summary>
+                  {selectedVoidedEntries.map((entry) => (
+                    <div key={entry.work_entry_id}>
+                      <span>
+                        <strong>{entry.context_label}</strong>
+                        <small>{formatClock(entry.started_at)} – {formatClock(entry.ended_at)} · {entry.void_reason}</small>
+                      </span>
+                      <button type="button" onClick={() => openHistory(entry)}>View history</button>
+                    </div>
+                  ))}
+                </details>
+              )}
             </div>
           </>
         )}
       </section>
+      ) : (
+        <section className="surface timesheet-month" aria-labelledby="timesheet-month-title">
+          <div className="timesheet-month-toolbar">
+            <div className="timesheet-week-navigation">
+              <button type="button" className="timesheet-nav-button" onClick={() => moveMonth(-1)} aria-label="Previous month">
+                <i className="ri-arrow-left-s-line" />
+              </button>
+              <div>
+                <span className="page-eyebrow">Month</span>
+                <h3 id="timesheet-month-title">{formatMonthTitle(currentMonth.start)}</h3>
+              </div>
+              <button type="button" className="timesheet-nav-button" onClick={() => moveMonth(1)} aria-label="Next month">
+                <i className="ri-arrow-right-s-line" />
+              </button>
+            </div>
+            <button type="button" className="btn btn-outline" onClick={() => {
+              const today = dateKey(new Date());
+              setSelectedDate(today);
+            }}>
+              This month
+            </button>
+          </div>
+
+          {loading ? (
+            <AppState type="loading" title="Loading this month" message="Collecting timesheet totals." compact />
+          ) : isSharedScope && selectedEmployeeId === 'all' ? (
+            <div className="timesheet-month-team">
+              <header>
+                <div>
+                  <span className="page-eyebrow">People</span>
+                  <h3>Month summary</h3>
+                </div>
+                <small>Select a person to open their calendar.</small>
+              </header>
+              {monthEmployeeSummaries.length === 0 ? (
+                <AppState
+                  type="empty"
+                  title="No people in this selection"
+                  message="Clear filters or choose another scope."
+                  compact
+                />
+              ) : (
+                <div className="timesheet-month-people">
+                  {monthEmployeeSummaries.map((member) => (
+                    <button
+                      type="button"
+                      key={member.employee_id}
+                      onClick={() => setSelectedEmployeeId(member.employee_id)}
+                    >
+                      <span className="timesheet-month-person-name">
+                        <strong>{member.employee_name}</strong>
+                        <small>{member.employee_code} · {member.employee_department || 'No department'}</small>
+                      </span>
+                      <span><small>Worked</small><strong>{formatDuration(member.workedSeconds)}</strong></span>
+                      <span><small>Breaks</small><strong>{formatDuration(member.breakSeconds)}</strong></span>
+                      <span><small>Days</small><strong>{member.activeDays}</strong></span>
+                      <i className="ri-arrow-right-s-line" aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="timesheet-month-person">
+                <span>
+                  {monthDisplayEmployee?.employee_name || 'Selected person'}
+                  {monthDisplayEmployee?.employee_code ? ` · ${monthDisplayEmployee.employee_code}` : ''}
+                </span>
+                {monthAttendanceLoading && <small>Loading day context…</small>}
+              </div>
+              <div className="timesheet-month-weekdays" aria-hidden="true">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <span key={day}>{day}</span>)}
+              </div>
+              <div className="timesheet-month-calendar" role="group" aria-label={`${formatMonthTitle(currentMonth.start)} timesheet`}>
+                {monthCalendarCells.map((day, index) => {
+                  if (!day) return <span className="timesheet-month-blank" aria-hidden="true" key={`blank-${index}`} />;
+                  const summary = daySummaries[day];
+                  const attendanceRow = monthAttendanceByDate.get(day);
+                  const attendanceState = resolveAttendanceDayState(attendanceRow, dateKey(new Date()));
+                  const stateLabel = summary?.sessionCount
+                    ? summary.hasOpenSession ? 'Open entry' : 'Recorded'
+                    : activeFilters.length > 0 ? 'No match' : MONTH_DAY_STATE_COPY[attendanceState];
+                  return (
+                    <button
+                      type="button"
+                      key={day}
+                      className={`timesheet-month-day timesheet-month-day--${attendanceState}${day === selectedDate ? ' timesheet-month-day--selected' : ''}`}
+                      aria-pressed={day === selectedDate}
+                      aria-label={`${formatAppDate(day, { weekday: 'long', month: 'long' })}: ${summary?.sessionCount ? formatDuration(summary.workedSeconds) : stateLabel}`}
+                      onClick={() => setSelectedDate(day)}
+                    >
+                      <span>{Number(day.slice(-2))}</span>
+                      <strong>{summary?.sessionCount ? formatDuration(summary.workedSeconds) : '—'}</strong>
+                      <small>{stateLabel}</small>
+                      {summary?.breakSeconds > 0 && <em>{formatDuration(summary.breakSeconds)} break</em>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="timesheet-month-detail">
+                <div className="timesheet-detail-header">
+                  <div>
+                    <span className="page-eyebrow">Selected day</span>
+                    <h3>{formatAppDate(selectedDate, { weekday: 'long', month: 'long' })}</h3>
+                  </div>
+                  <div className="timesheet-day-totals">
+                    <span className={`timesheet-day-status${selectedSummary.hasOpenSession ? ' timesheet-day-status--open' : ''}`}>
+                      <small>Day status</small>
+                      <strong>{selectedSummary.hasOpenSession ? 'Open entry' : selectedSummary.sessionCount ? 'Recorded' : 'No time'}</strong>
+                    </span>
+                    <span><small>Worked</small><strong>{formatDuration(selectedSummary.workedSeconds)}</strong></span>
+                    <span><small>Breaks</small><strong>{formatDuration(selectedSummary.breakSeconds)}</strong></span>
+                    {canUseManualEditor && (
+                      <button type="button" className="btn btn-primary" onClick={() => openManualEditor('create')}>
+                        <i className="ri-add-line" /> Add time
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {selectedEntries.length === 0 ? (
+                  <AppState type="empty" title="No time recorded" message="Choose another date or add time if you are authorised." compact />
+                ) : (
+                  <ol className="timesheet-timeline timesheet-month-timeline">
+                    {selectedEntries.map((entry) => (
+                      <li className="timesheet-session" key={entry.work_entry_id}>
+                        <span className={`timesheet-context-icon timesheet-context-icon--${entry.context_type}`}>
+                          <i className={entry.context_type === 'project' ? 'ri-folder-3-line' : 'ri-flashlight-line'} />
+                        </span>
+                        <div className="timesheet-session-body">
+                          <div className="timesheet-session-heading">
+                            <div><span className="timesheet-context-type">{entry.context_type}</span><h4>{entry.context_label}</h4></div>
+                            <span className="timesheet-session-duration">{formatDuration(entry.worked_seconds)}</span>
+                          </div>
+                          <p>{entry.task_description || 'No task description recorded.'}</p>
+                          <div className="timesheet-session-meta">
+                            <span><i className="ri-time-line" />{formatClock(entry.started_at)} – {formatClock(entry.ended_at)}</span>
+                            <button type="button" className="timesheet-edit-button" onClick={() => openHistory(entry)}>History</button>
+                            {canUseManualEditor && entry.ended_at && (
+                              <button type="button" className="timesheet-edit-button" onClick={() => openManualEditor('edit', entry)}>Correct entry</button>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                {selectedVoidedEntries.length > 0 && (
+                  <details className="timesheet-voided-list">
+                    <summary>{selectedVoidedEntries.length} voided entr{selectedVoidedEntries.length === 1 ? 'y' : 'ies'}</summary>
+                    {selectedVoidedEntries.map((entry) => (
+                      <div key={entry.work_entry_id}>
+                        <span><strong>{entry.context_label}</strong><small>{entry.void_reason}</small></span>
+                        <button type="button" onClick={() => openHistory(entry)}>View history</button>
+                      </div>
+                    ))}
+                  </details>
+                )}
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {manualEditor && (
         <div className="timesheet-editor-overlay" onMouseDown={(event) => {
@@ -1205,6 +1682,11 @@ const Timesheets = () => {
                   {manualEditor.employee.employee_code
                     ? ` · ${manualEditor.employee.employee_code}`
                     : ''}
+                  {' · '}
+                  {formatAppDate(manualForm.startedAt.slice(0, 10), {
+                    weekday: 'short',
+                    month: 'short',
+                  })}
                 </p>
               </div>
               <button
@@ -1228,9 +1710,37 @@ const Timesheets = () => {
                 </div>
               )}
 
+              <section className="timesheet-entry-sequence" aria-label="Manual entry sequence">
+                <div>
+                  <span className="timesheet-sequence-dot" />
+                  <small>{formatClock(appDateTimeInputToIso(manualForm.startedAt), 'Start')}</small>
+                  <strong>Start work</strong>
+                </div>
+                {manualForm.breaks.map((breakEntry, index) => (
+                  <React.Fragment key={`sequence-${index}-${breakEntry.startedAt}`}>
+                    <div className="timesheet-entry-sequence--break">
+                      <span className="timesheet-sequence-dot" />
+                      <small>{formatClock(appDateTimeInputToIso(breakEntry.startedAt), 'Start')}</small>
+                      <strong>Start break</strong>
+                    </div>
+                    <div>
+                      <span className="timesheet-sequence-dot" />
+                      <small>{formatClock(appDateTimeInputToIso(breakEntry.endedAt), 'Resume')}</small>
+                      <strong>Resume work</strong>
+                    </div>
+                  </React.Fragment>
+                ))}
+                <div>
+                  <span className="timesheet-sequence-dot" />
+                  <small>{formatClock(appDateTimeInputToIso(manualForm.endedAt), 'End')}</small>
+                  <strong>End work</strong>
+                </div>
+              </section>
+
               <label className="timesheet-field">
                 <span>Project or activity</span>
                 <select
+                  ref={manualContextRef}
                   value={manualForm.context}
                   onChange={(event) => setManualForm((current) => ({
                     ...current,
@@ -1386,15 +1896,94 @@ const Timesheets = () => {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={manualSaving || manualContextsLoading || manualContexts.length === 0}
-                >
-                  {manualSaving
-                    ? 'Saving…'
-                    : manualEditor.mode === 'edit' ? 'Save correction' : 'Add entry'}
-                </button>
+                {manualEditor.mode === 'edit' ? (
+                  <button
+                    type="submit"
+                    value="close"
+                    className="btn btn-primary"
+                    disabled={manualSaving || manualContextsLoading || manualContexts.length === 0}
+                  >
+                    {manualSaving ? 'Saving…' : 'Save correction'}
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="submit"
+                      value="close"
+                      className="btn btn-outline"
+                      disabled={manualSaving || manualContextsLoading || manualContexts.length === 0}
+                    >
+                      Save &amp; close
+                    </button>
+                    <button
+                      type="submit"
+                      value="another"
+                      className="btn btn-outline"
+                      disabled={manualSaving || manualContextsLoading || manualContexts.length === 0}
+                    >
+                      Save &amp; add another
+                    </button>
+                    <button
+                      type="submit"
+                      value="next-day"
+                      className="btn btn-primary"
+                      disabled={manualSaving || manualContextsLoading || manualContexts.length === 0}
+                    >
+                      {manualSaving ? 'Saving…' : 'Save & next day'}
+                    </button>
+                  </>
+                )}
+              </footer>
+            </form>
+          </aside>
+        </div>
+      )}
+
+      {voidEditor && (
+        <div className="timesheet-editor-overlay" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeVoidEditor();
+        }}>
+          <aside
+            ref={voidEditorRef}
+            className="timesheet-void-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="void-entry-title"
+            tabIndex="-1"
+          >
+            <header>
+              <div>
+                <span className="page-eyebrow">Manual entry</span>
+                <h2 id="void-entry-title">Void this time entry?</h2>
+              </div>
+              <button type="button" onClick={closeVoidEditor} aria-label="Close void entry dialog">
+                <i className="ri-close-line" />
+              </button>
+            </header>
+            <p>
+              <strong>{voidEditor.context_label}</strong><br />
+              {formatClock(voidEditor.started_at)} – {formatClock(voidEditor.ended_at)}
+            </p>
+            <div className="timesheet-void-notice">
+              <i className="ri-information-line" />
+              This removes the entry from totals but keeps it permanently in change history.
+            </div>
+            <form onSubmit={saveVoidEntry}>
+              {voidError && <div className="people-feedback people-feedback--error" role="alert">{voidError}</div>}
+              <label className="timesheet-field">
+                <span>Reason for voiding</span>
+                <textarea
+                  rows="3"
+                  value={voidReason}
+                  onChange={(event) => setVoidReason(event.target.value)}
+                  placeholder="For example: Duplicate entry or wrong employee"
+                  required
+                  autoFocus
+                />
+              </label>
+              <footer>
+                <button type="button" className="btn btn-outline" onClick={closeVoidEditor} disabled={voidSaving}>Keep entry</button>
+                <button type="submit" className="btn btn-danger" disabled={voidSaving}>{voidSaving ? 'Voiding…' : 'Void entry'}</button>
               </footer>
             </form>
           </aside>
@@ -1479,12 +2068,16 @@ const Timesheets = () => {
                           <span className={`badge ${
                             historyItem.change_kind === 'created'
                               ? 'success'
-                              : 'warning'
+                              : historyItem.change_kind === 'voided'
+                                ? 'danger'
+                                : 'warning'
                           }`}
                           >
                             {historyItem.change_kind === 'created'
                               ? 'Entry added'
-                              : 'Entry corrected'}
+                              : historyItem.change_kind === 'voided'
+                                ? 'Entry voided'
+                                : 'Entry corrected'}
                           </span>
                           <time dateTime={historyItem.changed_at}>
                             {formatDateTime(historyItem.changed_at)}

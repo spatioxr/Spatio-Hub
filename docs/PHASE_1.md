@@ -25,6 +25,9 @@ The source of truth for implementation work is the [Spatio HRMS issue tracker](h
   the employee submits a fresh EOD when ending again.
 - Superadmin may make BOS or EOD optional for selected employees.
 - Managers, admins, and superadmins may correct permitted time entries with a required reason and immutable audit history.
+- Authorised manual Add Time work keeps the selected person and date in context,
+  supports ordered work and break entry, and records corrections or voids without
+  hard-deleting history.
 - Organisation downtime is recorded separately from employee work and breaks.
   A Superadmin-assigned Downtime Manager can start/end a live incident or
   record a scheduled/past interval; everyone can see it and reporting never
@@ -92,7 +95,7 @@ Jibble is a visual and interaction reference only. Useful patterns are:
 
 - a compact persistent timer
 - clear In, Break, and Out states
-- weekly timesheet navigation
+- week and month timesheet navigation
 - a manual-entry side panel
 - visible change history
 - a simple live attendance board
