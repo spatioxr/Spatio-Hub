@@ -31,7 +31,9 @@ The source of truth for implementation work is the [Spatio HRMS issue tracker](h
 - Organisation downtime is recorded separately from employee work and breaks.
   A Superadmin-assigned Downtime Manager can start/end a live incident or
   record a scheduled/past interval; everyone can see it and reporting never
-  multiplies it into estimated employee-hours.
+  multiplies it into estimated employee-hours. Its operational panel sits
+  after the personal workday flow in Track Work, while active downtime remains
+  announced globally.
 
 Example internal activities include pre-sales, proposal creation, estimation, demo-video production, and marketing-material production.
 
@@ -71,8 +73,8 @@ Phase 1 uses one working-day leave model and a separate Leave Admin capability:
 - approved leave reflected in read-only Attendance
 - explicit holiday and optional late-cutoff administration
 
-Attendance is the factual calendar; Track Work owns live actions and
-Timesheets owns authorised corrections. See
+Attendance is the factual calendar; Track Work owns live work and organisation
+downtime actions, while Timesheets owns authorised time-entry corrections. See
 [Attendance and Leave Contract](ATTENDANCE_LEAVE.md) for the feature and test
 matrix.
 

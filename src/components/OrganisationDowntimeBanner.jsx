@@ -40,7 +40,7 @@ const OrganisationDowntimeBanner = () => {
         <strong>Organisation downtime active · {event.title}</strong>
         <span>{downtimeCategoryLabel(event.category)} · since {formatAppClock(event.started_at)} · {formatDowntimeDuration(elapsed)}</span>
       </div>
-      <Link to="/timesheets">View downtime</Link>
+      <Link to="/track-work">View in Track Work</Link>
     </div>
   );
 };

@@ -8715,6 +8715,14 @@ button.dashboard-snapshot-card:hover {
   gap: 1.25rem;
 }
 
+.track-work-downtime {
+  margin-top: 1.25rem;
+}
+
+.track-work-downtime .downtime-panel {
+  margin-bottom: 0;
+}
+
 .track-work-timeline,
 .track-work-checkins {
   padding: 0;

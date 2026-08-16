@@ -228,7 +228,11 @@ const DowntimeHistoryDialog = ({ event, history, loading, error, onClose }) => {
   );
 };
 
-const OrganisationDowntimePanel = ({ startDate, endDate }) => {
+const OrganisationDowntimePanel = ({
+  startDate,
+  endDate,
+  periodLabel = 'Recorded in this period',
+}) => {
   const { user } = useContext(AuthContext);
   const canManage = hasPermission(user, PERMISSIONS.MANAGE_ORGANISATION_DOWNTIME);
   const [events, setEvents] = useState([]);
@@ -387,7 +391,7 @@ const OrganisationDowntimePanel = ({ startDate, endDate }) => {
           <p>Reported separately from employee worked time and breaks.</p>
         </div>
         <div className="downtime-panel-total">
-          <span>Recorded in this period</span>
+          <span>{periodLabel}</span>
           <strong>{formatDowntimeDuration(totalSeconds)}</strong>
         </div>
       </div>

@@ -28,6 +28,7 @@ test('Track Work owns live actions while Attendance remains read-only history', 
   assert.match(trackWork, /<WorkTimerControl variant="page"/);
   assert.match(trackWork, /requested_scope: 'personal'/);
   assert.match(trackWork, /Today’s timeline/);
+  assert.match(trackWork, /<OrganisationDowntimePanel/);
   assert.match(attendance, /heading="Attendance calendar"/);
   assert.match(attendance, /supabase\.rpc\('scoped_attendance_month'/);
   assert.doesNotMatch(attendance, /Edit Attendance/);

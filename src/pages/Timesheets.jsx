@@ -3,7 +3,6 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import Layout from '../components/Layout';
@@ -28,7 +27,6 @@ import {
 } from '../utils/timezone';
 import useDialogFocus from '../hooks/useDialogFocus';
 import ContextNavigator from '../components/ContextNavigator';
-import OrganisationDowntimePanel from '../components/OrganisationDowntimePanel';
 import { getSequenceNavigation } from '../utils/sequenceNavigation';
 import {
   ATTENDANCE_DAY_STATES,
@@ -248,7 +246,6 @@ const Timesheets = () => {
   const [voidReason, setVoidReason] = useState('');
   const [voidError, setVoidError] = useState('');
   const [voidSaving, setVoidSaving] = useState(false);
-  const manualContextRef = useRef(null);
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
@@ -690,7 +687,7 @@ const Timesheets = () => {
     setManualError('');
   };
 
-  const openManualEditor = async (mode, entry = null, options = {}) => {
+  const openManualEditor = async (mode, entry = null) => {
     const employee = entry
       ? {
         employee_id: entry.employee_id,
@@ -706,7 +703,7 @@ const Timesheets = () => {
 
     setManualError('');
     setManualContextsLoading(true);
-    setManualEditor({ mode, entry, employee, focus: options.focus || null });
+    setManualEditor({ mode, entry, employee });
 
     const { data, error: contextError } = await supabase.rpc(
       'manual_time_entry_contexts',
@@ -762,9 +759,6 @@ const Timesheets = () => {
       context: contextValue,
     });
     setManualContextsLoading(false);
-    if (options.focus === 'context') {
-      window.requestAnimationFrame(() => manualContextRef.current?.focus());
-    }
   };
 
   const updateManualBreak = (index, field, value) => {
@@ -1228,11 +1222,6 @@ const Timesheets = () => {
         </article>
       </section>
 
-      <OrganisationDowntimePanel
-        startDate={periodBounds.start}
-        endDate={periodBounds.end}
-      />
-
       {viewMode === 'week' ? (
       <section className="surface timesheet-week">
         <div className="timesheet-week-toolbar">
@@ -1421,16 +1410,6 @@ const Timesheets = () => {
                             <i className="ri-history-line" />
                             History
                           </button>
-                          {canUseManualEditor && entry.ended_at && (
-                            <button
-                              type="button"
-                              className="timesheet-edit-button"
-                              onClick={() => openManualEditor('edit', entry, { focus: 'context' })}
-                            >
-                              <i className="ri-folder-transfer-line" />
-                              Change project
-                            </button>
-                          )}
                           {canUseManualEditor && entry.ended_at && (
                             <button
                               type="button"
@@ -1740,7 +1719,6 @@ const Timesheets = () => {
               <label className="timesheet-field">
                 <span>Project or activity</span>
                 <select
-                  ref={manualContextRef}
                   value={manualForm.context}
                   onChange={(event) => setManualForm((current) => ({
                     ...current,

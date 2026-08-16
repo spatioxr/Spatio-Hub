@@ -17,15 +17,21 @@ test('downtime UI supports live, scheduled and audited controlled actions', asyn
 });
 
 test('active downtime is announced globally and layouts include mobile safeguards', async () => {
-  const [layout, banner, styles] = await Promise.all([
+  const [layout, banner, trackWork, timesheets, styles] = await Promise.all([
     read('../components/Layout.jsx'),
     read('../components/OrganisationDowntimeBanner.jsx'),
+    read('../pages/TrackWork.jsx'),
+    read('../pages/Timesheets.jsx'),
     read('../index.css'),
   ]);
 
   assert.match(layout, /<OrganisationDowntimeBanner \/>/);
   assert.match(banner, /active_organisation_downtime/);
   assert.match(banner, /role="status"/);
+  assert.match(banner, /to="\/track-work"/);
+  assert.match(trackWork, /<OrganisationDowntimePanel/);
+  assert.match(trackWork, /periodLabel="Recorded this month"/);
+  assert.doesNotMatch(timesheets, /<OrganisationDowntimePanel/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.downtime-event/);
   assert.match(styles, /\.downtime-dialog[\s\S]*max-height:/);
 });

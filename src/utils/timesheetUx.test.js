@@ -25,6 +25,8 @@ test('manual entry supports continuous save actions and event-order cues', () =>
   assert.match(page, /Start break/);
   assert.match(page, /Resume work/);
   assert.match(page, /End work/);
+  assert.doesNotMatch(page, /Change project/);
+  assert.match(page, /Correct entry/);
 });
 
 test('accidental entries are voided through a controlled audited function', () => {

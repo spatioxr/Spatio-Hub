@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AppState from '../components/AppState';
 import Layout from '../components/Layout';
+import OrganisationDowntimePanel from '../components/OrganisationDowntimePanel';
 import WorkTimerControl from '../components/WorkTimerControl';
 import { AuthContext } from '../context/AuthContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
@@ -11,6 +12,7 @@ import {
   formatAppClock,
   formatAppDate,
 } from '../utils/timezone';
+import { monthBounds } from '../utils/timesheet';
 
 const formatDuration = (seconds) => {
   const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -33,6 +35,7 @@ const TrackWork = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const today = appDateKey();
+  const downtimePeriod = useMemo(() => monthBounds(today), [today]);
 
   const loadToday = useCallback(async () => {
     if (!user?.id) return;
@@ -190,6 +193,14 @@ const TrackWork = () => {
             These are one workday plan and one workday summary—not individual timesheet entries.
           </div>
         </section>
+      </div>
+
+      <div className="track-work-downtime">
+        <OrganisationDowntimePanel
+          startDate={downtimePeriod.start}
+          endDate={downtimePeriod.end}
+          periodLabel="Recorded this month"
+        />
       </div>
     </Layout>
   );
