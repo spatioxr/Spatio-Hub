@@ -26,6 +26,7 @@ import {
 import useDialogFocus from '../hooks/useDialogFocus';
 import ContextNavigator from '../components/ContextNavigator';
 import { getSequenceNavigation } from '../utils/sequenceNavigation';
+import { isActiveScopeMember } from '../utils/people';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -112,7 +113,9 @@ const Attendance = () => {
       setError(memberError.message || 'Unable to load the attendance scope.');
       return;
     }
-    setMembers((data || []).filter((member) => member.employee_id !== user.id));
+    setMembers((data || []).filter((member) => (
+      member.employee_id !== user.id && isActiveScopeMember(member)
+    )));
   }, [organisationScope, teamScope, user?.id]);
 
   useEffect(() => {

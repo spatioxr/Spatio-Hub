@@ -40,6 +40,7 @@ import {
   summarizeEmployeesForMonth,
   summarizeTimesheetDays,
 } from '../utils/timesheet';
+import { isActiveScopeMember } from '../utils/people';
 
 const SCOPE_COPY = {
   personal: {
@@ -314,18 +315,24 @@ const Timesheets = () => {
     if (fetchError) {
       setError(fetchError.message || 'Unable to load your timesheet.');
     } else {
+      const activeMembers = (memberData || []).filter(isActiveScopeMember);
+      const activeMemberIds = new Set(activeMembers.map((member) => member.employee_id));
       const workModeByEmployeeDay = new Map((workModeData || []).map((record) => [
         `${record.employee_id}:${record.attendance_date}`,
         record.work_mode,
       ]));
-      setEntries((entryData || []).map((entry) => ({
-        ...entry,
-        work_mode: workModeByEmployeeDay.get(
-          `${entry.employee_id}:${dateKey(entry.started_at)}`,
-        ) || null,
-      })));
-      setVoidedEntries(voidedEntryData || []);
-      setMembers(memberData || []);
+      setEntries((entryData || [])
+        .filter((entry) => activeMemberIds.has(entry.employee_id))
+        .map((entry) => ({
+          ...entry,
+          work_mode: workModeByEmployeeDay.get(
+            `${entry.employee_id}:${dateKey(entry.started_at)}`,
+          ) || null,
+        })));
+      setVoidedEntries((voidedEntryData || []).filter(
+        (entry) => activeMemberIds.has(entry.employee_id),
+      ));
+      setMembers(activeMembers);
       setFilterProjects(projectData || []);
       setFilterActivities(activityData || []);
     }
