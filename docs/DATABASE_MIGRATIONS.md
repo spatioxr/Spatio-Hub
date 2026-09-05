@@ -429,7 +429,9 @@ retain the database, private files and acknowledgement history. See
 bypass exposed by the complete CI suite. Both versions of create/update People
 now reject callers without an active application role before any write. The
 migration verifies and replaces the exact guard in all four existing function
-bodies, preserving signatures, grants and business validation. No data changes.
+bodies, preserving signatures, grants and business validation. It removes conflicting
+defaults from the phone-aware create overload so legacy 8/9-argument calls
+resolve correctly; the legacy overload retains its default. No data changes.
 Run `people_rpc_active_actor.sql` and the full isolated database suite. Apply
 this migration to hosted environments as well; merging code does not apply SQL.
 Do not restore the vulnerable guard as a rollback; correct forward if needed.
