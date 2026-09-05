@@ -56,8 +56,8 @@ BEGIN
           EXECUTE statement;
         EXCEPTION WHEN raise_exception THEN
           -- Reject accidental passes caused by unrelated SQL/fixture errors.
-          IF SQLERRM = 'Only an admin or superadmin can ' ||
-              CASE WHEN action = 'create' THEN 'add' ELSE 'edit' END || ' people'
+          IF SQLERRM = ('Only an admin or superadmin can ' ||
+              (CASE WHEN action = 'create' THEN 'add' ELSE 'edit' END) || ' people')
           THEN denied := true;
           ELSE RAISE;
           END IF;
