@@ -151,7 +151,8 @@ BEGIN
       'employee',
       NULL,
       DATE '2099-04-04',
-      'Active'
+      'Active',
+      NULL::text
     );
   EXCEPTION WHEN OTHERS THEN
     create_denied := true;
@@ -266,7 +267,8 @@ FROM public.create_employee_profile(
   'manager',
   (SELECT employee_id FROM hrms_044_actors WHERE actor_name = 'manager'),
   DATE '2099-04-05',
-  'Active'
+  'Active',
+  NULL::text
 ) created;
 
 CREATE TEMP TABLE hrms_044_admin_updated AS
@@ -383,7 +385,8 @@ FROM public.create_employee_profile(
   'superadmin',
   NULL,
   DATE '2099-04-06',
-  'Active'
+  'Active',
+  NULL::text
 ) created;
 
 INSERT INTO hrms_044_results (check_name, check_value)

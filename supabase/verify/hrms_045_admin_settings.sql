@@ -129,7 +129,8 @@ BEGIN
     'employee',
     NULL,
     DATE '2099-04-05',
-    'Active'
+    'Active',
+    NULL::text
   );
 
   updated_employee := public.update_employee_profile(
@@ -155,7 +156,8 @@ BEGIN
       'admin',
       NULL,
       NULL,
-      'Active'
+      'Active',
+      NULL::text
     );
   EXCEPTION WHEN OTHERS THEN
     create_admin_denied := true;

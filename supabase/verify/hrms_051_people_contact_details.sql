@@ -24,6 +24,8 @@ SELECT set_config(
 )
 FROM inserted_admin;
 
+GRANT SELECT, INSERT ON hrms_051_results TO authenticated;
+
 SET LOCAL ROLE authenticated;
 
 CREATE TEMP TABLE hrms_051_created AS
@@ -39,7 +41,7 @@ FROM public.create_employee_profile(
   joining_date => DATE '2099-05-01',
   employment_status => 'Active',
   employee_phone_number => ' +91 98765 43210 '
-);
+) created;
 
 CREATE TEMP TABLE hrms_051_updated AS
 SELECT updated.*

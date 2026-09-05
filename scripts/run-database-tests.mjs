@@ -28,6 +28,7 @@ const verificationFiles = [
   'supabase/verify/hrms_042_temporary_passwords.sql',
   'supabase/verify/hrms_044_people_directory.sql',
   'supabase/verify/hrms_044_people_archive.sql',
+  'supabase/verify/people_rpc_active_actor.sql',
   'supabase/verify/hrms_045_admin_settings.sql',
   'supabase/verify/hrms_046_role_ux_boundaries.sql',
   'supabase/verify/hrms_046_daily_work_modes.sql',
@@ -160,6 +161,7 @@ for (const file of verificationFiles) {
     }
     console.error(`FAIL ${file}`);
     console.error(error.message);
+    break;
   }
 }
 
