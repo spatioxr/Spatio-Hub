@@ -29,8 +29,15 @@ BEGIN
         'employment_status text DEFAULT ''Active''::text', 'employment_status text');
       definition := replace(definition,
         'employee_phone_number text DEFAULT NULL::text', 'employee_phone_number text');
+      -- PostgreSQL requires recreation to remove parameter defaults. No CASCADE:
+      -- an unexpected dependency aborts this transaction without changing it.
+      EXECUTE 'DROP FUNCTION ' || signature;
     END IF;
     EXECUTE replace(definition, old_guard, new_guard);
+    IF signature = 'public.create_employee_profile(text,text,text,text,text,text,uuid,date,text,text)' THEN
+      EXECUTE 'REVOKE ALL ON FUNCTION ' || signature || ' FROM PUBLIC, anon';
+      EXECUTE 'GRANT EXECUTE ON FUNCTION ' || signature || ' TO authenticated';
+    END IF;
   END LOOP;
 END;
 $$;
