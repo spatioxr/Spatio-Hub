@@ -10195,3 +10195,26 @@ button.dashboard-snapshot-card:hover {
 }
 
 .leave-history-note { padding: 0 1.15rem 1rem; color: var(--text-muted); font-size: 0.76rem; line-height: 1.5; }
+
+/* Daily plans and summaries stay readable alongside the timesheet timeline. */
+.daily-reviews { padding: 20px; margin-bottom: 20px; }
+.daily-reviews-heading, .daily-review > header {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.daily-reviews-heading h3 { margin: 4px 0; }
+.daily-reviews-heading p, .daily-reviews-note, .daily-review small,
+.daily-review time { color: var(--text-muted); font-size: 12px; }
+.daily-reviews-note { line-height: 1.6; margin: 12px 0 16px; }
+.daily-reviews-list { display: grid; gap: 16px; }
+.daily-review { border: 1px solid var(--border); border-radius: 10px; padding: 16px; min-width: 0; }
+.daily-review small { display: block; margin-top: 4px; }
+.daily-review-reports { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 16px; }
+.daily-review-reports h4 { margin: 0 0 8px; font-size: 14px; }
+.daily-review-reports p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; font-size: 13px; }
+.daily-review > header > div { min-width: 0; overflow-wrap: anywhere; }
+.daily-review > header > button { flex-shrink: 0; }
+@media (max-width: 680px) {
+  .daily-reviews { padding: 14px; }
+  .daily-reviews-heading { align-items: flex-start; flex-direction: column; }
+  .daily-review-reports { grid-template-columns: minmax(0, 1fr); }
+}

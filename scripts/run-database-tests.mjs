@@ -6,6 +6,7 @@ const verificationFiles = [
   'supabase/verify/phase1_schema.sql',
   'supabase/verify/hrms_004_role_access.sql',
   'supabase/verify/hrms_056_company_policies.sql',
+  'supabase/verify/timesheet_daily_reviews.sql',
   'supabase/verify/hrms_010_work_sessions.sql',
   'supabase/verify/hrms_011_work_breaks.sql',
   'supabase/verify/hrms_012_daily_reports.sql',

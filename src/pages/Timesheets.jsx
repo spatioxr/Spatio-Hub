@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import Layout from '../components/Layout';
 import AppState from '../components/AppState';
+import TimesheetDailyReviews from '../components/TimesheetDailyReviews';
 import { AuthContext } from '../context/AuthContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import { supabase } from '../utils/supabaseClient';
@@ -1229,6 +1230,21 @@ const Timesheets = () => {
         </article>
       </section>
 
+      <TimesheetDailyReviews
+        scope={scope}
+        employeeId={scope === 'personal' ? user?.id : selectedEmployeeId}
+        department={selectedDepartment}
+        startDate={periodBounds.start}
+        endDate={periodBounds.end}
+        selectedDate={selectedDate}
+        refreshKey={entries}
+        onOpenDay={(report) => {
+          setSelectedDate(report.report_date);
+          if (scope !== 'personal') setSelectedEmployeeId(report.employee_id);
+          requestAnimationFrame(() => document.getElementById('timesheet-work-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        }}
+      />
+
       {viewMode === 'week' ? (
       <section className="surface timesheet-week">
         <div className="timesheet-week-toolbar">
@@ -1309,7 +1325,7 @@ const Timesheets = () => {
               })}
             </div>
 
-            <div className="timesheet-detail">
+            <div className="timesheet-detail" id="timesheet-work-detail">
               <div className="timesheet-detail-header">
                 <div className="timesheet-detail-navigation">
                   <button type="button" className="timesheet-nav-button" onClick={() => moveDay(-1)} aria-label="Previous day">
@@ -1579,7 +1595,7 @@ const Timesheets = () => {
                 })}
               </div>
 
-              <div className="timesheet-month-detail">
+              <div className="timesheet-month-detail" id="timesheet-work-detail">
                 <div className="timesheet-detail-header">
                   <div>
                     <span className="page-eyebrow">Selected day</span>
