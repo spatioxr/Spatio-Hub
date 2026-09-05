@@ -147,6 +147,15 @@ environment.
 43. `20260816000400_narrow_employee_private_details.sql` removes Aadhaar and
     last-working-date storage so the private profile contains only the
     explicitly approved People fields.
+44. `20260816000500_organisation_downtime.sql` adds controlled organisation
+    downtime recording, delegated Downtime Manager access, public-to-portal
+    live visibility, and reporting that does not multiply incidents by people.
+45. `20260816000600_timesheet_manual_entry_ux.sql` completes the authorised
+    ordered manual-entry workflow and its server-enforced correction boundary.
+46. `20260828000100_avatar_egress_optimisation.sql` moves profile-picture
+    persistence to a private, employee-owned Storage bucket, keeps embedded
+    image bytes out of live projections, and combines work mode into the
+    lightweight live-status response.
 
 Future schema work must be added as a new timestamped migration. Never edit a
 migration after it has been applied to a shared project; add a corrective
@@ -356,6 +365,15 @@ Run `supabase/verify/hrms_004_role_access.sql` for the rollback-only
 authenticated-role RLS matrix. It verifies Employee self scope, Manager
 assigned-team scope, Admin organisation read scope, Superadmin-only leave and
 BOS/EOD controls, and direct-client write denial across the original 18 Phase 1 tables.
+
+Run `supabase/verify/hrms_055_avatar_egress.sql` for the read-only avatar
+egress regression check. It verifies the private bucket and authenticated
+object policy presence, avatar-path guard, cacheable avatar-path
+projection, embedded-avatar exclusion, combined work mode, and reporting
+manager path projection. Run `supabase/verify/hrms_020_avatar_access.sql`
+for rollback-only employee upload/update, cross-employee denial, profile
+link ownership, embedded-data denial, role-escalation denial and inactive
+employee read-denial checks.
 
 ## Rollback
 

@@ -6,6 +6,14 @@ import { isDepartmentManagedBy } from '../utils/rbac';
 import { useNavigate } from 'react-router-dom';
 import WorkTimerControl from './WorkTimerControl';
 import { formatAppDate } from '../utils/timezone';
+import {
+  cacheableAvatarUrl,
+  canvasToJpegBlob,
+  createSignedAvatarUrl,
+  isEmbeddedAvatar,
+  migrateEmbeddedEmployeeAvatar,
+  storeEmployeeAvatar,
+} from '../utils/avatars';
 
 const TopBar = ({
   title,
@@ -27,8 +35,50 @@ const TopBar = ({
   const [reportsTo, setReportsTo] = useState('Loading...');
 
   useEffect(() => {
-    if (user?.avatar_url) setLocalAvatar(user.avatar_url);
-    
+    let active = true;
+
+    const loadAvatar = async () => {
+      if (user?.avatar_path) {
+        try {
+          const signedUrl = await createSignedAvatarUrl(supabase, user.avatar_path);
+          if (active) setLocalAvatar(signedUrl);
+        } catch (error) {
+          console.warn('Unable to load the stored profile picture:', error.message);
+          if (active) setLocalAvatar(cacheableAvatarUrl(user.avatar_url));
+        }
+        return;
+      }
+
+      if (isEmbeddedAvatar(user?.avatar_url)) {
+        setLocalAvatar(user.avatar_url);
+        try {
+          const migrated = await migrateEmbeddedEmployeeAvatar({
+            client: supabase,
+            employeeId: user.id,
+            embeddedAvatar: user.avatar_url,
+          });
+          if (active && migrated) {
+            setLocalAvatar(migrated.signedUrl);
+            updateUser({ avatar_path: migrated.path, avatar_url: null });
+          }
+        } catch (error) {
+          console.warn('Unable to migrate the legacy profile picture:', error.message);
+        }
+        return;
+      }
+
+      setLocalAvatar(cacheableAvatarUrl(user?.avatar_url));
+    };
+
+    if (user?.id) void loadAvatar();
+    else setLocalAvatar(null);
+
+    return () => {
+      active = false;
+    };
+  }, [updateUser, user?.avatar_path, user?.avatar_url, user?.id]);
+
+  useEffect(() => {
     // Fetch reports to
     if (user?.reports_to) {
       const fetchReportsTo = async () => {
@@ -94,28 +144,40 @@ const TopBar = ({
     setSaving(true);
     const img = new Image();
     img.onload = async () => {
-      const SIZE = 240;
-      const canvas = document.createElement('canvas');
-      // Crop to a centered square
-      const min = Math.min(img.width, img.height);
-      const sx = (img.width - min) / 2;
-      const sy = (img.height - min) / 2;
-      canvas.width = SIZE;
-      canvas.height = SIZE;
-      canvas.getContext('2d').drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
-      const base64Str = canvas.toDataURL('image/jpeg', 0.75);
-      URL.revokeObjectURL(objectUrl);
+      try {
+        const SIZE = 240;
+        const canvas = document.createElement('canvas');
+        // Crop to a centered square.
+        const min = Math.min(img.width, img.height);
+        const sx = (img.width - min) / 2;
+        const sy = (img.height - min) / 2;
+        canvas.width = SIZE;
+        canvas.height = SIZE;
+        canvas.getContext('2d').drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+        const jpeg = await canvasToJpegBlob(canvas);
+        const stored = await storeEmployeeAvatar({
+          client: supabase,
+          employeeId: user.id,
+          image: jpeg,
+          previousPath: user.avatar_path,
+        });
 
-      setLocalAvatar(base64Str);
-      const { error } = await supabase.from('employees').update({ avatar_url: base64Str }).eq('id', user.id);
-      if (!error) {
-        updateUser({ avatar_url: base64Str });
-      } else {
+        setLocalAvatar(stored.signedUrl);
+        updateUser({ avatar_path: stored.path, avatar_url: null });
+      } catch (error) {
         console.error('Avatar save failed:', error.message);
-        alert('Failed to save profile picture! Error: ' + error.message);
+        alert(`Failed to save profile picture! Error: ${error.message}`);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+        setCropModal(null);
+        setSaving(false);
       }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
       setCropModal(null);
       setSaving(false);
+      alert('Unable to read that image. Please choose another file.');
     };
     img.src = objectUrl;
   };

@@ -80,7 +80,7 @@ test('authentication tolerates the database-first rollout boundary', () => {
 test('dashboard reconciles shared governed data and exposes live profile facts', () => {
   const dashboardSource = sourceFor(new URL('../pages/Dashboard.jsx', import.meta.url));
   const liveStatusSource = sourceFor(new URL('../components/LiveStatusBoard.jsx', import.meta.url));
-  const migrationSource = sourceFor(new URL('../../supabase/migrations/20260815000600_dashboard_visual_sync.sql', import.meta.url));
+  const migrationSource = sourceFor(new URL('../../supabase/migrations/20260828000100_avatar_egress_optimisation.sql', import.meta.url));
 
   assert.match(dashboardSource, /refreshLeaveData\(false, false\)/);
   assert.match(dashboardSource, /window\.setInterval\(handleFocus, 60000\)/);
@@ -88,6 +88,8 @@ test('dashboard reconciles shared governed data and exposes live profile facts',
   assert.match(dashboardSource, /supabase\.rpc\('current_reporting_manager'\)/);
   assert.doesNotMatch(dashboardSource, /setHolidays/);
   assert.match(liveStatusSource, /row\.avatar_url/);
-  assert.match(migrationSource, /employee\.avatar_url/);
+  assert.match(liveStatusSource, /row\.avatar_path/);
+  assert.match(migrationSource, /employee\.avatar_path/);
+  assert.match(migrationSource, /WHEN employee\.avatar_url ~\* '\^https:\/\/'/);
   assert.match(migrationSource, /SECURITY DEFINER/);
 });

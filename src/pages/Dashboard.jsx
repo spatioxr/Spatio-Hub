@@ -21,6 +21,7 @@ import {
   workdayPresentation,
 } from '../utils/dashboard';
 import useDialogFocus from '../hooks/useDialogFocus';
+import { cacheableAvatarUrl, createSignedAvatarUrl } from '../utils/avatars';
 
 const EMPTY_ATTENDANCE = Object.freeze({
   workingDays: 0,
@@ -57,6 +58,7 @@ const Dashboard = () => {
 
   const [totalEmployees, setTotalEmployees] = useState(0);
   const [reportingManager, setReportingManager] = useState(null);
+  const [reportingManagerAvatarUrl, setReportingManagerAvatarUrl] = useState(null);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
   const [attendanceSummary, setAttendanceSummary] = useState(EMPTY_ATTENDANCE);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -132,6 +134,39 @@ const Dashboard = () => {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [refreshDashboard, user, workStatus]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadManagerAvatar = async () => {
+      if (!reportingManager?.manager_avatar_path) {
+        setReportingManagerAvatarUrl(
+          cacheableAvatarUrl(reportingManager?.manager_avatar_url),
+        );
+        return;
+      }
+
+      try {
+        const signedUrl = await createSignedAvatarUrl(
+          supabase,
+          reportingManager.manager_avatar_path,
+        );
+        if (active) setReportingManagerAvatarUrl(signedUrl);
+      } catch (error) {
+        console.warn('Unable to load the reporting manager picture:', error.message);
+        if (active) {
+          setReportingManagerAvatarUrl(
+            cacheableAvatarUrl(reportingManager.manager_avatar_url),
+          );
+        }
+      }
+    };
+
+    void loadManagerAvatar();
+    return () => {
+      active = false;
+    };
+  }, [reportingManager?.manager_avatar_path, reportingManager?.manager_avatar_url]);
 
   const dashboardFacts = useMemo(() => {
     const today = appDateKey();
@@ -209,8 +244,8 @@ const Dashboard = () => {
           <span className="dashboard-person-label">Reporting manager</span>
           <div className="dashboard-person-profile">
             <span className="dashboard-person-avatar">
-              {reportingManager?.manager_avatar_url ? (
-                <img src={reportingManager.manager_avatar_url} alt="" />
+              {reportingManagerAvatarUrl ? (
+                <img src={reportingManagerAvatarUrl} alt="" />
               ) : initialsFor(reportingManager?.manager_name)}
             </span>
             <div>

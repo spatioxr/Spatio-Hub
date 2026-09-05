@@ -1,4 +1,11 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { hasPermission, PERMISSIONS } from '../utils/rbac';
@@ -9,6 +16,11 @@ import {
 } from '../utils/timezone';
 import { liveStatusTimeDetails } from '../utils/liveStatus';
 import AdminWorkControlModal from './AdminWorkControlModal';
+import {
+  AVATAR_SIGNED_URL_TTL_SECONDS,
+  cacheableAvatarUrl,
+  createSignedAvatarUrls,
+} from '../utils/avatars';
 
 const STATUS_TABS = ['In', 'Break', 'Out'];
 
@@ -32,7 +44,12 @@ const formatLiveTime = (value, label) => {
   })}, ${time}`;
 };
 
-const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
+const LiveStatusBoard = ({
+  active = true,
+  refreshKey,
+  variant = 'board',
+  onClose,
+}) => {
   const { user } = useContext(AuthContext);
   const [rows, setRows] = useState([]);
   const [activeTab, setActiveTab] = useState('In');
@@ -41,54 +58,85 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [avatarUrls, setAvatarUrls] = useState({});
+  const avatarUrlsRef = useRef({});
+  const avatarUrlsExpireAtRef = useRef(0);
+  const refreshInFlightRef = useRef(null);
   const canManageLiveWork = hasPermission(user, PERMISSIONS.MANAGE_LIVE_WORK);
 
-  const refresh = useCallback(async ({ quiet = false } = {}) => {
-    if (!quiet) setLoading(true);
-    const [
-      { data, error: boardError },
-      { data: workModeData, error: workModeError },
-    ] = await Promise.all([
-      supabase.rpc('live_work_status'),
-      supabase.rpc('live_attendance_work_modes'),
-    ]);
+  const refreshAvatarUrls = useCallback(async (paths) => {
+    const uniquePaths = [...new Set((paths || []).filter(Boolean))];
+    if (!uniquePaths.length) return;
 
-    if (boardError || workModeError) {
-      setError('Live status is temporarily unavailable.');
+    const cacheIsFresh = Date.now() < avatarUrlsExpireAtRef.current;
+    if (cacheIsFresh && uniquePaths.every((path) => avatarUrlsRef.current[path])) return;
+
+    try {
+      const signedUrls = await createSignedAvatarUrls(supabase, uniquePaths);
+      avatarUrlsRef.current = signedUrls;
+      avatarUrlsExpireAtRef.current = Date.now()
+        + ((AVATAR_SIGNED_URL_TTL_SECONDS - 5 * 60) * 1000);
+      setAvatarUrls(signedUrls);
+    } catch (avatarError) {
+      console.warn('Unable to load live-status profile pictures:', avatarError.message);
+    }
+  }, []);
+
+  const refresh = useCallback(async ({ quiet = false } = {}) => {
+    if (refreshInFlightRef.current) return refreshInFlightRef.current;
+
+    const request = (async () => {
+      if (!quiet) setLoading(true);
+      const { data, error: boardError } = await supabase.rpc('live_work_status');
+
+      if (boardError) {
+        setError('Live status is temporarily unavailable.');
+        setLoading(false);
+        return;
+      }
+
+      setRows(data || []);
+      void refreshAvatarUrls((data || []).map((row) => row.avatar_path));
+      setUpdatedAt(new Date());
+      setError('');
+      setLoading(false);
+    })();
+
+    refreshInFlightRef.current = request;
+    try {
+      return await request;
+    } finally {
+      refreshInFlightRef.current = null;
+    }
+  }, [refreshAvatarUrls]);
+
+  useEffect(() => {
+    if (!active || document.visibilityState !== 'visible') {
       setLoading(false);
       return;
     }
-
-    const workModeByEmployee = new Map((workModeData || []).map((record) => [
-      record.employee_id,
-      record.work_mode,
-    ]));
-    setRows((data || []).map((row) => ({
-      ...row,
-      work_mode: workModeByEmployee.get(row.employee_id) || null,
-    })));
-    setUpdatedAt(new Date());
-    setError('');
-    setLoading(false);
-  }, []);
+    void refresh();
+  }, [active, refresh, refreshKey]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh, refreshKey]);
+    if (!active) return undefined;
 
-  useEffect(() => {
-    const handleFocus = () => refresh({ quiet: true });
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') void refresh({ quiet: true });
+    };
     const pollId = window.setInterval(
-      () => refresh({ quiet: true }),
-      15000,
+      handleFocus,
+      60000,
     );
     window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
 
     return () => {
       window.clearInterval(pollId);
       window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
     };
-  }, [refresh]);
+  }, [active, refresh]);
 
   const counts = useMemo(
     () => Object.fromEntries(
@@ -195,6 +243,9 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
                 checkedOutAt: row.checked_out_at,
                 workStatus: row.work_status,
               });
+              const avatarUrl = (
+                avatarUrls[row.avatar_path] || cacheableAvatarUrl(row.avatar_url)
+              );
 
               return (
                 <article
@@ -213,8 +264,8 @@ const LiveStatusBoard = ({ refreshKey, variant = 'board', onClose }) => {
                 >
                   <div className="live-status-person">
                     <div className="live-status-avatar">
-                      {row.avatar_url ? (
-                        <img src={row.avatar_url} alt="" />
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="" />
                       ) : initialsFor(row.employee_name)}
                       <span className={`status-dot ${row.work_status.toLowerCase()}`} />
                     </div>

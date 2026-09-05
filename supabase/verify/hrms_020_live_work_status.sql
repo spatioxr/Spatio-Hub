@@ -39,7 +39,7 @@ DECLARE
     public.app_current_date(statement_timestamp())
   ) + INTERVAL '2 hours';
   switched_started_at TIMESTAMPTZ := statement_timestamp();
-  break_started_at TIMESTAMPTZ := public.app_day_start(
+  fixture_break_started_at TIMESTAMPTZ := public.app_day_start(
     public.app_current_date(statement_timestamp())
   ) + INTERVAL '4 hours';
 BEGIN
@@ -203,7 +203,7 @@ BEGIN
   )
   VALUES (
     break_work_entry_id,
-    break_started_at
+    fixture_break_started_at
   );
 
   INSERT INTO public.work_entries (
@@ -299,8 +299,8 @@ BEGIN
       AND board.work_status = 'Break'
       AND board.first_check_in_at = break_check_in_at
       AND board.checked_in_at = break_check_in_at
-      AND board.status_started_at = break_started_at
-      AND board.break_started_at = break_started_at
+      AND board.status_started_at = fixture_break_started_at
+      AND board.break_started_at = fixture_break_started_at
       AND board.checked_out_at IS NULL
       AND board.context_label = 'Pre-sales'
       AND NOT board.is_stale

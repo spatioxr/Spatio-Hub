@@ -34,8 +34,8 @@ test('live and attendance views expose WFH without making Office noisy', () => {
   const liveStatus = read('../components/LiveStatusBoard.jsx');
   const attendance = read('../pages/Attendance.jsx');
 
-  assert.match(liveStatus, /live_attendance_work_modes/);
   assert.match(liveStatus, /row\.work_mode === 'wfh'/);
+  assert.doesNotMatch(liveStatus, /live_attendance_work_modes/);
   assert.match(attendance, /Work from home/);
   assert.match(attendance, /Not recorded/);
 });

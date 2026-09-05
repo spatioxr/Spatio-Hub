@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Sidebar from './Sidebar';
@@ -19,6 +19,16 @@ const Layout = ({
 }) => {
   const { user, loading } = useContext(AuthContext);
   const [liveStatusOpen, setLiveStatusOpen] = useState(false);
+  // The rail is permanently visible above the CSS drawer breakpoint.
+  const [wideScreen, setWideScreen] = useState(
+    () => window.matchMedia('(min-width: 1601px)').matches,
+  );
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1601px)');
+    const onChange = () => setWideScreen(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
   
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
@@ -63,7 +73,11 @@ const Layout = ({
             id="management-live-status"
             aria-label="Company live work status"
           >
-            <LiveStatusBoard variant="rail" onClose={() => setLiveStatusOpen(false)} />
+            <LiveStatusBoard
+              active={wideScreen || liveStatusOpen}
+              variant="rail"
+              onClose={() => setLiveStatusOpen(false)}
+            />
           </aside>
         </>
       )}

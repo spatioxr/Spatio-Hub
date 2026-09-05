@@ -13,7 +13,9 @@ npm run test:ci
 The unit suite covers timer state transitions, elapsed-duration behaviour,
 start-versus-switch task-description validation, working-day and holiday leave
 precision, attendance states and summaries, delegated Leave Admin access, and
-the role permission matrix.
+the role permission matrix. It also guards the live-board egress contract:
+one visibility-aware status request, 60-second fallback polling, private
+Storage-backed avatars, and one-time legacy base64 migration.
 
 ## Database rules
 
@@ -30,7 +32,8 @@ authorization and audit history, mandatory switch descriptions, description-free
 first starts, same-day workday reopening with a replacement final EOD, duration
 totals, pending-only leave routing, self-review denial, working-day charges,
 immutable balance history, factual Attendance projection, original-check-in
-late timing, and leave balance single-deduction behaviour. The
+late timing, leave balance single-deduction behaviour, and the private
+employee-avatar Storage/RLS boundary. The
 HRMS-044 archive check additionally verifies
 that Admin/Superadmin can archive and restore users, history remains intact,
 and an archived Auth identity cannot read Phase 1 catalogue data or update its

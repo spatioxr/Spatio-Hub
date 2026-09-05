@@ -35,7 +35,8 @@ const LEGACY_EMPLOYEE_PROFILE_FIELDS = [
 ].join(', ');
 
 const LEAVE_ADMIN_PROFILE_FIELDS = `${LEGACY_EMPLOYEE_PROFILE_FIELDS}, is_leave_admin`;
-const EMPLOYEE_PROFILE_FIELDS = `${LEAVE_ADMIN_PROFILE_FIELDS}, is_downtime_manager`;
+const PRE_AVATAR_PROFILE_FIELDS = `${LEAVE_ADMIN_PROFILE_FIELDS}, is_downtime_manager`;
+const EMPLOYEE_PROFILE_FIELDS = `${PRE_AVATAR_PROFILE_FIELDS}, avatar_path`;
 
 const isMissingProfileColumn = (error, column) => {
   const message = String(error?.message || '').toLowerCase();
@@ -54,14 +55,23 @@ const isMissingDowntimeManagerColumn = (error) => (
   isMissingProfileColumn(error, 'is_downtime_manager')
 );
 
-const findEmployeeProfile = async (column, value) => {
+const isMissingAvatarPathColumn = (error) => (
+  isMissingProfileColumn(error, 'avatar_path')
+);
+
+const findEmployeeProfileBeforeAvatarStorage = async (column, value) => {
   const result = await supabase
     .from('employees')
-    .select(EMPLOYEE_PROFILE_FIELDS)
+    .select(PRE_AVATAR_PROFILE_FIELDS)
     .eq(column, value)
     .maybeSingle();
 
-  if (!isMissingDowntimeManagerColumn(result.error)) return result;
+  if (!isMissingDowntimeManagerColumn(result.error)) {
+    return {
+      ...result,
+      data: result.data ? { ...result.data, avatar_path: null } : null,
+    };
+  }
 
   console.warn('Organisation downtime schema is not applied; loading the previous employee profile.');
   const previousResult = await supabase
@@ -74,7 +84,7 @@ const findEmployeeProfile = async (column, value) => {
     return {
       ...previousResult,
       data: previousResult.data
-        ? { ...previousResult.data, is_downtime_manager: false }
+        ? { ...previousResult.data, is_downtime_manager: false, avatar_path: null }
         : null,
     };
   }
@@ -89,9 +99,27 @@ const findEmployeeProfile = async (column, value) => {
   return {
     ...fallback,
     data: fallback.data
-      ? { ...fallback.data, is_leave_admin: false, is_downtime_manager: false }
+      ? {
+        ...fallback.data,
+        is_leave_admin: false,
+        is_downtime_manager: false,
+        avatar_path: null,
+      }
       : null,
   };
+};
+
+const findEmployeeProfile = async (column, value) => {
+  const result = await supabase
+    .from('employees')
+    .select(EMPLOYEE_PROFILE_FIELDS)
+    .eq(column, value)
+    .maybeSingle();
+
+  if (!isMissingAvatarPathColumn(result.error)) return result;
+
+  console.warn('Avatar Storage schema is not applied; loading the previous employee profile.');
+  return findEmployeeProfileBeforeAvatarStorage(column, value);
 };
 
 const getEmployeeProfile = async (authUser) => {
@@ -287,11 +315,11 @@ export const AuthProvider = ({ children }) => {
     return { success: true };
   };
 
-  const updateUser = (updatedFields) => {
+  const updateUser = useCallback((updatedFields) => {
     setUser((currentUser) => (
       currentUser ? { ...currentUser, ...updatedFields } : currentUser
     ));
-  };
+  }, []);
 
   const updatePassword = async ({ currentPassword, newPassword }) => {
     if (!session?.user || !user) {
