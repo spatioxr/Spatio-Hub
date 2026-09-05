@@ -143,9 +143,11 @@ SELECT
   project_session.project_id IS NOT NULL
     AND project_session.activity_id IS NULL
     AS project_session_has_one_target,
-  activity_session.task_description =
-    'Verify an activity-backed work session.'
-    AS task_description_normalised,
+  -- HRMS-015/016: starts ignore the legacy description argument; only
+  -- context switches collect and normalise a task description.
+  activity_session.task_description = ''
+    AND project_session.task_description = ''
+    AS start_omits_task_description,
   current_activity.id = activity_session.id
     AS current_activity_restored,
   current_project.id = project_session.id
