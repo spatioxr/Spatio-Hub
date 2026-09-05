@@ -4,7 +4,7 @@ import AppState from '../components/AppState';
 import { AuthContext } from '../context/AuthContext';
 import { LeaveContext } from '../context/LeaveContext';
 import { appDateKey, formatAppClock, formatAppDate } from '../utils/timezone';
-import { calculateLeaveDays, canReviewLeave } from '../utils/leave';
+import { calculateLeaveDays, canReviewLeave, filterLeaveHistory, previewBalanceAdjustment } from '../utils/leave';
 import useDialogFocus from '../hooks/useDialogFocus';
 
 const LEAVE_TYPES = ['Sick Leave', 'Casual Leave', 'Comp Off'];
@@ -37,7 +37,7 @@ const RequestTable = ({ requests, own, actionId, onEdit, onDecide }) => (
           <th>Days</th>
           <th>Status</th>
           <th>Reason / decision</th>
-          <th aria-label="Actions" />
+          {(own || onDecide) && <th aria-label="Actions" />}
         </tr>
       </thead>
       <tbody>
@@ -68,13 +68,13 @@ const RequestTable = ({ requests, own, actionId, onEdit, onDecide }) => (
               {request.rejection_comment && <small className="leave-decision-note">{request.rejection_comment}</small>}
               {request.decided_at && <small>Decided {formatAppDate(request.decided_at)}{request.decided_by_name ? ` by ${request.decided_by_name}` : ''}</small>}
             </td>
-            <td className="leave-request-actions">
+            {(own || onDecide) && <td className="leave-request-actions">
               {own && request.status === 'Pending' && (
                 <button type="button" className="btn btn-outline" onClick={() => onEdit(request)}>
                   <i className="ri-pencil-line" /> Edit
                 </button>
               )}
-              {!own && request.status === 'Pending' && (
+              {!own && onDecide && request.status === 'Pending' && (
                 <>
                   <button type="button" className="btn leave-approve-button" disabled={actionId === request.id} onClick={() => onDecide(request, true)}>
                     <i className="ri-check-line" /> Approve
@@ -84,7 +84,7 @@ const RequestTable = ({ requests, own, actionId, onEdit, onDecide }) => (
                   </button>
                 </>
               )}
-            </td>
+            </td>}
           </tr>
         ))}
       </tbody>
@@ -153,8 +153,9 @@ const Leave = () => {
   const [decisionError, setDecisionError] = useState('');
   const [actionId, setActionId] = useState('');
   const [notice, setNotice] = useState(null);
-  const [adjustment, setAdjustment] = useState({ employeeId: '', type: 'Sick Leave', amount: '1', reason: '' });
+  const [adjustment, setAdjustment] = useState({ employeeId: '', type: 'Sick Leave', amount: '1', operation: 'add', reason: '' });
   const [adjusting, setAdjusting] = useState(false);
+  const [historyFilters, setHistoryFilters] = useState({ search: '', status: '', from: '', to: '' });
   const [historyEmployeeId, setHistoryEmployeeId] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -172,6 +173,11 @@ const Leave = () => {
     () => requests.filter((request) => request.status === 'Pending' && request.employee_id !== user?.id),
     [requests, user?.id],
   );
+  const filteredHistory = useMemo(() => filterLeaveHistory(requests, historyFilters), [requests, historyFilters]);
+  const historyRangeInvalid = Boolean(historyFilters.from && historyFilters.to && historyFilters.from > historyFilters.to);
+  const adjustmentPerson = adminOverview.find((person) => person.employee_id === adjustment.employeeId);
+  const balanceField = { 'Sick Leave': 'sick_leave', 'Casual Leave': 'casual_leave', 'Comp Off': 'comp_off' }[adjustment.type];
+  const adjustmentPreview = previewBalanceAdjustment(adjustmentPerson?.[balanceField], adjustment.amount, adjustment.operation);
   const upcomingHolidays = holidays.filter((holiday) => holiday.date >= appDateKey());
   const previewDays = calculateLeaveDays(form.from, form.to, form.isHalfDay, holidays);
 
@@ -269,11 +275,11 @@ const Leave = () => {
 
   const submitAdjustment = async (event) => {
     event.preventDefault();
-    if (!adjustment.employeeId || !adjustment.reason.trim()) return;
+    if (adjusting || !adjustment.employeeId || !adjustment.reason.trim() || !adjustmentPreview?.valid) return;
     setAdjusting(true);
     const result = await adjustBalance({
       ...adjustment,
-      amount: Number(adjustment.amount),
+      amount: adjustmentPreview.delta,
     });
     setAdjusting(false);
     if (result.error && !result.committed) {
@@ -281,7 +287,7 @@ const Leave = () => {
       return;
     }
     setNotice({ type: result.error ? 'error' : 'success', text: result.error ? 'Adjustment saved; refresh failed.' : 'Balance adjustment recorded in immutable history.' });
-    setAdjustment((current) => ({ ...current, reason: '' }));
+    setAdjustment((current) => ({ ...current, amount: '', reason: '' }));
     setHistoryEmployeeId(adjustment.employeeId);
     const history = await loadBalanceHistory(adjustment.employeeId);
     if (!history.error) setTransactions(history.data);
@@ -407,6 +413,7 @@ const Leave = () => {
       <nav className="leave-workspace-tabs" aria-label="Leave workspace">
         <button type="button" className={activeTab === 'my' ? 'active' : ''} onClick={() => setActiveTab('my')}><i className="ri-file-list-3-line" /> My requests <span>{myRequests.length}</span></button>
         {leaveAdmin && <button type="button" className={activeTab === 'queue' ? 'active' : ''} onClick={() => setActiveTab('queue')}><i className="ri-inbox-archive-line" /> HR queue <span>{pendingRequests.length}</span></button>}
+        {leaveAdmin && <button type="button" className={activeTab === 'history' ? 'active' : ''} onClick={() => setActiveTab('history')}><i className="ri-history-line" /> All requests</button>}
         {leaveAdmin && <button type="button" className={activeTab === 'balances' ? 'active' : ''} onClick={() => setActiveTab('balances')}><i className="ri-scales-3-line" /> Balances</button>}
         {leaveAdmin && <button type="button" className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}><i className="ri-calendar-settings-line" /> Holidays & policy</button>}
       </nav>
@@ -425,16 +432,34 @@ const Leave = () => {
         </section>
       )}
 
+      {activeTab === 'history' && leaveAdmin && (
+        <section className="card leave-workspace-card">
+          <div className="track-work-section-heading"><div><span className="page-eyebrow">Organisation history</span><h2>All leave requests</h2></div><span>{filteredHistory.length} {filteredHistory.length === 1 ? 'request' : 'requests'}</span></div>
+          <div className="leave-admin-form leave-history-filters">
+            <label><span>Employee, code or department</span><input type="search" value={historyFilters.search} onChange={(event) => setHistoryFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Search employees" /></label>
+            <label><span>Status</span><select value={historyFilters.status} onChange={(event) => setHistoryFilters((current) => ({ ...current, status: event.target.value }))}><option value="">All statuses</option>{['Pending', 'Approved', 'Rejected'].map((status) => <option key={status}>{status}</option>)}</select></label>
+            <label><span>Leave from</span><input type="date" value={historyFilters.from} onChange={(event) => setHistoryFilters((current) => ({ ...current, from: event.target.value }))} /></label>
+            <label><span>Leave to</span><input type="date" min={historyFilters.from || undefined} value={historyFilters.to} onChange={(event) => setHistoryFilters((current) => ({ ...current, to: event.target.value }))} /></label>
+            <button type="button" className="btn btn-outline" onClick={() => setHistoryFilters({ search: '', status: '', from: '', to: '' })}>Clear filters</button>
+          </div>
+          {historyRangeInvalid && <p role="alert">Leave to must be on or after Leave from.</p>}
+          <p className="leave-history-note">Includes requests overlapping the selected dates. Days show each full request; pending requests are not leave taken.</p>
+          {filteredHistory.length === 0 ? <AppState compact type="empty" title="No matching requests" message="Try another employee, status or date range." /> : <RequestTable requests={filteredHistory} />}
+        </section>
+      )}
+
       {activeTab === 'balances' && leaveAdmin && (
         <div className="leave-admin-grid">
           <section className="card leave-adjustment-card">
             <div className="track-work-section-heading"><div><span className="page-eyebrow">Audited change</span><h2>Adjust a balance</h2></div></div>
             <form className="leave-admin-form" onSubmit={submitAdjustment}>
-              <label><span>Employee</span><select value={adjustment.employeeId} onChange={(event) => setAdjustment((current) => ({ ...current, employeeId: event.target.value }))} required><option value="">Choose employee</option>{adminOverview.filter((person) => person.employee_id !== user.id).map((person) => <option value={person.employee_id} key={person.employee_id}>{person.employee_name} · {person.employee_code}</option>)}</select><small>Leave Admins cannot change their own balance.</small></label>
-              <label><span>Leave type</span><select value={adjustment.type} onChange={(event) => setAdjustment((current) => ({ ...current, type: event.target.value }))}>{LEAVE_TYPES.map((type) => <option key={type}>{type}</option>)}</select></label>
-              <label><span>Signed adjustment</span><input type="number" min="-50" max="50" step="0.5" value={adjustment.amount} onChange={(event) => setAdjustment((current) => ({ ...current, amount: event.target.value }))} required /><small>Use a positive value to add days and a negative value to reverse days.</small></label>
+              <label><span>Employee</span><select value={adjustment.employeeId} onChange={(event) => setAdjustment((current) => ({ ...current, employeeId: event.target.value }))} required disabled={adjusting}><option value="">Choose employee</option>{adminOverview.filter((person) => person.employee_id !== user.id).map((person) => <option value={person.employee_id} key={person.employee_id}>{person.employee_name} · {person.employee_code}</option>)}</select><small>Leave Admins cannot change their own balance.</small></label>
+              <label><span>Leave type</span><select value={adjustment.type} disabled={adjusting} onChange={(event) => setAdjustment((current) => ({ ...current, type: event.target.value }))}>{LEAVE_TYPES.map((type) => <option key={type}>{type}</option>)}</select></label>
+              <label><span>Action</span><select value={adjustment.operation} onChange={(event) => setAdjustment((current) => ({ ...current, operation: event.target.value }))} disabled={adjusting}><option value="add">Add days</option><option value="remove">Remove days</option></select></label>
+              <label><span>Number of days</span><input type="number" min="0.5" step="0.5" value={adjustment.amount} onChange={(event) => setAdjustment((current) => ({ ...current, amount: event.target.value }))} required disabled={adjusting} /><small>Use half-day increments, including adjustments for employees joining during the year.</small></label>
+              <div className="leave-policy-note" aria-live="polite">{adjustmentPreview ? <span>Current: <strong>{adjustmentPreview.current} days</strong> → After {adjustment.operation === 'add' ? 'adding' : 'removing'} {adjustment.amount}: <strong>{adjustmentPreview.remaining} days</strong>{!adjustmentPreview.valid && ' — cannot remove more than the available balance.'}</span> : <span>Choose an employee and enter a positive number of days in half-day increments to preview the balance.</span>}</div>
               <label><span>Reason</span><textarea value={adjustment.reason} onChange={(event) => setAdjustment((current) => ({ ...current, reason: event.target.value }))} placeholder="Required for immutable history" required /></label>
-              <button type="submit" className="btn" disabled={adjusting}>{adjusting ? 'Recording…' : 'Record adjustment'}</button>
+              <button type="submit" className="btn" disabled={adjusting || !adjustmentPreview?.valid || !adjustment.reason.trim()}>{adjusting ? 'Recording…' : 'Record adjustment'}</button>
             </form>
           </section>
 

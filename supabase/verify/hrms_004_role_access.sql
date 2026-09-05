@@ -886,16 +886,16 @@ SELECT
   )
 UNION ALL
 SELECT
-  'admin_private_leave_and_settings_scope',
+  'admin_organisation_leave_and_private_settings_scope',
   (
-    SELECT count(*) = 1
+    SELECT count(*) = 5
     FROM public.leaves
     WHERE employee_id IN (
       SELECT employee_id FROM hrms_004_actors
     )
   )
   AND (
-    SELECT count(*) = 1
+    SELECT count(*) = 5
     FROM public.leave_balances
     WHERE employee_id IN (
       SELECT employee_id FROM hrms_004_actors

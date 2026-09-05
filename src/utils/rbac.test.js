@@ -34,7 +34,7 @@ test('launch navigation and actions match the complete four-role matrix', () => 
       adminSettings: true,
       workDistribution: true,
       managementLiveRail: true,
-      approveLeave: false,
+      approveLeave: true,
     },
     superadmin: {
       timesheetScope: 'organisation',
@@ -113,7 +113,7 @@ test('superadmins receive privileged exception and leave permissions by default'
       hasPermission({ role, status: 'Active' }, PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS),
       false,
     );
-    assert.equal(hasPermission({ role, status: 'Active' }, PERMISSIONS.APPROVE_LEAVE), false);
+    assert.equal(hasPermission({ role, status: 'Active' }, PERMISSIONS.APPROVE_LEAVE), role === 'admin');
   }
 
   assert.equal(
@@ -158,7 +158,7 @@ test('Downtime Manager is an explicit capability independent from an employee ro
       { role: 'admin', status: 'Active' },
       PERMISSIONS.MANAGE_ORGANISATION_DOWNTIME,
     ),
-    false,
+    true,
   );
   assert.equal(
     hasPermission(

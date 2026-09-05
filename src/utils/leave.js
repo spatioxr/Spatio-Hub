@@ -34,3 +34,27 @@ export const calculateLeaveDays = (
 export const canReviewLeave = (user) => (
   hasPermission(user, PERMISSIONS.APPROVE_LEAVE)
 );
+
+export const previewBalanceAdjustment = (currentBalance, amount, operation) => {
+  const current = Number(currentBalance);
+  const days = Number(amount);
+  if (currentBalance == null || !Number.isFinite(current)
+    || !Number.isFinite(days) || days <= 0 || days % 0.5 !== 0
+    || !['add', 'remove'].includes(operation)) return null;
+  const delta = operation === 'remove' ? -days : days;
+  const remaining = current + delta;
+  return { current, delta, remaining, valid: remaining >= 0 };
+};
+
+// Date filters match requests overlapping the selected leave period.
+export const filterLeaveHistory = (requests, { search = '', status = '', from = '', to = '' }) => {
+  const query = search.trim().toLowerCase();
+  if (from && to && from > to) return [];
+  return requests.filter((request) => (
+    (!query || [request.employee_name, request.employee_code, request.employee_department]
+      .some((value) => String(value || '').toLowerCase().includes(query)))
+    && (!status || request.status === status)
+    && (!from || request.to_date >= from)
+    && (!to || request.from_date <= to)
+  ));
+};

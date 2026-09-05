@@ -378,3 +378,17 @@ Migration 003 can be logically reversed by setting the affected
 profiles should no longer sign in. Migration 001 owns operational employee,
 attendance, report, and leave history and must be rolled back through backup
 restoration, not destructive table drops.
+
+## September 5: Admin HR feedback
+
+`20260905000100_admin_leave_downtime_access.sql` extends HRMS-048/HRMS-053
+for feedback #37/#38/#40/#43. It replaces only the two capability helpers;
+no employee records, balances, work entries, or existing audit rows are changed.
+Apply this migration before deploying the matching frontend. Run the complete
+database suite, including `admin_hr_feedback.sql`, in the isolated verification
+environment. The application checks do not establish deployed database readiness.
+
+If reverting this release, restore the frontend first, then restore the two
+helper definitions from the preceding migrations (Superadmin or delegated
+capability). Keep grants unchanged and preserve all leave/downtime history
+created while Admin access was enabled.

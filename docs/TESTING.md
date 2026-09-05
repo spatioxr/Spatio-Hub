@@ -66,3 +66,20 @@ the happy-path timer flow.
 
 Every database verification runs inside its own transaction and ends with
 `ROLLBACK`; launch fixtures must never remain in the target database.
+
+## Admin HR feedback verification (September 5)
+
+`admin_hr_feedback.sql` verifies Admin leave/downtime access without delegated
+flags, organisation history, holiday changes, audited adjustments, half-day
+approval deductions, self-action denial, negative-balance/granularity/reason
+guards, and archived/password-reset identity denial. HRMS-004 now expects
+organisation leave visibility for Admin; HRMS-034 retains negative Manager
+coverage. Existing delegated-capability verification remains unchanged.
+
+Release validation: lint, 95 tests and build pass in an isolated copy of the
+release contents (excluding the separate uncommitted avatar work). A synthetic-data
+browser fixture verified balance preview, overdraft blocking, half-day changes,
+request search/status filtering, empty results and clearing filters. The history
+view was checked at 390px with no page overflow. These checks do not validate
+production data or the database migration. The local database runner could not
+start because Docker and an external PostgreSQL connection are unavailable.

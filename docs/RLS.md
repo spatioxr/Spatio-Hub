@@ -17,7 +17,7 @@ confirm:
 | Private employee details | — | — | Organisation | Organisation |
 | Attendance | Own, read-only | Assigned project teams, read-only | Organisation, read-only | Organisation, read-only |
 | Daily reports | Own | Assigned project teams, read-only | Organisation, read-only | Organisation |
-| Leave and balances | Own | Own | Own | Organisation; decide others |
+| Leave and balances | Own | Own | Organisation; decide others | Organisation; decide others |
 | Leave Admin projections | Capability-gated | Capability-gated | Capability-gated | Organisation |
 | Holidays/policy | Read | Read | Read | Controlled write |
 | Projects/assignments | Assigned | Assigned/managed | Organisation | Organisation |
@@ -183,7 +183,7 @@ and deletion.
 
 Organisation downtime uses `organisation_downtime_events` and immutable
 `organisation_downtime_audit` rows. Every active employee may read the narrow
-period and active-event projections. Only a Superadmin or an active profile
+period and active-event projections. Only an Admin, Superadmin, or an active profile
 with the separately assigned Downtime Manager capability may start/end a live
 incident, create a scheduled or historical interval, correct one with a reason,
 or cancel one with a reason. Active non-cancelled intervals cannot overlap,
@@ -209,3 +209,9 @@ migration must:
 
 No future Phase 1 table is complete while it is publicly writable or missing
 its scoped policies.
+
+As of migration `20260905000100_admin_leave_downtime_access.sql`, active Admins
+inherit `can_manage_leave()` and `can_manage_organisation_downtime()` access.
+Both helpers still reject archived and password-reset-required identities.
+Existing controlled functions enforce self-action restrictions, immutable
+audit history, and Superadmin-only capability assignment.

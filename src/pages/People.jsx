@@ -266,7 +266,7 @@ const PersonDrawer = ({
                 />
                 <span>
                   <strong>Leave Admin access</strong>
-                  <small>Can review organisation leave, adjust balances, and manage holidays and attendance policy.</small>
+                  <small>Admins and Superadmins have this access automatically. Enable for a designated Manager or Employee.</small>
                 </span>
               </label>
               <label className="people-access-toggle">
@@ -278,7 +278,7 @@ const PersonDrawer = ({
                 />
                 <span>
                   <strong>Downtime Manager access</strong>
-                  <small>Can start, end, schedule, correct and cancel organisation-wide downtime.</small>
+                  <small>Admins and Superadmins can manage downtime automatically. Enable for a designated Manager or Employee.</small>
                 </span>
               </label>
             </div>
@@ -1036,8 +1036,8 @@ const People = ({ mode = 'directory' }) => {
                       <td data-label="Role">
                         <div className="people-role-badges">
                           <span className="badge primary">{roleLabel(person.role)}</span>
-                          {person.is_leave_admin && <span className="badge success">Leave Admin</span>}
-                          {person.is_downtime_manager && <span className="badge warning">Downtime Manager</span>}
+                          {(person.is_leave_admin || ['admin', 'superadmin'].includes(person.role)) && <span className="badge success">Leave Admin</span>}
+                          {(person.is_downtime_manager || ['admin', 'superadmin'].includes(person.role)) && <span className="badge warning">Downtime Manager</span>}
                         </div>
                       </td>
                       <td data-label="Reports to">{manager?.name || 'Not assigned'}</td>

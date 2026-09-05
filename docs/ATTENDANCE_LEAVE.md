@@ -28,7 +28,7 @@ duplicate their mutation controls.
   charge plus other pending requests exceeds the remaining balance.
 - Employees may edit their own pending requests. Decisions are immutable
   workflow transitions; a decided request cannot be edited or decided again.
-- Only an active designated Leave Admin or Superadmin can review organisation
+- Only an active designated Leave Admin, Admin or Superadmin can review organisation
   leave. A reviewer cannot approve or reject their own request.
 - Rejection requires a reason. Approval may include an optional note.
 - An approved request deducts the balance and writes one immutable ledger
@@ -97,3 +97,22 @@ project, analytics, time-correction, or BOS/EOD-setting access.
 5. Apply the migrations, rerun `phase1_schema.sql` and
    `hrms_048_attendance_leave_reset.sql`, then complete a production smoke test.
 6. Only then mark the linked feedback and issue-tracker rows Done/Verified.
+
+## September HR feedback (#37, #38, #40, #43)
+
+Admins and Superadmins inherit leave and downtime administration. Delegated
+capabilities remain available for Managers and Employees and can be assigned
+only by Superadmins. Self-review and self-balance adjustments remain denied.
+
+Leave → All requests searches organisation history by employee name/code or
+department, status, and an inclusive overlapping leave date range. Displayed
+days are the whole request, not a prorated total for the selected range.
+Balances uses Add days / Remove days with a current/result preview, half-day
+precision, no negative resulting balance, a mandatory reason, and the existing
+immutable ledger. Late-joiner adjustments are explicit, not automatic prorating.
+
+Acceptance: test as Admin without either delegated flag; add/remove a future
+holiday, record downtime, approve another person's request, adjust another
+person's balance and search their approved/pending/rejected history. Verify
+self-review/self-adjustment are denied, Manager/Employee scope is unchanged,
+and both desktop and narrow-screen controls remain usable.

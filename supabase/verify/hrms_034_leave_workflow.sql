@@ -12,7 +12,7 @@ CREATE TEMP TABLE hrms_034_actors (
 WITH actor_seed(actor_name, emp_code, email, role) AS (
   VALUES
     ('employee', 'HRMS034EMP', 'hrms-034-employee@example.invalid', 'employee'),
-    ('admin', 'HRMS034ADMIN', 'hrms-034-admin@example.invalid', 'admin'),
+    ('manager', 'HRMS034ADMIN', 'hrms-034-manager@example.invalid', 'manager'),
     ('superadmin', 'HRMS034SUPER', 'hrms-034-super@example.invalid', 'superadmin')
 ),
 inserted_auth AS (
@@ -47,7 +47,7 @@ INSERT INTO hrms_034_actors (actor_name, employee_id, auth_id)
 SELECT
   CASE employee.emp_code
     WHEN 'HRMS034EMP' THEN 'employee'
-    WHEN 'HRMS034ADMIN' THEN 'admin'
+    WHEN 'HRMS034ADMIN' THEN 'manager'
     ELSE 'superadmin'
   END,
   employee.id,
@@ -63,8 +63,8 @@ FROM hrms_034_actors;
 CREATE TEMP TABLE hrms_034_guards (
   overlapping_submit_blocked BOOLEAN NOT NULL DEFAULT false,
   overlapping_edit_blocked BOOLEAN NOT NULL DEFAULT false,
-  admin_decision_blocked BOOLEAN NOT NULL DEFAULT false,
-  admin_organisation_read_blocked BOOLEAN NOT NULL DEFAULT false
+  manager_decision_blocked BOOLEAN NOT NULL DEFAULT false,
+  manager_organisation_read_blocked BOOLEAN NOT NULL DEFAULT false
 );
 INSERT INTO hrms_034_guards DEFAULT VALUES;
 GRANT SELECT, UPDATE ON hrms_034_guards TO authenticated;
@@ -136,12 +136,12 @@ SELECT set_config(
   true
 )
 FROM hrms_034_actors
-WHERE actor_name = 'admin';
+WHERE actor_name = 'manager';
 
 SET LOCAL ROLE authenticated;
 
 UPDATE hrms_034_guards
-SET admin_organisation_read_blocked = (
+SET manager_organisation_read_blocked = (
   SELECT count(*) = 0
   FROM public.leaves
   WHERE employee_id = (
@@ -160,7 +160,7 @@ BEGIN
       NULL
     );
   EXCEPTION WHEN OTHERS THEN
-    UPDATE hrms_034_guards SET admin_decision_blocked = true;
+    UPDATE hrms_034_guards SET manager_decision_blocked = true;
   END;
 END
 $$;
@@ -215,10 +215,10 @@ checks AS (
       AS overlapping_submit_is_blocked,
     (SELECT overlapping_edit_blocked FROM hrms_034_guards)
       AS overlapping_edit_is_blocked,
-    (SELECT admin_decision_blocked FROM hrms_034_guards)
-      AS admin_cannot_decide_leave,
-    (SELECT admin_organisation_read_blocked FROM hrms_034_guards)
-      AS admin_cannot_read_organisation_leave,
+    (SELECT manager_decision_blocked FROM hrms_034_guards)
+      AS manager_cannot_decide_leave,
+    (SELECT manager_organisation_read_blocked FROM hrms_034_guards)
+      AS manager_cannot_read_organisation_leave,
     (SELECT visible_employee_requests = 2 FROM hrms_034_super_scope)
       AS superadmin_sees_organisation_requests,
     (

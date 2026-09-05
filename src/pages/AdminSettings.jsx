@@ -18,6 +18,22 @@ const AdminSettings = () => {
       href: '/admin-settings/users',
     },
     {
+      key: 'leave',
+      icon: 'ri-calendar-check-line',
+      title: 'Leave administration',
+      description: 'Review requests, adjust balances and manage company holidays.',
+      detail: 'Admin and Superadmin access',
+      href: '/leave',
+    },
+    {
+      key: 'downtime',
+      icon: 'ri-pause-circle-line',
+      title: 'Organisation downtime',
+      description: 'Start, end or schedule downtime from Track Work.',
+      detail: 'Admin and Superadmin access',
+      href: '/track-work',
+    },
+    {
       key: 'work',
       icon: 'ri-tools-line',
       title: 'Work Setup',

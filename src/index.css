@@ -544,10 +544,11 @@
 .leave-request-table td { vertical-align: top; }
 .leave-person-cell { display: flex; align-items: center; gap: 0.55rem; min-width: 170px; }
 .leave-person-cell > span { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 9px; background: #e8f2ef; color: var(--primary); font-size: 0.68rem; font-weight: 750; }
-.leave-person-cell > div,
+.leave-person-cell > div { display: grid; gap: 0.25rem; }
 .leave-request-table td[data-label="Request"],
 .leave-request-table td[data-label="Dates"],
-.leave-request-table td[data-label="Reason / decision"] { display: grid; gap: 0.25rem; }
+.leave-request-table td[data-label="Reason / decision"] { display: table-cell; }
+.leave-request-table td > small { display: block; margin-top: 0.25rem; }
 .leave-person-cell small,
 .leave-request-table td small { color: var(--text-muted); font-size: 0.66rem; }
 .leave-type-chip { display: inline-flex; align-items: center; gap: 0.3rem; width: fit-content; padding: 0.28rem 0.45rem; border-radius: 7px; background: #fff0ee; color: #b7473f; font-size: 0.68rem; font-weight: 750; }
@@ -555,7 +556,8 @@
 .leave-type-chip--blue { background: #edf3ff; color: #3d68a8; }
 .leave-request-reason { max-width: 260px; font-size: 0.75rem; line-height: 1.4; }
 .leave-decision-note { color: #a4423a !important; }
-.leave-request-actions { display: flex; gap: 0.35rem; min-width: 180px; }
+.leave-request-actions { display: table-cell; white-space: nowrap; min-width: 180px; }
+.leave-request-actions .btn + .btn { margin-left: 0.35rem; }
 .leave-request-actions .btn { min-height: 32px; padding: 0 0.55rem; font-size: 0.68rem; }
 .leave-approve-button { background: #007b59; }
 .leave-reject-button { border-color: #efc1bd !important; color: #ac443c !important; }
@@ -10183,3 +10185,13 @@ button.dashboard-snapshot-card:hover {
     padding-left: 2.85rem;
   }
 }
+
+.leave-history-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.leave-history-note { padding: 0 1.15rem 1rem; color: var(--text-muted); font-size: 0.76rem; line-height: 1.5; }

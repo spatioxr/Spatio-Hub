@@ -29,7 +29,7 @@ The source of truth for implementation work is the [Spatio HRMS issue tracker](h
   supports ordered work and break entry, and records corrections or voids without
   hard-deleting history.
 - Organisation downtime is recorded separately from employee work and breaks.
-  A Superadmin-assigned Downtime Manager can start/end a live incident or
+  An Admin, Superadmin, or Superadmin-assigned Downtime Manager can start/end a live incident or
   record a scheduled/past interval; everyone can see it and reporting never
   multiplies it into estimated employee-hours. Its operational panel sits
   after the personal workday flow in Track Work, while active downtime remains
@@ -62,7 +62,7 @@ Department, project, activity, employee, and date filters will support visual in
 
 ## Leave
 
-Phase 1 uses one working-day leave model and a separate Leave Admin capability:
+Phase 1 uses one working-day leave model. Admins and Superadmins have Leave Admin access by role; other roles may receive the separate capability:
 
 - Monday-Friday working-day charges with company holidays excluded
 - exact half-day requests

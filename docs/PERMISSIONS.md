@@ -36,11 +36,11 @@ project or team.
 | Create, edit, archive activities | No | No | Yes | Yes |
 | Correct time entries with reason | No | Assigned project teams | Organisation | Organisation |
 | View organisation downtime | Yes | Yes | Yes | Yes |
-| Record/correct organisation downtime | Downtime Manager capability only | Downtime Manager capability only | Downtime Manager capability only | Organisation |
+| Record/correct organisation downtime | Downtime Manager capability only | Downtime Manager capability only | Organisation | Organisation |
 | View work-distribution reports | Own summary | Assigned projects | Organisation | Organisation |
 | Apply for leave | Own | Own | Own | Own |
-| Approve/reject leave | Designated Leave Admin only | Designated Leave Admin only | Designated Leave Admin only | Organisation |
-| Adjust leave balances and manage holidays/late cutoff | Designated Leave Admin only | Designated Leave Admin only | Designated Leave Admin only | Organisation |
+| Approve/reject leave | Designated Leave Admin only | Designated Leave Admin only | Organisation | Organisation |
+| Adjust leave balances and manage holidays/late cutoff | Designated Leave Admin only | Designated Leave Admin only | Organisation | Organisation |
 | Configure BOS/EOD requirements | No | No | No | Organisation |
 
 ## Scope rules
@@ -69,12 +69,12 @@ project or team.
   or timesheet access.
 - Leave Admin is an explicit capability that only a superadmin may assign to an
   active profile. It does not change the person's application role or grant any
-  unrelated management permission. Superadmins retain the capability by role.
+  unrelated management permission. Admins and Superadmins retain the capability by role.
 - A Leave Admin cannot decide their own request or adjust their own balance.
   Every request, including a Superadmin request, starts Pending.
 - Downtime Manager is a separate explicit capability that only a superadmin may
   assign to an active profile. It does not widen People, project, employee, or
-  timesheet scope. Superadmins retain the capability by role.
+  timesheet scope. Admins and Superadmins retain the capability by role.
 - Organisation downtime is never written into employee work entries or breaks,
   never stops a timer automatically, and is not multiplied by employee count.
 
