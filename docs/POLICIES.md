@@ -74,8 +74,22 @@ isolated PostgreSQL through PGlite, using the repository's actual Auth helper
 definitions and minimal Auth/Storage dependency tables. This does not exercise
 the complete existing schema or hosted Storage API. `npm run test:database`
 could not start because Docker and an external PostgreSQL connection are
-unavailable. The production migration and deployment have not been performed;
-HRMS-056 remains In Progress pending the release checks below.
+unavailable locally.
+
+Production migration applied through the authenticated Supabase SQL editor on
+5 September 2026. Release `744979c` deployed successfully to
+https://spatio-hub.vercel.app/policies. All 19 rollback-only production checks
+passed, covering real Admin/Employee/Manager roles, publication, private Storage
+access, acknowledgement identity/retry, replacement, stale versions and archive.
+The live portal displayed a successfully published Reimbursement Policy; its
+three-page PDF downloaded from hosted Storage and rendered with working page
+navigation. No acknowledgement was submitted on behalf of the user.
+
+GitHub application CI passed. Release CI identified a schema-verifier count
+that needed to include the three new public SELECT policies (52 total). That
+expectation is corrected, and the Policies verifier runs immediately after the
+core role checks. The preceding release also has a separate failing work-session
+assertion (`task_description_normalised`); full database CI remains pending.
 
 ## Verification and release
 

@@ -60,7 +60,7 @@ SELECT
     AS all_rls_enabled,
   (SELECT bool_and(anon_select_denied) FROM actual)
     AS anon_select_denied,
-  (SELECT count(*) = 49 FROM policies)
+  (SELECT count(*) = 52 FROM policies)
     AS expected_policy_count,
   (SELECT bool_and(roles = ARRAY['authenticated']::name[]) FROM policies)
     AS authenticated_only,
