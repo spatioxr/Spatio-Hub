@@ -7,12 +7,19 @@ review comments, ratings, approval periods or a separate Reports module.
 ## Review flow
 
 Open Timesheets, choose Personal, Managed by me or Organisation, and select a
-person and a week/month. Plans and summaries shows the selected day's report
-text and submission timestamps in IST. Period review displays all recorded days
-in that week/month together. View tasks selects that person/date and scrolls to
-the existing task timeline. Person and department filters apply to reports;
-project/activity filters apply only to sessions because daily reports describe
-an entire workday.
+person and a week/month. Day Detail now contains one chronological timeline:
+submitted start-of-day plans, work sessions, individual breaks and end-of-day
+summaries. Reports use their actual submission timestamps in IST, with the plan
+first when timestamps tie. Reports have distinct labels/icons and no duration.
+Long text has Show more/Show less controls. Missing submission timestamps are
+labelled explicitly rather than invented. Pending and currently exempt reports
+appear as a compact status line, not timeline events.
+
+Period review is a secondary page action that opens a drawer for the selected
+week/month, person and department. View day closes the drawer and focuses the
+chosen day detail. Escape, backdrop and the close button dismiss it; keyboard
+focus is trapped and restored. Project/activity filters apply only to work
+sessions and their breaks because daily reports describe the entire workday.
 
 Submitted means report text exists. Pending means no submission is recorded,
 not that a deadline was missed. Currently exempt reflects the employee's
@@ -60,3 +67,12 @@ do not stop existing timesheet tasks from loading.
 - Release requires the database migration before the frontend deployment.
   Rollback: redeploy the previous frontend first; then optionally drop
   `public.scoped_daily_reviews(date,date,text,uuid)`. No stored reports change.
+
+## Compact timeline follow-up (September 6, 2026)
+
+Removed the standalone report panel and merged report point events and breaks
+into Day Detail for both Week and Month. No database or permission changes.
+Validation: application lint/build and 118 unit tests passed; synthetic full-page
+Week/Month browser checks verified chronological events, Show more/less,
+Period review drawer, focus trapping, Escape/return focus, View day focus,
+and the 390px layout without horizontal overflow.

@@ -8,6 +8,9 @@ import React, {
 import Layout from '../components/Layout';
 import AppState from '../components/AppState';
 import TimesheetDailyReviews from '../components/TimesheetDailyReviews';
+import TimesheetReportEvent from '../components/TimesheetReportEvent';
+import useDailyReviews from '../hooks/useDailyReviews';
+import { buildDayTimeline, filterDailyReviews, missingReportSummary } from '../utils/dailyReviews';
 import { AuthContext } from '../context/AuthContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
 import { supabase } from '../utils/supabaseClient';
@@ -217,6 +220,7 @@ const Timesheets = () => {
     return scopes;
   }, [user]);
   const [scope, setScope] = useState('personal');
+  const [periodReviewOpen, setPeriodReviewOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('all');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedProjectId, setSelectedProjectId] = useState('all');
@@ -999,6 +1003,26 @@ const Timesheets = () => {
     closeDisabled: voidSaving,
   });
 
+  const reviews = useDailyReviews({
+    scope, employeeId: scope === 'personal' ? user?.id : selectedEmployeeId,
+    startDate: periodBounds.start, endDate: periodBounds.end, refreshKey: entries,
+  });
+  const periodReports = filterDailyReviews(reviews.current?.rows || [], {
+    employeeId: scope === 'personal' ? user?.id : selectedEmployeeId,
+    department: selectedDepartment,
+  });
+  const dayReports = periodReports.filter((report) => report.report_date === selectedDate);
+  const dayEvents = buildDayTimeline(selectedEntries, dayReports);
+  const reportStatus = missingReportSummary(dayReports);
+  const reportNotice = (
+    <div className="timesheet-report-status" aria-live="polite">
+      {!reviews.current ? 'Loading daily reports…' : reviews.current.error ? (
+        <span role="alert">Daily reports unavailable. <button type="button" className="timesheet-edit-button" onClick={reviews.retry}>Try again</button></span>
+      ) : reportStatus || null}
+      {(selectedProjectId !== 'all' || selectedActivityId !== 'all') && <span> Reports cover the whole day.</span>}
+    </div>
+  );
+
   return (
     <Layout
       title="Timesheets"
@@ -1007,6 +1031,7 @@ const Timesheets = () => {
       description={scopeCopy.description}
       actions={(
         <div className="timesheet-page-actions">
+          <button type="button" className="btn btn-outline" aria-haspopup="dialog" onClick={() => setPeriodReviewOpen(true)}>Period review</button>
           {canUseManualEditor && (
             <button
               type="button"
@@ -1230,21 +1255,6 @@ const Timesheets = () => {
         </article>
       </section>
 
-      <TimesheetDailyReviews
-        scope={scope}
-        employeeId={scope === 'personal' ? user?.id : selectedEmployeeId}
-        department={selectedDepartment}
-        startDate={periodBounds.start}
-        endDate={periodBounds.end}
-        selectedDate={selectedDate}
-        refreshKey={entries}
-        onOpenDay={(report) => {
-          setSelectedDate(report.report_date);
-          if (scope !== 'personal') setSelectedEmployeeId(report.employee_id);
-          requestAnimationFrame(() => document.getElementById('timesheet-work-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-        }}
-      />
-
       {viewMode === 'week' ? (
       <section className="surface timesheet-week">
         <div className="timesheet-week-toolbar">
@@ -1325,7 +1335,7 @@ const Timesheets = () => {
               })}
             </div>
 
-            <div className="timesheet-detail" id="timesheet-work-detail">
+            <div className="timesheet-detail" id="timesheet-work-detail" tabIndex={-1}>
               <div className="timesheet-detail-header">
                 <div className="timesheet-detail-navigation">
                   <button type="button" className="timesheet-nav-button" onClick={() => moveDay(-1)} aria-label="Previous day">
@@ -1372,7 +1382,8 @@ const Timesheets = () => {
                 </div>
               </div>
 
-              {selectedEntries.length === 0 ? (
+              {reportNotice}
+              {dayEvents.length === 0 ? (
                 <AppState
                   type="empty"
                   title={
@@ -1396,7 +1407,11 @@ const Timesheets = () => {
                 />
               ) : (
                 <ol className="timesheet-timeline">
-                  {selectedEntries.map((entry) => (
+                  {dayEvents.map((event) => {
+                    const entry = event.entry;
+                    return event.type !== 'session' ? (
+                      <TimesheetReportEvent key={event.key} event={event} shared={isSharedScope} formatDuration={formatDuration} />
+                    ) : (
                     <li className="timesheet-session" key={entry.work_entry_id}>
                       <span className={`timesheet-context-icon timesheet-context-icon--${entry.context_type}`}>
                         <i className={entry.context_type === 'project' ? 'ri-folder-3-line' : 'ri-flashlight-line'} />
@@ -1458,22 +1473,11 @@ const Timesheets = () => {
                             </button>
                           )}
                         </div>
-                        {(entry.breaks || []).length > 0 && (
-                          <div className="timesheet-break-list">
-                            {(entry.breaks || []).map((breakEntry) => (
-                              <div key={breakEntry.id}>
-                                <span>
-                                  <i className="ri-cup-line" />
-                                  Break · {formatClock(breakEntry.started_at)} – {formatClock(breakEntry.ended_at)}
-                                </span>
-                                <strong>{formatDuration(breakEntry.duration_seconds)}</strong>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+
                       </div>
                     </li>
-                  ))}
+                  );
+                  })}
                 </ol>
               )}
               {selectedVoidedEntries.length > 0 && (
@@ -1595,10 +1599,10 @@ const Timesheets = () => {
                 })}
               </div>
 
-              <div className="timesheet-month-detail" id="timesheet-work-detail">
+              <div className="timesheet-month-detail" id="timesheet-work-detail" tabIndex={-1}>
                 <div className="timesheet-detail-header">
                   <div>
-                    <span className="page-eyebrow">Selected day</span>
+                    <span className="page-eyebrow">Day detail</span>
                     <h3>{formatAppDate(selectedDate, { weekday: 'long', month: 'long' })}</h3>
                   </div>
                   <div className="timesheet-day-totals">
@@ -1615,11 +1619,16 @@ const Timesheets = () => {
                     )}
                   </div>
                 </div>
-                {selectedEntries.length === 0 ? (
+                {reportNotice}
+              {dayEvents.length === 0 ? (
                   <AppState type="empty" title="No time recorded" message="Choose another date or add time if you are authorised." compact />
                 ) : (
                   <ol className="timesheet-timeline timesheet-month-timeline">
-                    {selectedEntries.map((entry) => (
+                    {dayEvents.map((event) => {
+                    const entry = event.entry;
+                    return event.type !== 'session' ? (
+                      <TimesheetReportEvent key={event.key} event={event} shared={isSharedScope} formatDuration={formatDuration} />
+                    ) : (
                       <li className="timesheet-session" key={entry.work_entry_id}>
                         <span className={`timesheet-context-icon timesheet-context-icon--${entry.context_type}`}>
                           <i className={entry.context_type === 'project' ? 'ri-folder-3-line' : 'ri-flashlight-line'} />
@@ -1639,7 +1648,8 @@ const Timesheets = () => {
                           </div>
                         </div>
                       </li>
-                    ))}
+                    );
+                  })}
                   </ol>
                 )}
                 {selectedVoidedEntries.length > 0 && (
@@ -1658,6 +1668,21 @@ const Timesheets = () => {
           )}
         </section>
       )}
+
+      <TimesheetDailyReviews
+        open={periodReviewOpen} onClose={() => setPeriodReviewOpen(false)}
+        current={reviews.current} rows={periodReports} retry={reviews.retry}
+        startDate={periodBounds.start} endDate={periodBounds.end}
+        onOpenDay={(report) => {
+          setSelectedDate(report.report_date);
+          if (scope !== 'personal') setSelectedEmployeeId(report.employee_id);
+          requestAnimationFrame(() => {
+            const detail = document.getElementById('timesheet-work-detail');
+            detail?.focus({ preventScroll: true });
+            detail?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        }}
+      />
 
       {manualEditor && (
         <div className="timesheet-editor-overlay" onMouseDown={(event) => {
