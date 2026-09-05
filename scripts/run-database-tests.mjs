@@ -161,7 +161,6 @@ for (const file of verificationFiles) {
     }
     console.error(`FAIL ${file}`);
     console.error(error.message);
-    break;
   }
 }
 
