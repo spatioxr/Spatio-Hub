@@ -76,7 +76,7 @@ CREATE TEMP TABLE hrms_035_checks (
   admin_reads_holiday BOOLEAN NOT NULL DEFAULT false,
   superadmin_reads_holiday BOOLEAN NOT NULL DEFAULT false,
   employee_grant_blocked BOOLEAN NOT NULL DEFAULT false,
-  admin_grant_blocked BOOLEAN NOT NULL DEFAULT false,
+  admin_grant_allowed BOOLEAN NOT NULL DEFAULT false,
   admin_holiday_write_blocked BOOLEAN NOT NULL DEFAULT false,
   invalid_granularity_blocked BOOLEAN NOT NULL DEFAULT false,
   repeated_deduction_blocked BOOLEAN NOT NULL DEFAULT false
@@ -116,16 +116,6 @@ BEGIN
 END
 $$;
 
-CREATE TEMP TABLE hrms_035_comp_request AS
-SELECT submitted.*
-FROM public.submit_leave_request(
-  'Comp Off',
-  DATE '2099-08-17',
-  DATE '2099-08-17',
-  true,
-  'Use one half-day of Comp Off'
-) submitted;
-
 RESET ROLE;
 
 SELECT set_config(
@@ -152,8 +142,7 @@ BEGIN
       (SELECT employee_id FROM hrms_035_actors WHERE actor_name = 'employee'),
       1
     );
-  EXCEPTION WHEN OTHERS THEN
-    UPDATE hrms_035_checks SET admin_grant_blocked = true;
+    UPDATE hrms_035_checks SET admin_grant_allowed = true;
   END;
 
   BEGIN
@@ -202,6 +191,30 @@ BEGIN
 END
 $$;
 
+-- Requests must have available balance before submission (HRMS-048).
+RESET ROLE;
+SELECT set_config('request.jwt.claims',
+  jsonb_build_object('sub', auth_id::text, 'role', 'authenticated')::text, true)
+FROM hrms_035_actors WHERE actor_name = 'employee';
+SET LOCAL ROLE authenticated;
+
+CREATE TEMP TABLE hrms_035_comp_request AS
+SELECT submitted.*
+FROM public.submit_leave_request(
+  'Comp Off',
+  DATE '2099-08-17',
+  DATE '2099-08-17',
+  true,
+  'Use one half-day of Comp Off'
+) submitted;
+
+GRANT SELECT ON hrms_035_comp_request TO authenticated;
+RESET ROLE;
+SELECT set_config('request.jwt.claims',
+  jsonb_build_object('sub', auth_id::text, 'role', 'authenticated')::text, true)
+FROM hrms_035_actors WHERE actor_name = 'superadmin';
+SET LOCAL ROLE authenticated;
+
 SELECT public.decide_leave_request(
   (SELECT id FROM hrms_035_comp_request),
   true,
@@ -237,7 +250,7 @@ checks AS (
     admin_reads_holiday,
     superadmin_reads_holiday,
     employee_grant_blocked,
-    admin_grant_blocked,
+    admin_grant_allowed,
     admin_holiday_write_blocked,
     invalid_granularity_blocked,
     repeated_deduction_blocked,
@@ -246,7 +259,7 @@ checks AS (
       FROM public.leaves
       WHERE id = (SELECT id FROM hrms_035_comp_request)
     ) AS comp_off_request_is_visible_and_approved,
-    (SELECT comp_off = 1 FROM employee_balance)
+    (SELECT comp_off = 2 FROM employee_balance)
       AS comp_off_grant_and_use_balance_is_exact
   FROM hrms_035_checks
 )

@@ -55,6 +55,10 @@ SELECT
   employee.auth_id
 FROM inserted_employees employee;
 
+-- Direct fixture inserts do not bootstrap balances like the People RPC.
+INSERT INTO public.leave_balances (employee_id)
+SELECT employee_id FROM hrms_044_archive_actors;
+
 INSERT INTO public.activities (name, description)
 VALUES ('HRMS-044 Archive Activity', 'Rollback-only archive-access fixture.');
 
@@ -100,6 +104,9 @@ CROSS JOIN LATERAL public.update_employee_profile(
   'Released'
 ) archived
 WHERE target.actor_name = 'target';
+
+-- Inspect retained history as owner; work-settings RLS is intentionally narrower.
+RESET ROLE;
 
 INSERT INTO hrms_044_archive_results (check_name, check_value)
 SELECT

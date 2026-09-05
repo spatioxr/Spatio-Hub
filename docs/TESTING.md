@@ -94,3 +94,11 @@ request search/status filtering, empty results and clearing filters. The history
 view was checked at 390px with no page overflow. These checks do not validate
 production data or the database migration. The local database runner could not
 start because Docker and an external PostgreSQL connection are unavailable.
+
+## Database CI repair (HRMS-038)
+
+The runner executes all rollback-only suites and exits nonzero if any fail.
+First-start expectations follow HRMS-015/016; fixture Auth users, People RPC
+arguments, retained archive history, and Comp Off funding follow current rules.
+`people_rpc_active_actor.sql` exercises all four People RPC overloads as archived,
+password-gated and Auth-only identities; all 12 calls must fail at authorization.

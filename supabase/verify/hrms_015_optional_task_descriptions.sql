@@ -47,6 +47,9 @@ BEGIN
     RAISE EXCEPTION 'Two active activities are required';
   END IF;
 
+  INSERT INTO auth.users (id, email)
+  VALUES (target_auth_id, 'hrms-015-verify@example.invalid');
+
   INSERT INTO public.employees (
     auth_id,
     emp_code,
