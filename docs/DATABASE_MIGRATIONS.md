@@ -410,3 +410,15 @@ If reverting this release, restore the frontend first, then restore the two
 helper definitions from the preceding migrations (Superadmin or delegated
 capability). Keep grants unchanged and preserve all leave/downtime history
 created while Admin access was enabled.
+
+## September 5: Company policies (HRMS-056)
+
+`20260905000200_company_policies.sql` creates the private PDF bucket, the three
+policy tables with RLS, version-aware publication/archive RPCs, self-only
+acknowledgements and Admin reports. It does not alter existing employee records.
+Apply it before deploying `/policies`. Run `hrms_056_company_policies.sql` and
+the full database suite, then test real Storage upload/download as Admin and
+Employee. The verifier uses transaction-local synthetic identities and rolls
+back every fixture. Revert the frontend to roll back access to this feature;
+retain the database, private files and acknowledgement history. See
+[Policies](POLICIES.md) for retry, retention and release requirements.

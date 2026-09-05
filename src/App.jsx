@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import TrackWork from './pages/TrackWork';
 import Attendance from './pages/Attendance';
 import Leave from './pages/Leave';
+import Policies from './pages/Policies';
 import People from './pages/People';
 import Projects from './pages/Projects';
 import Activities from './pages/Activities';
@@ -79,6 +80,7 @@ const AppRoutes = () => (
               )}
             />
             <Route path="/leave" element={<ProtectedRoute><Leave /></ProtectedRoute>} />
+            <Route path="/policies" element={<ProtectedRoute><Policies /></ProtectedRoute>} />
             <Route
               path="/people"
               element={(

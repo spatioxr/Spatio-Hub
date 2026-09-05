@@ -19,6 +19,14 @@ Storage-backed avatars, and one-time legacy base64 migration.
 
 ## Database rules
 
+Policies adds focused tests for Admin/Superadmin management access, PDF limits
+and signatures, upload failure, idempotent publication retries and version-aware
+pending filters. The rollback-only `hrms_056_company_policies.sql` verifier
+exercises actual `authenticated`/`anon` roles against table and Storage RLS,
+forged acknowledgement denial, archive and replacement boundaries, pending and
+historical reports, and inactive/password-gated identities. See
+[Policies](POLICIES.md) for the browser and hosted Storage release checks.
+
 Start the local Supabase stack, then run the rollback-only database suite:
 
 ```sh

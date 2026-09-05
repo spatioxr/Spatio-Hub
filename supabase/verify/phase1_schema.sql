@@ -24,7 +24,10 @@ WITH expected(table_name) AS (
     ('admin_work_action_audit'),
     ('employee_private_details'),
     ('organisation_downtime_events'),
-    ('organisation_downtime_audit')
+    ('organisation_downtime_audit'),
+    ('policy_documents'),
+    ('policy_versions'),
+    ('policy_acknowledgements')
 ),
 actual AS (
   SELECT
@@ -51,7 +54,7 @@ policies AS (
 ),
 results AS (
 SELECT
-  (SELECT count(*) = 21 AND bool_and(table_exists) FROM actual)
+  (SELECT count(*) = 24 AND bool_and(table_exists) FROM actual)
     AS all_tables_exist,
   (SELECT bool_and(rls_enabled) FROM actual)
     AS all_rls_enabled,

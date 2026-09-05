@@ -78,6 +78,17 @@ downtime actions, while Timesheets owns authorised time-entry corrections. See
 [Attendance and Leave Contract](ATTENDANCE_LEAVE.md) for the feature and test
 matrix.
 
+## Company policies (HRMS-056)
+
+Admins and Superadmins publish vetted PDFs immediately through Policies.
+All active signed-in staff can read current company-wide documents inside the
+portal. Each version may require an explicit “I have read this” acknowledgement.
+Admin reports show acknowledged and pending staff; replacing a PDF requires a
+fresh acknowledgement while retaining the previous version and its records.
+Archiving removes a document from employee access; Admins can restore it.
+There is no draft/approval stage, department targeting, or portal-blocking gate.
+See [Policies contract](POLICIES.md).
+
 ## Explicit non-goals
 
 Do not add these in phase 1 unless the tracker is deliberately changed:

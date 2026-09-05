@@ -16,6 +16,7 @@ const LEGACY_ROLE_ALIASES = Object.freeze({
 
 export const PERMISSIONS = Object.freeze({
   ACCESS_PORTAL: 'access_portal',
+  MANAGE_POLICIES: 'manage_policies',
   VIEW_LIVE_STATUS: 'view_live_status',
   VIEW_MANAGEMENT_LIVE_RAIL: 'view_management_live_rail',
   MANAGE_LIVE_WORK: 'manage_live_work',
@@ -64,6 +65,7 @@ const ROLE_PERMISSIONS = Object.freeze({
   ]),
   [ROLES.ADMIN]: new Set([
     ...EMPLOYEE_PERMISSIONS,
+    PERMISSIONS.MANAGE_POLICIES,
     PERMISSIONS.VIEW_PEOPLE,
     PERMISSIONS.MANAGE_PEOPLE,
     PERMISSIONS.ACCESS_ADMIN_SETTINGS,

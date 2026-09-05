@@ -36,6 +36,7 @@ const verificationFiles = [
   'supabase/verify/hrms_053_organisation_downtime.sql',
   'supabase/verify/hrms_054_timesheet_manual_entry_ux.sql',
   'supabase/verify/hrms_055_avatar_egress.sql',
+  'supabase/verify/hrms_056_company_policies.sql',
   'supabase/verify/hrms_020_avatar_access.sql',
   'supabase/verify/admin_hr_feedback.sql',
 ];

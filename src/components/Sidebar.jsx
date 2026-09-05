@@ -1,5 +1,5 @@
-import React, { useContext } from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useContext, useEffect, useRef } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import logoDark from '../assets/logo-dark.png';
 import { hasPermission, PERMISSIONS } from '../utils/rbac';
@@ -10,6 +10,7 @@ const COMMON_ITEMS = [
   { path: '/timesheets', name: 'Timesheets', icon: 'ri-time-line', permission: PERMISSIONS.VIEW_OWN_TIMESHEET },
   { path: '/attendance', name: 'Attendance', icon: 'ri-calendar-check-line', permission: PERMISSIONS.VIEW_ATTENDANCE },
   { path: '/leave', name: 'Leave', icon: 'ri-flight-takeoff-line', permission: PERMISSIONS.APPLY_OWN_LEAVE },
+  { path: '/policies', name: 'Policies', icon: 'ri-file-shield-2-line', permission: PERMISSIONS.ACCESS_PORTAL },
 ];
 
 const MANAGE_ITEMS = [
@@ -55,6 +56,23 @@ const NavigationGroup = ({ label, items, separated = false }) => {
 
 const Sidebar = () => {
   const { user } = useContext(AuthContext);
+  const menuRef = useRef(null);
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return undefined;
+    const keepActiveVisible = () => {
+      const active = menu.querySelector('.sidebar-link.active');
+      if (active && menu.scrollWidth > menu.clientWidth) {
+        menu.scrollLeft += active.getBoundingClientRect().left - menu.getBoundingClientRect().left
+          - (menu.clientWidth - active.clientWidth) / 2;
+      }
+    };
+    keepActiveVisible();
+    const observer = new ResizeObserver(keepActiveVisible);
+    observer.observe(menu);
+    return () => observer.disconnect();
+  }, [pathname]);
   const permitted = (items) => items.filter((item) => hasPermission(user, item.permission));
 
   return (
@@ -62,7 +80,7 @@ const Sidebar = () => {
       <div className="sidebar-logo">
         <img src={logoDark} alt="Spatio" />
       </div>
-      <nav className="sidebar-menu">
+      <nav className="sidebar-menu" ref={menuRef}>
         <NavigationGroup items={permitted(COMMON_ITEMS)} />
         <NavigationGroup label="Manage" items={permitted(MANAGE_ITEMS)} separated />
         <NavigationGroup label="Settings" items={permitted(SETTINGS_ITEMS)} separated />

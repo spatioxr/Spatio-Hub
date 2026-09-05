@@ -1,10 +1,21 @@
 # Phase 1 Row-Level Security
 
+## Company policies (HRMS-056)
+
+`policy_documents`, `policy_versions` and `policy_acknowledgements` add a
+company-wide read scope and Admin/Superadmin-only publication and reports.
+Authenticated direct writes are denied; RPCs enforce role, active profile,
+current-version checks and server-stamped self-only acknowledgements. Storage
+uses a private PDF bucket with immutable version paths and no authenticated
+overwrite/delete access. Employees cannot access unpublished, superseded or
+archived PDFs, or another person's acknowledgements. See [Policies](POLICIES.md)
+and the rollback-only `hrms_056_company_policies.sql` verifier.
+
 The ordered migrations in `supabase/migrations` create the Phase 1 tables and
 their policies together. Run `supabase/verify/phase1_schema.sql` afterwards and
 confirm:
 
-- all 21 tables report `rls_enabled = true`
+- all 24 tables report `rls_enabled = true`
 - only the expected authenticated policies are present
 - anonymous SELECT is denied for every table
 - the signed-in superadmin reports organisation access

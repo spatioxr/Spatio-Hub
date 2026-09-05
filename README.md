@@ -11,6 +11,7 @@ The current product work is intentionally limited to phase 1:
 - planned and real-time organisation downtime reporting
 - project/activity administration
 - leave requests, balances, and approvals
+- company PDF policies and versioned read acknowledgements
 
 Salary, payslips, employee administration, Inbox, Performance, and the old Reports area are retained in the repository for possible future reuse but are not mounted or routable in phase 1.
 
@@ -18,7 +19,7 @@ Salary, payslips, employee administration, Inbox, Performance, and the old Repor
 
 Requirements:
 
-- Node.js 20 or newer
+- Node.js 22.13 or newer (required by the PDF reader dependency)
 - npm
 - a Supabase project
 
@@ -75,6 +76,7 @@ external PostgreSQL connection.
 | `/people` | Permission-scoped employee directory |
 | `/admin-settings` | Phase 1 administration and work-entry requirements |
 | `/leave` | Working-day leave requests, balances, history, and Leave Admin workspace |
+| `/policies` | Company PDF library, in-portal reader, and read acknowledgements |
 | `/login` | Current login |
 | `/reset-password` | Required temporary-password replacement, password help, and authenticated password change |
 
@@ -86,6 +88,7 @@ All other routes redirect to the dashboard.
 - [Phase 1 permission matrix](docs/PERMISSIONS.md)
 - [Attendance and Leave product/test contract](docs/ATTENDANCE_LEAVE.md)
 - [Dashboard product/test contract](docs/DASHBOARD.md)
+- [Policies product/test contract](docs/POLICIES.md)
 - [Phase 1 row-level security](docs/RLS.md)
 - [Database migrations and rollback](docs/DATABASE_MIGRATIONS.md)
 - [Supabase Auth setup](docs/AUTH_SETUP.md)
@@ -96,7 +99,7 @@ All other routes redirect to the dashboard.
 ## Important security status
 
 Authentication uses Supabase Auth sessions and the legacy employee password
-column has been retired. All 21 current Phase 1 tables enforce scoped RLS for
+column has been retired. All 24 current Phase 1 tables enforce scoped RLS for
 employee, manager, admin, and superadmin access. Every future schema issue must
 add matching RLS in the same migration that creates its tables.
 

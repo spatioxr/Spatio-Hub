@@ -22,6 +22,8 @@ project or team.
 | Capability | Employee | Manager | Admin | Superadmin |
 | --- | --- | --- | --- | --- |
 | Access the Phase 1 portal | Yes | Yes | Yes | Yes |
+| Read current company PDFs and acknowledge own reading | Yes | Yes | Yes | Yes |
+| Publish, replace, archive/restore policies and view acknowledgement reports | No | No | Yes | Yes |
 | View company In/Break/Out status | Yes | Yes | Yes | Yes |
 | View People directory | No | Assigned project teams | Organisation | Organisation |
 | Add and edit People profiles | No | No | Organisation; privileged roles locked | Organisation |
