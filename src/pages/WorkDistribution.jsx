@@ -9,9 +9,17 @@ import React, {
 import AppState from '../components/AppState';
 import Layout from '../components/Layout';
 import './WorkDistribution.css';
+import './AnalyticsNavigation.css';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { getRole, ROLES } from '../utils/rbac';
+import useAnalyticsNavigation from '../hooks/useAnalyticsNavigation';
+import {
+  changeAnalyticsFilter,
+  emptyAnalyticsFilters,
+  retainAnalyticsOption,
+  validAnalyticsRange,
+} from '../utils/analyticsNavigation';
 import {
   ANALYTICS_EXPORT_TYPES,
   buildDailyEmployeeCsv,
@@ -20,7 +28,6 @@ import {
   workDistributionCsvFilename,
 } from '../utils/workDistributionCsv';
 import {
-  addAppDays,
   appDateDistance,
   appDateKey,
   appDayRange,
@@ -37,7 +44,6 @@ import {
 const MAX_RANGE_DAYS = 31;
 
 const dateKey = appDateKey;
-const addDays = addAppDays;
 
 const rangeLength = (startDate, endDate) => appDateDistance(startDate, endDate) + 1;
 
@@ -123,7 +129,7 @@ const DistributionChart = ({
                 key={item.key}
                 aria-label={`${item.label}: ${formatDuration(item.seconds)}`}
                 aria-pressed={activeKey === item.key}
-                onClick={() => onSelect(dimension, item)}
+                onClick={(event) => onSelect(dimension, item, event.currentTarget)}
               >
                 <div className="analytics-bar-label">
                   <span title={item.label}>{item.label}</span>
@@ -149,24 +155,29 @@ const WorkDistribution = () => {
   const isManager = getRole(user) === ROLES.MANAGER;
   const analyticsScope = isManager ? 'managed' : 'organisation';
   const today = dateKey();
-  const initialStart = addDays(today, -6);
-  const [draftRange, setDraftRange] = useState({ start: initialStart, end: today });
-  const [appliedRange, setAppliedRange] = useState({ start: initialStart, end: today });
+  const { range: appliedRange, filters, updateView } = useAnalyticsNavigation(user.id, today);
+  const [draftRange, setDraftRange] = useState(appliedRange);
   const [entries, setEntries] = useState([]);
   const [downtimeEvents, setDowntimeEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exportType, setExportType] = useState('entries');
   const [error, setError] = useState('');
   const [rangeError, setRangeError] = useState('');
-  const [filters, setFilters] = useState({
-    project: 'all',
-    activity: 'all',
-    department: 'all',
-    employee: 'all',
-  });
   const entriesRef = useRef(null);
+  const filtersRef = useRef(null);
+  const chartsRef = useRef(null);
+  const entryListRef = useRef(null);
+  const selectedBarRef = useRef(null);
+  const requestRef = useRef(0);
+  const optionLabelsRef = useRef(new Map());
+
+  useEffect(() => {
+    setDraftRange(appliedRange);
+    setRangeError('');
+  }, [appliedRange]);
 
   const fetchEntries = useCallback(async () => {
+    const request = ++requestRef.current;
     setLoading(true);
     setError('');
 
@@ -183,6 +194,7 @@ const WorkDistribution = () => {
         requested_end_at: range.end,
       }),
     ]);
+    if (request !== requestRef.current) return;
     const fetchError = entryResult.error || downtimeResult.error;
 
     if (fetchError) {
@@ -198,9 +210,10 @@ const WorkDistribution = () => {
 
   useEffect(() => {
     void fetchEntries();
+    return () => { requestRef.current += 1; };
   }, [fetchEntries]);
 
-  const filterOptions = useMemo(() => ({
+  const periodOptions = useMemo(() => ({
     projects: uniqueOptions(
       entries.filter((entry) => entry.context_type === 'project'),
       (entry) => entry.context_id,
@@ -224,6 +237,17 @@ const WorkDistribution = () => {
       ),
     ),
   }), [entries]);
+
+  useEffect(() => {
+    Object.entries(periodOptions).forEach(([dimension, options]) => {
+      options.forEach((option) => optionLabelsRef.current.set(`${dimension}:${option.value}`, option.label));
+    });
+  }, [periodOptions]);
+
+  const filterOptions = useMemo(() => Object.fromEntries(Object.entries(periodOptions).map(([dimension, options]) => {
+    const key = { projects: 'project', activities: 'activity', departments: 'department', employees: 'employee' }[dimension];
+    return [dimension, retainAnalyticsOption(options, filters[key], optionLabelsRef.current.get(`${dimension}:${filters[key]}`))];
+  })), [periodOptions, filters]);
 
   const filteredEntries = useMemo(() => entries.filter((entry) => {
     const employeeMatches = filters.employee === 'all'
@@ -316,36 +340,37 @@ const WorkDistribution = () => {
     ))
   ), [filteredEntries]);
 
-  const clearFilters = () => setFilters({
-    project: 'all',
-    activity: 'all',
-    department: 'all',
-    employee: 'all',
-  });
+  const clearFilters = () => updateView({ filters: emptyAnalyticsFilters() });
 
   const changeFilter = (key, value) => {
-    setFilters((current) => ({ ...current, [key]: value }));
+    updateView({ filters: changeAnalyticsFilter(filters, key, value) });
   };
 
   const removeFilter = (key) => {
-    setFilters((current) => ({ ...current, [key]: 'all' }));
+    changeFilter(key, 'all');
   };
 
-  const drillIntoEntries = (dimension, item) => {
-    setFilters((current) => {
-      const nextValue = current[dimension] === item.key ? 'all' : item.key;
-      if (dimension === 'project') {
-        return { ...current, project: nextValue, activity: 'all' };
-      }
-      if (dimension === 'activity') {
-        return { ...current, activity: nextValue, project: 'all' };
-      }
-      return { ...current, [dimension]: nextValue };
-    });
-    window.requestAnimationFrame(() => {
-      entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const scrollTo = (target) => {
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start',
     });
   };
+
+  const drillIntoEntries = (dimension, item, button) => {
+    selectedBarRef.current = button;
+    updateView({ filters: changeAnalyticsFilter(filters, dimension, item.key, true) });
+    window.requestAnimationFrame(() => {
+      if (entryListRef.current) entryListRef.current.scrollTop = 0;
+      scrollTo(entriesRef.current);
+    });
+  };
+
+  const backToCharts = () => scrollTo(
+    selectedBarRef.current?.isConnected ? selectedBarRef.current : chartsRef.current,
+  );
 
   const exportCount = exportType === 'downtime' ? downtimeEvents.length : visibleEntries.length;
   const exportCsv = () => {
@@ -380,10 +405,13 @@ const WorkDistribution = () => {
       setRangeError(`Choose a date range of ${MAX_RANGE_DAYS} days or fewer.`);
       return;
     }
+    if (!validAnalyticsRange(draftRange.start, draftRange.end, today)) {
+      setRangeError('Choose valid reporting dates ending today or earlier.');
+      return;
+    }
 
     setRangeError('');
-    clearFilters();
-    setAppliedRange({ ...draftRange });
+    updateView({ range: { ...draftRange } });
   };
 
   return (
@@ -478,7 +506,7 @@ const WorkDistribution = () => {
         />
       ) : (
         <>
-          <section className="card analytics-filter-panel" aria-label="Analytics filters">
+          <section className="card analytics-filter-panel" aria-label="Analytics filters" ref={filtersRef} tabIndex={-1}>
             <div className="analytics-filter-heading">
               <div>
                 <span className="page-eyebrow">Filters</span>
@@ -624,7 +652,7 @@ const WorkDistribution = () => {
             />
           ) : (
             <>
-              <div className="analytics-chart-grid">
+              <div className="analytics-chart-grid" ref={chartsRef} tabIndex={-1} aria-label="Work distribution charts">
                 <DistributionChart
                   title="Projects"
                   description="Client and delivery work · select a bar to drill down"
@@ -667,7 +695,7 @@ const WorkDistribution = () => {
                 />
               </div>
 
-              <section className="card analytics-entry-panel" ref={entriesRef}>
+              <section className="card analytics-entry-panel" ref={entriesRef} tabIndex={-1} aria-label="Supporting entries">
                 <div className="analytics-entry-heading">
                   <div>
                     <span className="page-eyebrow">Drill-down</span>
@@ -681,7 +709,26 @@ const WorkDistribution = () => {
                   <span>{visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'}</span>
                 </div>
 
-                <ol className="analytics-entry-list">
+                <div className="analytics-entry-navigation">
+                  <div className="analytics-entry-navigation-actions">
+                    <button type="button" className="btn btn-outline" onClick={backToCharts}>
+                      <i className="ri-arrow-up-line" aria-hidden="true" /> Back to charts
+                    </button>
+                    <button type="button" className="btn btn-outline" onClick={() => scrollTo(filtersRef.current)}>Edit filters</button>
+                    {activeFilters.length > 0 && <button type="button" className="timesheet-clear-filters" onClick={clearFilters}>Clear all filters</button>}
+                  </div>
+                  {activeFilters.length > 0 && (
+                    <div className="analytics-active-filters" aria-label="Supporting entries filters">
+                      {activeFilters.map((filter) => (
+                        <button type="button" className="analytics-filter-chip" key={filter.key}
+                          onClick={() => removeFilter(filter.key)} aria-label={`Remove ${filter.label} filter from supporting entries`}>
+                          <small>{filter.label}</small><span>{filter.value}</span><i className="ri-close-line" aria-hidden="true" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <ol className="analytics-entry-list" ref={entryListRef}>
                   {visibleEntries.map((entry) => (
                     <li key={entry.work_entry_id} className="analytics-entry">
                       <span className={`analytics-entry-icon analytics-entry-icon--${entry.context_type}`}>

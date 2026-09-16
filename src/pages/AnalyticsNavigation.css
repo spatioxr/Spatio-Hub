@@ -1,0 +1,29 @@
+.analytics-entry-navigation {
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--border);
+  background: #fbfcfb;
+}
+
+.analytics-entry-navigation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.analytics-entry-navigation .analytics-active-filters {
+  margin-top: 0.75rem;
+}
+
+.analytics-filter-panel,
+.analytics-chart-grid,
+.analytics-bar-row {
+  scroll-margin-top: 1rem;
+}
+
+.analytics-entry-panel:focus-visible,
+.analytics-filter-panel:focus-visible,
+.analytics-chart-grid:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
