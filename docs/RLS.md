@@ -15,7 +15,7 @@ The ordered migrations in `supabase/migrations` create the Phase 1 tables and
 their policies together. Run `supabase/verify/phase1_schema.sql` afterwards and
 confirm:
 
-- all 24 tables report `rls_enabled = true`
+- all listed tables report `rls_enabled = true`
 - only the expected authenticated policies are present
 - anonymous SELECT is denied for every table
 - the signed-in superadmin reports organisation access
@@ -226,3 +226,13 @@ inherit `can_manage_leave()` and `can_manage_organisation_downtime()` access.
 Both helpers still reject archived and password-reset-required identities.
 Existing controlled functions enforce self-action restrictions, immutable
 audit history, and Superadmin-only capability assignment.
+
+## External Observers
+
+External accounts are stored separately from employees and retain no staff
+identity in `current_employee_id()`/`current_employee_role()`. They can read their
+own login profile and the explicit `observer_hub_snapshot` reporting projection.
+Restrictive public-table/Storage policies prevent raw staff reads; table triggers
+also reject writes through definer RPCs. New tables must retain these boundaries.
+Only an active Superadmin may manage these accounts. See
+[External access](EXTERNAL_ACCESS.md) and `external_observer_access.sql`.

@@ -4,6 +4,7 @@ import { AuthContext, AuthProvider } from './context/AuthContext';
 import { LeaveProvider } from './context/LeaveContext';
 import { WorkSessionProvider } from './context/WorkSessionContext';
 import Login from './pages/Login';
+import ObserverHub from './pages/ObserverHub';
 import Dashboard from './pages/Dashboard';
 import TrackWork from './pages/TrackWork';
 import Attendance from './pages/Attendance';
@@ -54,7 +55,7 @@ const AppRoutes = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute>{user?.role === 'observer' ? <ObserverHub /> : <Dashboard />}</ProtectedRoute>} />
             <Route
               path="/track-work"
               element={(
@@ -66,6 +67,7 @@ const AppRoutes = () => (
             <Route
               path="/attendance"
               element={(
+                user?.role === 'observer' ? <ProtectedRoute><ObserverHub view="attendance" /></ProtectedRoute> :
                 <PermissionRoute permission={PERMISSIONS.VIEW_ATTENDANCE}>
                   <Attendance />
                 </PermissionRoute>
@@ -74,13 +76,14 @@ const AppRoutes = () => (
             <Route
               path="/timesheets"
               element={(
+                user?.role === 'observer' ? <ProtectedRoute><ObserverHub view="timesheets" /></ProtectedRoute> :
                 <PermissionRoute permission={PERMISSIONS.VIEW_OWN_TIMESHEET}>
                   <Timesheets />
                 </PermissionRoute>
               )}
             />
-            <Route path="/leave" element={<ProtectedRoute><Leave /></ProtectedRoute>} />
-            <Route path="/policies" element={<ProtectedRoute><Policies /></ProtectedRoute>} />
+            <Route path="/leave" element={<PermissionRoute permission={PERMISSIONS.APPLY_OWN_LEAVE}><Leave /></PermissionRoute>} />
+            <Route path="/policies" element={<PermissionRoute permission={PERMISSIONS.TRACK_OWN_WORK}><Policies /></PermissionRoute>} />
             <Route
               path="/people"
               element={(
@@ -92,6 +95,7 @@ const AppRoutes = () => (
             <Route
               path="/analytics"
               element={(
+                user?.role === 'observer' ? <ProtectedRoute><ObserverHub view="analytics" /></ProtectedRoute> :
                 <PermissionRoute permission={PERMISSIONS.VIEW_WORK_DISTRIBUTION}>
                   <WorkDistribution />
                 </PermissionRoute>
@@ -100,6 +104,7 @@ const AppRoutes = () => (
             <Route
               path="/projects"
               element={(
+                user?.role === 'observer' ? <ProtectedRoute><ObserverHub view="projects" /></ProtectedRoute> :
                 <PermissionRoute permission={PERMISSIONS.MANAGE_OWNED_PROJECT_TEAM}>
                   <Projects mode="manage" />
                 </PermissionRoute>
@@ -113,6 +118,7 @@ const AppRoutes = () => (
                 </PermissionRoute>
               )}
             />
+            <Route path="/admin-settings/external-access" element={<Navigate to="/admin-settings/users" replace />} />
             <Route
               path="/admin-settings/users"
               element={(

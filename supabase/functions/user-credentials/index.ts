@@ -81,7 +81,7 @@ Deno.serve(async (request) => {
       throw new RequestError(401, 'INVALID_SESSION', 'Your session is no longer valid.');
     }
 
-    const { data: actor, error: actorError } = await adminClient
+    let { data: actor, error: actorError } = await adminClient
       .from('employees')
       .select(
         'id, auth_id, email, name, role, status, must_change_password, temporary_password_issued_at, temporary_password_issued_by',
@@ -89,8 +89,18 @@ Deno.serve(async (request) => {
       .eq('auth_id', authData.user.id)
       .maybeSingle<EmployeeProfile>();
 
+    let actorTable = 'employees';
+    if (!actor && !actorError) {
+      actorTable = 'external_accounts';
+      const externalActor = await adminClient.from(actorTable)
+        .select('id, auth_id, email, name, role, status, must_change_password, temporary_password_issued_at, temporary_password_issued_by')
+        .eq('auth_id', authData.user.id).maybeSingle<EmployeeProfile>();
+      actor = externalActor.data;
+      actorError = externalActor.error;
+    }
+
     if (actorError || !actor || actor.status !== 'Active') {
-      throw new RequestError(403, 'ACTIVE_PROFILE_REQUIRED', 'An active employee profile is required.');
+      throw new RequestError(403, 'ACTIVE_PROFILE_REQUIRED', 'An active portal account is required.');
     }
 
     let body: Record<string, unknown>;
@@ -151,7 +161,7 @@ Deno.serve(async (request) => {
       }
 
       const { data: clearedProfile, error: gateError } = await adminClient
-        .from('employees')
+        .from(actorTable)
         .update({ must_change_password: false })
         .eq('id', actor.id)
         .eq('must_change_password', true)
@@ -179,11 +189,13 @@ Deno.serve(async (request) => {
 
     const employeeId = typeof body.employeeId === 'string' ? body.employeeId : '';
     if (!employeeId) {
-      throw new RequestError(400, 'EMPLOYEE_REQUIRED', 'Choose an employee.');
+      throw new RequestError(400, 'EMPLOYEE_REQUIRED', 'Choose an account.');
     }
 
+    const targetTable = body.accountType === 'external' ? 'external_accounts' : 'employees';
+    const otherTable = targetTable === 'employees' ? 'external_accounts' : 'employees';
     const { data: target, error: targetError } = await adminClient
-      .from('employees')
+      .from(targetTable)
       .select(
         'id, auth_id, email, name, role, status, must_change_password, temporary_password_issued_at, temporary_password_issued_by',
       )
@@ -191,10 +203,10 @@ Deno.serve(async (request) => {
       .maybeSingle<EmployeeProfile>();
 
     if (targetError || !target) {
-      throw new RequestError(404, 'EMPLOYEE_NOT_FOUND', 'Employee profile not found.');
+      throw new RequestError(404, 'EMPLOYEE_NOT_FOUND', 'Portal account not found.');
     }
     if (target.status !== 'Active') {
-      throw new RequestError(409, 'ACTIVE_TARGET_REQUIRED', 'Activate the employee before creating login credentials.');
+      throw new RequestError(409, 'ACTIVE_TARGET_REQUIRED', 'Restore account access before creating login credentials.');
     }
     if (target.id === actor.id) {
       throw new RequestError(409, 'SELF_RESET_NOT_ALLOWED', 'Use Change Password to update your own password.');
@@ -230,7 +242,7 @@ Deno.serve(async (request) => {
 
       if (authUserId) {
         const { data: linkedProfile, error: linkedProfileError } = await adminClient
-          .from('employees')
+          .from(targetTable)
           .select('id')
           .eq('auth_id', authUserId)
           .maybeSingle<{ id: string }>();
@@ -239,6 +251,11 @@ Deno.serve(async (request) => {
         }
         if (linkedProfile && linkedProfile.id !== target.id) {
           throw new RequestError(409, 'AUTH_USER_ALREADY_LINKED', 'That email is already linked to another employee profile.');
+        }
+        const { data: otherProfile, error: otherError } = await adminClient.from(otherTable)
+          .select('id').eq('auth_id', authUserId).maybeSingle();
+        if (otherError || otherProfile) {
+          throw new RequestError(409, 'AUTH_USER_ALREADY_LINKED', 'That login already belongs to another portal account.');
         }
       } else {
         const { data: createdUser, error: createUserError } = await adminClient.auth.admin.createUser({
@@ -254,7 +271,7 @@ Deno.serve(async (request) => {
       }
 
       const { data: linkedEmployee, error: linkError } = await adminClient
-        .from('employees')
+        .from(targetTable)
         .update({
           auth_id: authUserId,
           must_change_password: true,
@@ -280,7 +297,7 @@ Deno.serve(async (request) => {
         );
         if (existingUserError) {
           const { error: rollbackError } = await adminClient
-            .from('employees')
+            .from(targetTable)
             .update({
               auth_id: null,
               must_change_password: target.must_change_password,
@@ -314,7 +331,7 @@ Deno.serve(async (request) => {
       temporary_password_issued_by: target.temporary_password_issued_by,
     };
     const { data: gatedEmployee, error: gateError } = await adminClient
-      .from('employees')
+      .from(targetTable)
       .update({
         must_change_password: true,
         temporary_password_issued_by: actor.id,
@@ -331,12 +348,12 @@ Deno.serve(async (request) => {
       { password: temporaryPassword },
     );
     if (resetError) {
-      await adminClient.from('employees').update(previousGate).eq('id', target.id);
+      await adminClient.from(targetTable).update(previousGate).eq('id', target.id);
       throw new RequestError(502, 'AUTH_RESET_FAILED', resetError.message || 'Unable to reset the Auth password.');
     }
 
     const { error: timestampError } = await adminClient
-      .from('employees')
+      .from(targetTable)
       .update({
         must_change_password: true,
         temporary_password_issued_at: new Date().toISOString(),

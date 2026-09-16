@@ -1,20 +1,22 @@
 import { isActivePerson } from './people.js';
 
 export const ROLES = Object.freeze({
+  OBSERVER: 'observer',
   EMPLOYEE: 'employee',
   MANAGER: 'manager',
   ADMIN: 'admin',
   SUPERADMIN: 'superadmin',
 });
 
-// Temporary read compatibility for pre-phase-1 records. New records must use
-// only the four canonical roles above.
+// Temporary aliases apply only to staff. External accounts use Observer.
 const LEGACY_ROLE_ALIASES = Object.freeze({
   pm: ROLES.MANAGER,
   head: ROLES.ADMIN,
 });
 
 export const PERMISSIONS = Object.freeze({
+  VIEW_OBSERVER_HUB: 'view_observer_hub',
+  MANAGE_EXTERNAL_ACCESS: 'manage_external_access',
   ACCESS_PORTAL: 'access_portal',
   MANAGE_POLICIES: 'manage_policies',
   VIEW_LIVE_STATUS: 'view_live_status',
@@ -53,6 +55,7 @@ const EMPLOYEE_PERMISSIONS = [
 ];
 
 const ROLE_PERMISSIONS = Object.freeze({
+  [ROLES.OBSERVER]: new Set([PERMISSIONS.ACCESS_PORTAL, PERMISSIONS.VIEW_OBSERVER_HUB]),
   [ROLES.EMPLOYEE]: new Set(EMPLOYEE_PERMISSIONS),
   [ROLES.MANAGER]: new Set([
     ...EMPLOYEE_PERMISSIONS,
@@ -90,6 +93,7 @@ export const getRole = (user) => normalizeRole(user?.role);
 
 export const hasPermission = (user, permission) => {
   if (!isActivePerson(user)) return false;
+  if (getRole(user) === ROLES.OBSERVER) return ROLE_PERMISSIONS[ROLES.OBSERVER].has(permission);
   if (permission === PERMISSIONS.APPROVE_LEAVE && user?.is_leave_admin) return true;
   if (
     permission === PERMISSIONS.MANAGE_ORGANISATION_DOWNTIME

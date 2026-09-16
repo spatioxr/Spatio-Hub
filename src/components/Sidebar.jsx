@@ -19,6 +19,14 @@ const MANAGE_ITEMS = [
   { path: '/analytics', name: 'Analytics', icon: 'ri-bar-chart-box-line', permission: PERMISSIONS.VIEW_WORK_DISTRIBUTION },
 ];
 
+const OBSERVER_ITEMS = [
+  { path: '/', name: 'Overview', icon: 'ri-dashboard-line', end: true },
+  { path: '/projects', name: 'Projects', icon: 'ri-briefcase-4-line' },
+  { path: '/timesheets', name: 'Timesheets', icon: 'ri-time-line' },
+  { path: '/attendance', name: 'Attendance', icon: 'ri-calendar-check-line' },
+  { path: '/analytics', name: 'Work summaries', icon: 'ri-bar-chart-box-line' },
+];
+
 const SETTINGS_ITEMS = [
   { path: '/admin-settings/users', name: 'Users & Access', icon: 'ri-admin-line', permission: PERMISSIONS.ACCESS_ADMIN_SETTINGS },
   { path: '/admin-settings/work-setup', name: 'Work Setup', icon: 'ri-tools-line', permission: PERMISSIONS.ACCESS_ADMIN_SETTINGS },
@@ -81,7 +89,7 @@ const Sidebar = () => {
         <img src={logoDark} alt="Spatio" />
       </div>
       <nav className="sidebar-menu" ref={menuRef}>
-        <NavigationGroup items={permitted(COMMON_ITEMS)} />
+        <NavigationGroup items={user?.role === 'observer' ? OBSERVER_ITEMS : permitted(COMMON_ITEMS)} />
         <NavigationGroup label="Manage" items={permitted(MANAGE_ITEMS)} separated />
         <NavigationGroup label="Settings" items={permitted(SETTINGS_ITEMS)} separated />
       </nav>

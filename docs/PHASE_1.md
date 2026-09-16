@@ -43,6 +43,10 @@ Example internal activities include pre-sales, proposal creation, estimation, de
 - Manager: employee capabilities plus assigned project/team timesheets and team assignment. This role covers project managers, product managers, tech leads, 3D leads, and similar assigned leads.
 - Admin: organisation tracking, project/activity administration, reporting, and permitted corrections.
 - Superadmin: full phase-1 access and per-user workday check-in controls.
+- Observer: external stakeholder with read-only organisation overview, projects,
+  timesheets, factual attendance and work summaries. External accounts are
+  separate from staff and have no workday or leave obligations. See
+  [External access](EXTERNAL_ACCESS.md).
 
 Exact access must be enforced in Supabase RLS as well as the UI.
 The canonical capability table is documented in

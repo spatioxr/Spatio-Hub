@@ -58,7 +58,7 @@ export const LeaveProvider = ({ children }) => {
   const [loadError, setLoadError] = useState(null);
 
   const fetchLeaveData = useCallback(async (surfaceError = true, showLoading = true) => {
-    if (!user) {
+    if (!user || user.role === 'observer') {
       setRequests([]);
       setBalance(EMPTY_BALANCE);
       setHolidays([]);

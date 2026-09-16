@@ -105,7 +105,7 @@ export const WorkSessionProvider = ({ children }) => {
   const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
-    if (!user) {
+    if (!user || user.role === 'observer') {
       setSnapshot({
         session: null,
         breakEntry: null,
@@ -267,10 +267,10 @@ export const WorkSessionProvider = ({ children }) => {
       window.removeEventListener('hrms:work-settings-changed', handleSettingsChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [refresh, user?.id]);
+  }, [refresh, user?.id, user?.role]);
 
   useEffect(() => {
-    if (!user?.id) return undefined;
+    if (!user?.id || user.role === 'observer') return undefined;
 
     const channel = supabase
       .channel(`employee-work-settings-${user.id}`)
@@ -289,7 +289,7 @@ export const WorkSessionProvider = ({ children }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refresh, user?.id]);
+  }, [refresh, user?.id, user?.role]);
 
   useEffect(() => {
     if (!snapshot.session || snapshot.breakEntry) {

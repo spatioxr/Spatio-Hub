@@ -251,7 +251,7 @@ const TopBar = ({
                       user?.name?.charAt(0)
                     )}
                   </div>
-                  <button 
+                  {user?.role !== 'observer' && <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); fileInputRef.current.click(); }}
                     style={{ position: 'absolute', bottom: -5, right: -5, background: '#4318FF', color: 'white', border: '2px solid white', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}
@@ -259,7 +259,7 @@ const TopBar = ({
                     aria-label="Change profile picture"
                   >
                     <i className="ri-pencil-fill" style={{ fontSize: '0.8rem' }} aria-hidden="true"></i>
-                  </button>
+                  </button>}
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-main)', fontWeight: 'bold' }}>{user?.name}</h3>
@@ -270,7 +270,7 @@ const TopBar = ({
               <div style={{ height: 1, background: '#F1F5F9' }} />
 
               {/* Details */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+              {user?.role === 'observer' ? <p>External stakeholder · {user.designation || 'Observer'} · View only</p> : <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748B' }}>Department</span>
                   <span style={{ fontWeight: 500 }}>{user?.department || 'N/A'}</span>
@@ -287,7 +287,7 @@ const TopBar = ({
                   <span style={{ color: '#64748B' }}>Reports to</span>
                   <span style={{ fontWeight: 500 }}>{reportsTo}</span>
                 </div>
-              </div>
+              </div>}
 
               <div style={{ height: 1, background: '#F1F5F9' }} />
 

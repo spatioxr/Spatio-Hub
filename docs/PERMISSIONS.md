@@ -3,7 +3,7 @@
 This is the single product-level permission source for Phase 1. UI checks use
 `src/utils/rbac.js`; `HRMS-004` must encode the same scopes in Supabase RLS.
 
-Only these roles may be assigned to new users:
+Only these roles may be assigned to new staff profiles:
 
 - `employee`
 - `manager`
@@ -93,3 +93,16 @@ project or team.
   privileged-role changes.
 - `HRMS-048`: Attendance and Leave reset, working-day rules, delegated Leave
   Admin governance, immutable balance history, and factual Attendance.
+
+## External Observer accounts
+
+The unified Users & Access role selector includes Observer. Its login is stored
+in `external_accounts`, with only the `observer` role and no staff/admin capabilities.
+Existing users can change roles atomically while retaining their login and staff history. Only Superadmins
+manage external access and credentials. Active, password-ready Observers can read
+the dedicated organisation overview, projects, timesheets, attendance and work
+summaries. They cannot write business data, track time, apply for leave, approve,
+edit profiles or change settings. Private employee details and leave reasons,
+types and balances remain excluded. Staff calculations and obligation rosters
+never include external accounts. See [External access](EXTERNAL_ACCESS.md) for
+the projection, RLS boundaries and release sequence.

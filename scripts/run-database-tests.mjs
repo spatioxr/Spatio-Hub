@@ -3,6 +3,8 @@ import { spawn } from 'node:child_process';
 import process from 'node:process';
 
 const verificationFiles = [
+  'supabase/verify/unified_observer_role_editor.sql',
+  'supabase/verify/external_observer_access.sql',
   'supabase/verify/phase1_schema.sql',
   'supabase/verify/hrms_004_role_access.sql',
   'supabase/verify/hrms_056_company_policies.sql',

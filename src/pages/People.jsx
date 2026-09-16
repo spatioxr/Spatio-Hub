@@ -17,6 +17,7 @@ import { getSequenceNavigation } from '../utils/sequenceNavigation';
 
 const ROLE_OPTIONS = [
   { value: 'employee', label: 'Employee' },
+  { value: 'observer', label: 'Observer (view only)' },
   { value: 'manager', label: 'Manager' },
   { value: 'admin', label: 'Admin' },
   { value: 'superadmin', label: 'Superadmin' },
@@ -131,6 +132,7 @@ const PersonDrawer = ({
   const drawerRef = useDialogFocus(true, onClose, { closeDisabled: saving });
   const initialForm = useMemo(() => personToForm(person), [person]);
   const [form, setForm] = useState(initialForm);
+  const isObserver = form.role === 'observer';
   const hasUnsavedChanges = !readOnly
     && JSON.stringify(form) !== JSON.stringify(initialForm);
 
@@ -141,15 +143,17 @@ const PersonDrawer = ({
       ['employee', 'manager'].includes(option.value)
       || option.value === person?.role
     ));
-  const roleLocked = !isSuperadmin && ['admin', 'superadmin'].includes(person?.role);
+  const roleLocked = !isSuperadmin && ['admin', 'superadmin', 'observer'].includes(person?.role);
   const managerOptions = people.filter((candidate) => (
-    isActivePerson(candidate) && candidate.id !== person?.id
+    isActivePerson(candidate) && candidate.role !== 'observer' && candidate.id !== person?.id
   ));
 
   const handleChange = (event) => {
     if (event.target.name === 'phone_number') event.target.setCustomValidity('');
     setForm((current) => ({
       ...current,
+      ...(event.target.name === 'role' && event.target.value === 'observer'
+        ? { is_leave_admin: false, is_downtime_manager: false, status: current.status === 'Released' ? 'Released' : 'Active' } : {}),
       [event.target.name]: event.target.type === 'checkbox'
         ? event.target.checked
         : event.target.value,
@@ -160,7 +164,7 @@ const PersonDrawer = ({
     event.preventDefault();
     const phoneInput = event.currentTarget.elements.phone_number;
     const phoneDigits = form.phone_number.replace(/[^0-9]/g, '');
-    if (form.phone_number && (phoneDigits.length < 7 || phoneDigits.length > 15)) {
+    if (!isObserver && form.phone_number && (phoneDigits.length < 7 || phoneDigits.length > 15)) {
       phoneInput.setCustomValidity('Enter a phone number containing 7 to 15 digits.');
       phoneInput.reportValidity();
       return;
@@ -232,14 +236,43 @@ const PersonDrawer = ({
         <form className="people-form" onSubmit={handleSubmit}>
           <div className="people-form-grid">
             <label className="people-field">
-              <span>Employee ID *</span>
+              <span>Application role *</span>
+              <select
+                name="role"
+                aria-label="Application role"
+                value={form.role}
+                onChange={handleChange}
+                disabled={readOnly || roleLocked}
+              >
+                {availableRoles.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              {!readOnly && roleLocked && (
+                <small>Only a superadmin can grant or remove privileged roles.</small>
+              )}
+            </label>
+            <label className="people-field">
+              <span>Status *</span>
+              <select name="status" value={form.status} onChange={handleChange} disabled={readOnly}>
+                {(isObserver ? ['Active', 'Released'] : STATUS_OPTIONS).map((status) => (
+                  <option key={status} value={status}>{employmentStatusLabel(status)}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {isObserver && <p className="people-feedback">View-only organisation access. No attendance, time tracking or leave obligations. Existing work history is retained.</p>}
+          <div className="people-form-grid">
+            <label className="people-field">
+              <span>{isObserver ? 'Employee ID (not required)' : 'Employee ID *'}</span>
               <input
                 name="emp_code"
                 value={form.emp_code}
                 onChange={handleChange}
-                disabled={readOnly}
+                disabled={readOnly || isObserver}
                 placeholder="STS002"
-                required
+                required={!isObserver}
               />
             </label>
             <label className="people-field">
@@ -249,13 +282,13 @@ const PersonDrawer = ({
                 value={form.name}
                 onChange={handleChange}
                 disabled={readOnly}
-                placeholder="Employee name"
+                placeholder="Full name"
                 required
               />
             </label>
           </div>
 
-          {isSuperadmin && !readOnly && (
+          {isSuperadmin && !readOnly && !isObserver && (
             <div className="people-access-toggles">
               <label className="people-access-toggle">
                 <input
@@ -285,7 +318,7 @@ const PersonDrawer = ({
           )}
 
           <div className="people-field">
-            <label htmlFor="person-work-email">Work email *</label>
+            <label htmlFor="person-work-email">{isObserver ? 'Login email *' : 'Work email *'}</label>
             <span className="people-contact-input">
               <input
                 id="person-work-email"
@@ -293,17 +326,18 @@ const PersonDrawer = ({
                 name="email"
                 value={form.email}
                 onChange={handleChange}
-                disabled={readOnly}
+                disabled={readOnly || (person && (isObserver || person.role === 'observer'))}
                 placeholder="name@company.com"
                 required
               />
               <CopyContactButton label="Email" value={form.email} onCopied={onNotice} />
             </span>
             {!readOnly && mode === 'create' && (
-              <small>The profile links automatically when an Auth user signs in with this email.</small>
+              <small>{isObserver ? 'A Superadmin creates the login after saving this Observer.' : 'The profile links automatically when an Auth user signs in with this email.'}</small>
             )}
           </div>
 
+          {!isObserver && (
           <div className="people-field">
             <label htmlFor="person-phone-number">Phone number</label>
             <span className="people-contact-input">
@@ -326,6 +360,8 @@ const PersonDrawer = ({
               : !readOnly && <small>Optional. Include the country code for international numbers.</small>}
           </div>
 
+          )}
+
           <div className="people-form-grid">
             <label className="people-field">
               <span>Department</span>
@@ -333,7 +369,7 @@ const PersonDrawer = ({
                 name="department"
                 value={form.department}
                 onChange={handleChange}
-                disabled={readOnly}
+                disabled={readOnly || isObserver}
                 placeholder="Department"
               />
             </label>
@@ -349,7 +385,7 @@ const PersonDrawer = ({
             </label>
           </div>
 
-          {showPrivateDetails && (
+          {showPrivateDetails && !isObserver && (
             <section className="people-private-details" aria-labelledby="private-details-heading">
               <div className="people-form-section-heading">
                 <div>
@@ -440,33 +476,8 @@ const PersonDrawer = ({
             </section>
           )}
 
-          <div className="people-form-grid">
-            <label className="people-field">
-              <span>Application role *</span>
-              <select
-                name="role"
-                value={form.role}
-                onChange={handleChange}
-                disabled={readOnly || roleLocked}
-              >
-                {availableRoles.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-              {!readOnly && roleLocked && (
-                <small>Only a superadmin can grant or remove privileged roles.</small>
-              )}
-            </label>
-            <label className="people-field">
-              <span>Status *</span>
-              <select name="status" value={form.status} onChange={handleChange} disabled={readOnly}>
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>{employmentStatusLabel(status)}</option>
-                ))}
-              </select>
-            </label>
-          </div>
 
+          {!isObserver && (
           <div className="people-form-grid">
             <label className="people-field">
               <span>Reporting manager</span>
@@ -490,6 +501,8 @@ const PersonDrawer = ({
               />
             </label>
           </div>
+
+          )}
 
           <div className="people-drawer-actions">
             <button type="button" className="btn btn-outline" onClick={onClose}>
@@ -596,10 +609,13 @@ const People = ({ mode = 'directory' }) => {
     setLoading(true);
     setError('');
 
-    const { data, error: fetchError } = await supabase
+    const { data, error: fetchError } = await (isAccessMode
+      ? supabase.rpc('user_access_profiles')
+      : supabase
       .from('employees')
       .select('id, emp_code, name, email, phone_number, department, designation, role, status, date_of_joining, reports_to, auth_id, must_change_password, temporary_password_issued_at, is_leave_admin, is_downtime_manager')
-      .order('name', { ascending: true });
+      .is('observer_account_id', null)
+      .order('name', { ascending: true }));
 
     if (fetchError) {
       setError(fetchError.message || 'Unable to load people.');
@@ -623,13 +639,13 @@ const People = ({ mode = 'directory' }) => {
         );
         visiblePeople = visiblePeople.map((person) => ({
           ...person,
-          ...(privateByEmployee.get(person.id) || EMPTY_PRIVATE_DETAILS),
+          ...(privateByEmployee.get(person.staff_profile_id || person.id) || EMPTY_PRIVATE_DETAILS),
         }));
       }
       setPeople(visiblePeople);
     }
     setLoading(false);
-  }, [canManage]);
+  }, [canManage, isAccessMode]);
 
   useEffect(() => {
     void fetchPeople();
@@ -675,7 +691,7 @@ const People = ({ mode = 'directory' }) => {
   ), [drawer?.person, filteredPeople]);
 
   const canEditPerson = (person) => (
-    canManage && (isSuperadmin || person.role !== 'superadmin')
+    canManage && (isSuperadmin || !['superadmin', 'observer'].includes(person.role))
   );
 
   const openDrawer = (mode, person = null) => {
@@ -730,7 +746,7 @@ const People = ({ mode = 'directory' }) => {
     setCredentialActionId(person.id);
 
     const { data, error: functionError } = await supabase.functions.invoke('user-credentials', {
-      body: { action, employeeId: person.id },
+      body: { action, employeeId: person.id, accountType: person.account_type || 'staff' },
     });
 
     setCredentialActionId('');
@@ -768,9 +784,11 @@ const People = ({ mode = 'directory' }) => {
     const payload = toRpcPayload(form);
     if (!isCreate) payload.target_employee_id = drawer.person.id;
 
+    const observerChange = form.role === 'observer' || drawer.person?.role === 'observer';
     const { data: savedPerson, error: saveError } = await supabase.rpc(
-      isCreate ? 'create_employee_profile' : 'update_employee_profile',
-      payload,
+      observerChange ? 'save_observer_role_profile' : isCreate ? 'create_employee_profile' : 'update_employee_profile',
+      observerChange ? { profile: form, target_id: isCreate ? null : drawer.person.id,
+        source_account_type: drawer.person?.account_type || 'staff' } : payload,
     );
 
     if (saveError) {
@@ -778,6 +796,16 @@ const People = ({ mode = 'directory' }) => {
       setSaving(false);
       return;
     }
+
+    if (savedPerson.role === 'observer') {
+      setDrawer(null);
+      setSaving(false);
+      if (isCreate && isActivePerson(savedPerson)) await manageTemporaryPassword(savedPerson, 'provision', true);
+      else { setNotice(`${form.name} now has view-only Observer access.`); await fetchPeople(); }
+      return;
+    }
+
+    if (observerChange) setDrawer({ mode: 'edit', person: savedPerson });
 
     if (isSuperadmin && Boolean(savedPerson.is_leave_admin) !== Boolean(form.is_leave_admin)) {
       const { error: accessError } = await supabase.rpc('set_leave_admin_access', {
@@ -852,15 +880,15 @@ const People = ({ mode = 'directory' }) => {
     ) return;
 
     setError('');
-    const { error: saveError } = await supabase.rpc('update_employee_profile', {
-      target_employee_id: person.id,
-      ...toRpcPayload({
-        ...person,
-        reports_to: person.reports_to || '',
-        date_of_joining: person.date_of_joining || '',
-        status: shouldArchive ? ARCHIVED_EMPLOYMENT_STATUS : ACTIVE_EMPLOYMENT_STATUS,
-      }),
-    });
+    const archivedForm = { ...person,
+      reports_to: person.reports_to || '', date_of_joining: person.date_of_joining || '',
+      status: shouldArchive ? ARCHIVED_EMPLOYMENT_STATUS : ACTIVE_EMPLOYMENT_STATUS };
+    const { error: saveError } = await supabase.rpc(
+      person.role === 'observer' ? 'save_observer_role_profile' : 'update_employee_profile',
+      person.role === 'observer'
+        ? { profile: archivedForm, target_id: person.id, source_account_type: 'external' }
+        : { target_employee_id: person.id, ...toRpcPayload(archivedForm) },
+    );
 
     if (saveError) {
       setError(saveError.message || 'Unable to change this person’s status.');
@@ -884,7 +912,7 @@ const People = ({ mode = 'directory' }) => {
       eyebrow={isAccessMode ? 'Settings' : 'Manage'}
       heading={isAccessMode ? 'Users & Access' : 'People'}
       description={isAccessMode
-        ? 'Manage work profiles, roles and portal access. Archived users keep their history but cannot access the portal.'
+        ? 'Manage user profiles, application roles and portal access, including view-only Observers. Archived users cannot sign in.'
         : hasPeopleManagement
           ? 'Browse the organisation directory. User changes remain in Settings.'
           : 'View people assigned to projects you manage.'}

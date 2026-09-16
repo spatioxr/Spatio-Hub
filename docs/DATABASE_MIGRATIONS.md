@@ -435,3 +435,18 @@ resolve correctly; the legacy overload retains its default. No data changes.
 Run `people_rpc_active_actor.sql` and the full isolated database suite. Apply
 this migration to hosted environments as well; merging code does not apply SQL.
 Do not restore the vulnerable guard as a rollback; correct forward if needed.
+
+## External Observer access — 16 September 2026
+
+`20260916000200_external_observer_access.sql` adds separate external identities,
+Superadmin lifecycle controls, a bounded read-only reporting projection,
+cross-account identity guards, restrictive RLS and database write guards. Apply
+it before deploying the updated `user-credentials` function and frontend.
+No employee rows or staff roles are rewritten. Run `external_observer_access.sql`
+and the existing database regression suite. See [External access](EXTERNAL_ACCESS.md)
+for deployment and non-destructive disablement.
+
+`20260916000400_unified_observer_role_editor.sql` moves role administration into
+the existing Users & Access editor. It adds a unified profile projection and
+atomic staff/Observer conversions preserving Auth and retained staff history.
+Apply before the matching frontend; run `unified_observer_role_editor.sql`.

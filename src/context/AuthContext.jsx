@@ -161,10 +161,21 @@ const getEmployeeProfile = async (authUser) => {
   return profileByEmail;
 };
 
+const getPortalProfile = async (authUser) => {
+  const employee = await getEmployeeProfile(authUser);
+  if (employee) return { ...employee, account_type: 'staff' };
+  if (!authUser) return null;
+  const { data, error } = await supabase.from('external_accounts')
+    .select('id, auth_id, name, email, designation, account_type, role, status, must_change_password')
+    .eq('auth_id', authUser.id).maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
 const inactiveProfileMessage = (profile) => (
   isArchivedPerson(profile)
-    ? 'Your employee profile has been archived. Please contact HR if you need access restored.'
-    : 'Your employee profile is not active. Please contact HR.'
+    ? 'Your portal access has been revoked. Please contact your administrator.'
+    : 'Your portal account is not active. Please contact your administrator.'
 );
 
 export const AuthProvider = ({ children }) => {
@@ -192,11 +203,11 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const employeeProfile = await getEmployeeProfile(nextSession.user);
+      const employeeProfile = await getPortalProfile(nextSession.user);
 
       if (!employeeProfile) {
         setUser(null);
-        setAuthError('Your login is not linked to an employee profile. Please contact HR.');
+        setAuthError('Your login is not linked to a portal account. Please contact your administrator.');
         await supabase.auth.signOut();
         return;
       }
@@ -274,13 +285,13 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const employeeProfile = await getEmployeeProfile(data.user);
+      const employeeProfile = await getPortalProfile(data.user);
 
       if (!employeeProfile) {
         await supabase.auth.signOut();
         return {
           success: false,
-          message: 'Your login is not linked to an employee profile. Please contact HR.',
+          message: 'Your login is not linked to a portal account. Please contact your administrator.',
         };
       }
 

@@ -27,7 +27,8 @@ WITH expected(table_name) AS (
     ('organisation_downtime_audit'),
     ('policy_documents'),
     ('policy_versions'),
-    ('policy_acknowledgements')
+    ('policy_acknowledgements'),
+    ('external_accounts')
 ),
 actual AS (
   SELECT
@@ -54,13 +55,13 @@ policies AS (
 ),
 results AS (
 SELECT
-  (SELECT count(*) = 24 AND bool_and(table_exists) FROM actual)
+  (SELECT count(*) = 25 AND bool_and(table_exists) FROM actual)
     AS all_tables_exist,
   (SELECT bool_and(rls_enabled) FROM actual)
     AS all_rls_enabled,
   (SELECT bool_and(anon_select_denied) FROM actual)
     AS anon_select_denied,
-  (SELECT count(*) = 52 FROM policies)
+  (SELECT count(*) = 77 FROM policies)
     AS expected_policy_count,
   (SELECT bool_and(roles = ARRAY['authenticated']::name[]) FROM policies)
     AS authenticated_only,

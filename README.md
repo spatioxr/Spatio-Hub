@@ -86,6 +86,7 @@ All other routes redirect to the dashboard.
 
 - [Phase 1 scope and decisions](docs/PHASE_1.md)
 - [Phase 1 permission matrix](docs/PERMISSIONS.md)
+- [External Observer accounts](docs/EXTERNAL_ACCESS.md)
 - [Attendance and Leave product/test contract](docs/ATTENDANCE_LEAVE.md)
 - [Dashboard product/test contract](docs/DASHBOARD.md)
 - [Policies product/test contract](docs/POLICIES.md)
@@ -99,7 +100,7 @@ All other routes redirect to the dashboard.
 ## Important security status
 
 Authentication uses Supabase Auth sessions and the legacy employee password
-column has been retired. All 24 current Phase 1 tables enforce scoped RLS for
+column has been retired. Phase 1 tables enforce scoped RLS for
 employee, manager, admin, and superadmin access. Every future schema issue must
 add matching RLS in the same migration that creates its tables.
 

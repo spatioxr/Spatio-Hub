@@ -42,12 +42,12 @@ const Layout = ({
       <div className="main-content">
         <TopBar
           title={title}
-          showTimer={showTimer}
+          showTimer={showTimer && hasPermission(user, PERMISSIONS.TRACK_OWN_WORK)}
           showLiveStatusToggle={showManagementRail}
           liveStatusOpen={liveStatusOpen}
           onLiveStatusToggle={() => setLiveStatusOpen((current) => !current)}
         />
-        <OrganisationDowntimeBanner />
+        {user.role !== 'observer' && <OrganisationDowntimeBanner />}
         <main className="content-area" id="main-content" tabIndex="-1">
           <div className="content-inner">
             <PageHeader
