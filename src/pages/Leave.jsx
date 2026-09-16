@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import AppState from '../components/AppState';
+import HolidayCalendar from '../components/HolidayCalendar';
 import { AuthContext } from '../context/AuthContext';
 import { LeaveContext } from '../context/LeaveContext';
 import { appDateKey, formatAppClock, formatAppDate } from '../utils/timezone';
@@ -178,7 +179,6 @@ const Leave = () => {
   const adjustmentPerson = adminOverview.find((person) => person.employee_id === adjustment.employeeId);
   const balanceField = { 'Sick Leave': 'sick_leave', 'Casual Leave': 'casual_leave', 'Comp Off': 'comp_off' }[adjustment.type];
   const adjustmentPreview = previewBalanceAdjustment(adjustmentPerson?.[balanceField], adjustment.amount, adjustment.operation);
-  const upcomingHolidays = holidays.filter((holiday) => holiday.date >= appDateKey());
   const previewDays = calculateLeaveDays(form.from, form.to, form.isHalfDay, holidays);
 
   useEffect(() => {
@@ -393,21 +393,7 @@ const Leave = () => {
           </form>
         </section>
 
-        <section className="card leave-holiday-card" aria-labelledby="leave-upcoming-title">
-          <div className="track-work-section-heading"><div><span className="page-eyebrow">Company calendar</span><h2 id="leave-upcoming-title">Upcoming holidays</h2></div><span>{upcomingHolidays.length}</span></div>
-          {upcomingHolidays.length === 0 ? (
-            <AppState compact type="empty" title="No upcoming holidays" message="New company holidays will appear here." />
-          ) : (
-            <ol className="leave-holiday-list">
-              {upcomingHolidays.slice(0, 6).map((holiday) => (
-                <li key={holiday.id}>
-                  <time><strong>{formatAppDate(holiday.date, { day: '2-digit', month: undefined, year: undefined })}</strong><span>{formatAppDate(holiday.date, { month: 'short', day: undefined, year: undefined })}</span></time>
-                  <div><strong>{holiday.name}</strong><span>{formatAppDate(holiday.date, { weekday: 'long', day: undefined, month: undefined, year: undefined })}</span></div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
+        <HolidayCalendar holidays={holidays} />
       </div>
 
       <nav className="leave-workspace-tabs" aria-label="Leave workspace">

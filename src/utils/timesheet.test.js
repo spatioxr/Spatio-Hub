@@ -7,6 +7,8 @@ import {
   suggestedBreakRange,
   summarizeEmployeesForMonth,
   summarizeTimesheetDays,
+  timesheetLeaveRows,
+  timesheetLeaveLabel,
 } from './timesheet.js';
 
 test('monthBounds returns exact inclusive month boundaries', () => {
@@ -68,4 +70,43 @@ test('suggestedBreakRange creates a positive break inside the entry', () => {
     startedAt: '2026-08-12T12:45',
     endedAt: '2026-08-12T13:15',
   });
+});
+
+const leaveMembers = [
+  { employee_id: 'a', employee_department: 'Design' },
+  { employee_id: 'b', employee_department: 'Engineering' },
+];
+const projectedLeave = (employee_id, attendance_date, leave_fraction, extra = {}) => ({
+  employee_id, attendance_date, leave_fraction, is_working_day: true,
+  is_employment_day: true, ...extra,
+});
+
+test('timesheet leave respects person and department filters and retains leave-only people', () => {
+  const rows = [projectedLeave('a', '2026-08-31', 1), projectedLeave('b', '2026-09-01', '0.5'), projectedLeave('outside', '2026-09-01', 1)];
+  assert.equal(timesheetLeaveRows(rows, leaveMembers).length, 2);
+  assert.deepEqual(timesheetLeaveRows(rows, leaveMembers, 'b'), [rows[1]]);
+  assert.deepEqual(timesheetLeaveRows(rows, leaveMembers, 'all', 'Design'), [rows[0]]);
+  assert.deepEqual(timesheetLeaveRows(rows, leaveMembers, 'b', 'Design'), []);
+});
+
+test('timesheet leave excludes non-working, pre-employment and zero-charge dates', () => {
+  const rows = [
+    projectedLeave('a', '2026-09-01', 0),
+    projectedLeave('a', '2026-09-02', 1, { is_working_day: false }),
+    projectedLeave('a', '2026-09-03', 1, { is_employment_day: false }),
+    projectedLeave('a', '2026-09-04', 0.5),
+  ];
+  assert.deepEqual(timesheetLeaveRows(rows, leaveMembers), [rows[3]]);
+});
+
+test('full and half leave labels remain explicit alongside work without increasing worked totals', () => {
+  const half = projectedLeave('a', '2026-09-01', '0.5', { worked_seconds: 14400 });
+  const full = projectedLeave('b', '2026-09-01', 1);
+  assert.equal(timesheetLeaveLabel([half]), 'Half-day leave');
+  assert.equal(timesheetLeaveLabel([full]), 'Full-day leave');
+  assert.equal(timesheetLeaveLabel([half, full], true), '2 on leave');
+  assert.equal(timesheetLeaveLabel([]), '');
+  const entries = [{ employee_id: 'a', started_at: '2026-09-01T03:30:00Z', ended_at: '2026-09-01T07:30:00Z', worked_seconds: 14400 }];
+  assert.equal(summarizeTimesheetDays(entries, ['2026-09-01'])['2026-09-01'].workedSeconds, 14400);
+  assert.equal(summarizeEmployeesForMonth(entries, leaveMembers).find((member) => member.employee_id === 'b').workedSeconds, 0);
 });

@@ -364,6 +364,33 @@ const WorkStartModal = ({
             </label>
           )}
 
+          {!isSwitch && !isReopen && (
+            <div className="work-start-location">
+              <div className="work-start-location-copy">
+                <span className="work-start-label">Work location today</span>
+                <small id="work-location-help">
+                  {isWfh ? 'Working from home for today.' : 'Office is the default.'}
+                </small>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                className="work-start-wfh"
+                aria-checked={isWfh}
+                aria-label={isDelegated ? `Mark ${subject.name} as WFH today` : 'Mark today as WFH'}
+                aria-describedby="work-location-help"
+                disabled={submitting}
+                onClick={() => setIsWfh((current) => !current)}
+              >
+                <span>Working from home</span>
+                <span className="work-start-wfh-track" aria-hidden="true">
+                  <span />
+                </span>
+                <span className="work-start-wfh-state" aria-hidden="true">{isWfh ? 'On' : 'Off'}</span>
+              </button>
+            </div>
+          )}
+
           {error && <div className="work-start-error" role="alert">{error}</div>}
 
           <div className="work-start-footer">
@@ -377,20 +404,7 @@ const WorkStartModal = ({
                       ? 'Your original check-in and start-of-day plan will be preserved.'
                       : 'Select exactly one work context to continue.'}
               </span>
-              {!isSwitch && !isReopen && (
-                <button
-                  type="button"
-                  className={`work-start-wfh${isWfh ? ' active' : ''}`}
-                  aria-pressed={isWfh}
-                  onClick={() => setIsWfh((current) => !current)}
-                >
-                  <i className={isWfh ? 'ri-home-heart-fill' : 'ri-home-4-line'} aria-hidden="true" />
-                  {isWfh
-                    ? 'WFH today'
-                    : isDelegated ? `Mark ${subject.name} as WFH today` : 'Mark today as WFH'}
-                  {isWfh && <i className="ri-check-line" aria-hidden="true" />}
-                </button>
-              )}
+
             </div>
             <button type="submit" className="work-start-submit" disabled={!canSubmit}>
               <i

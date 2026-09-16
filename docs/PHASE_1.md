@@ -10,7 +10,7 @@ The source of truth for implementation work is the [Spatio HRMS issue tracker](h
 
 - An employee starts work by selecting either an assigned project or an internal activity.
 - Office is the implicit daily work mode. On the first start only, an employee
-  may use the secondary “Mark today as WFH” action; switches and same-day
+  may enable the clearly labelled, off-by-default “Working from home” switch; switches and same-day
   reopens preserve that attendance-day mode.
 - The first clock-in does not ask for a task description.
 - Employees may switch projects or activities during the day.

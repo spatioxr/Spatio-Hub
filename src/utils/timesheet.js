@@ -100,3 +100,22 @@ export const suggestedBreakRange = (startedAt, endedAt) => {
   const breakEndedAt = addMinutesToInput(breakStartedAt, Math.min(30, durationMinutes));
   return { startedAt: breakStartedAt, endedAt: breakEndedAt };
 };
+
+// The scoped Attendance projection already excludes unapproved requests,
+// weekends and holidays. Also exclude dates before employment began.
+export const timesheetLeaveRows = (rows, members, employeeId = 'all', department = 'all') => {
+  const visibleIds = new Set(members.filter((member) => (
+    (employeeId === 'all' || member.employee_id === employeeId)
+    && (department === 'all' || member.employee_department === department)
+  )).map((member) => member.employee_id));
+  return rows.filter((row) => visibleIds.has(row.employee_id)
+    && row.is_employment_day !== false
+    && row.is_working_day
+    && Number(row.leave_fraction) > 0);
+};
+
+export const timesheetLeaveLabel = (rows, shared = false) => {
+  if (!rows.length) return '';
+  if (shared) return `${rows.length} on leave`;
+  return Number(rows[0].leave_fraction) === 0.5 ? 'Half-day leave' : 'Full-day leave';
+};

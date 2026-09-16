@@ -10,6 +10,7 @@ import AppState from '../components/AppState';
 import TimesheetDailyReviews from '../components/TimesheetDailyReviews';
 import TimesheetReportEvent from '../components/TimesheetReportEvent';
 import useDailyReviews from '../hooks/useDailyReviews';
+import useTimesheetAttendance from '../hooks/useTimesheetAttendance';
 import { buildDayTimeline, filterDailyReviews, missingReportSummary } from '../utils/dailyReviews';
 import { AuthContext } from '../context/AuthContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
@@ -43,6 +44,8 @@ import {
   suggestedBreakRange,
   summarizeEmployeesForMonth,
   summarizeTimesheetDays,
+  timesheetLeaveRows,
+  timesheetLeaveLabel,
 } from '../utils/timesheet';
 import { isActiveScopeMember } from '../utils/people';
 
@@ -246,8 +249,6 @@ const Timesheets = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
-  const [monthAttendance, setMonthAttendance] = useState([]);
-  const [monthAttendanceLoading, setMonthAttendanceLoading] = useState(false);
   const [voidEditor, setVoidEditor] = useState(null);
   const [voidReason, setVoidReason] = useState('');
   const [voidError, setVoidError] = useState('');
@@ -353,39 +354,41 @@ const Timesheets = () => {
     ? user?.id
     : selectedEmployeeId === 'all' ? null : selectedEmployeeId;
 
-  useEffect(() => {
-    let active = true;
-    if (viewMode !== 'month' || !monthEmployeeId) {
-      setMonthAttendance([]);
-      setMonthAttendanceLoading(false);
-      return undefined;
-    }
-
-    const loadMonthAttendance = async () => {
-      setMonthAttendanceLoading(true);
-      const { data, error: attendanceError } = await supabase.rpc(
-        'scoped_attendance_month',
-        {
-          requested_start_date: currentMonth.start,
-          requested_end_date: dateKey(addDays(new Date(`${currentMonth.end}T12:00:00Z`), 1)),
-          requested_scope: scope,
-          requested_employee_id: monthEmployeeId,
-        },
-      );
-      if (!active) return;
-      setMonthAttendance(attendanceError ? [] : data || []);
-      if (attendanceError) {
-        setNotice({
-          type: 'error',
-          text: attendanceError.message || 'The attendance context for this month could not be loaded.',
-        });
-      }
-      setMonthAttendanceLoading(false);
-    };
-
-    void loadMonthAttendance();
-    return () => { active = false; };
-  }, [currentMonth.end, currentMonth.start, monthEmployeeId, scope, viewMode]);
+  const attendance = useTimesheetAttendance({
+    start: periodBounds.start,
+    end: periodBounds.end,
+    scope,
+    members,
+    loading,
+  });
+  const leaveRows = useMemo(() => timesheetLeaveRows(
+    attendance.rows, members, selectedEmployeeId, selectedDepartment,
+  ), [attendance.rows, members, selectedEmployeeId, selectedDepartment]);
+  const leaveForDay = (day) => leaveRows.filter((row) => row.attendance_date === day);
+  const leaveLabelForDay = (day) => timesheetLeaveLabel(
+    leaveForDay(day), scope !== 'personal' && selectedEmployeeId === 'all',
+  );
+  const selectedLeave = leaveForDay(selectedDate);
+  const leaveContext = (
+    <div className="timesheet-leave-context" aria-live="polite">
+      {attendance.loading ? <p>Loading approved leave…</p> : attendance.error ? (
+        <p role="alert">Approved leave unavailable: {attendance.error}{' '}
+          <button type="button" className="btn btn-outline" onClick={attendance.retry}>Retry leave</button>
+        </p>
+      ) : selectedLeave.length > 0 ? (
+        <>
+          <strong>Approved leave</strong>
+          <ul>{selectedLeave.map((row) => (
+            <li key={`${row.employee_id}:${row.attendance_date}`}>
+              {scope !== 'personal' ? `${row.employee_name} · ` : ''}
+              {timesheetLeaveLabel([row])}
+            </li>
+          ))}</ul>
+          <small>Leave is separate from worked hours. Project and activity filters apply to work entries only.</small>
+        </>
+      ) : null}
+    </div>
+  );
 
   const orderedMembers = useMemo(() => (
     [...members].sort((left, right) => (
@@ -568,8 +571,8 @@ const Timesheets = () => {
   }, [filteredEntries, members, selectedDepartment]);
 
   const monthAttendanceByDate = useMemo(
-    () => new Map(monthAttendance.map((row) => [row.attendance_date, row])),
-    [monthAttendance],
+    () => new Map(attendance.rows.filter((row) => row.employee_id === monthEmployeeId).map((row) => [row.attendance_date, row])),
+    [attendance.rows, monthEmployeeId],
   );
 
   const filteredVoidedEntries = useMemo(() => voidedEntries.filter((entry) => {
@@ -1327,7 +1330,8 @@ const Timesheets = () => {
                     <small>
                       {summary.sessionCount
                         ? `${summary.sessionCount} session${summary.sessionCount === 1 ? '' : 's'}`
-                        : 'No entries'}
+                        : leaveLabelForDay(key) ? 'No work entries' : 'No entries'}
+                      {leaveLabelForDay(key) && <><br />{leaveLabelForDay(key)}</>}
                     </small>
                     {isToday && <i className="timesheet-today-dot" aria-label="Today" />}
                   </button>
@@ -1362,7 +1366,7 @@ const Timesheets = () => {
                     <strong>
                       {selectedSummary.hasOpenSession
                         ? 'Open entry'
-                        : selectedSummary.sessionCount ? 'Recorded' : 'No time'}
+                        : selectedSummary.sessionCount ? 'Recorded' : leaveLabelForDay(selectedDate) || 'No time'}
                     </strong>
                   </span>
                   {selectedDayWorkMode && (
@@ -1383,7 +1387,8 @@ const Timesheets = () => {
               </div>
 
               {reportNotice}
-              {dayEvents.length === 0 ? (
+              {leaveContext}
+              {dayEvents.length === 0 && selectedLeave.length > 0 ? null : dayEvents.length === 0 ? (
                 <AppState
                   type="empty"
                   title={
@@ -1530,7 +1535,8 @@ const Timesheets = () => {
                   <span className="page-eyebrow">People</span>
                   <h3>Month summary</h3>
                 </div>
-                <small>Select a person to open their calendar.</small>
+                <small>{attendance.loading ? 'Loading approved leave…' : 'Select a person to open their calendar.'}</small>
+                {attendance.error && <p role="alert">Approved leave unavailable. <button type="button" className="btn btn-outline" onClick={attendance.retry}>Retry leave</button></p>}
               </header>
               {monthEmployeeSummaries.length === 0 ? (
                 <AppState
@@ -1553,7 +1559,7 @@ const Timesheets = () => {
                       </span>
                       <span><small>Worked</small><strong>{formatDuration(member.workedSeconds)}</strong></span>
                       <span><small>Breaks</small><strong>{formatDuration(member.breakSeconds)}</strong></span>
-                      <span><small>Days</small><strong>{member.activeDays}</strong></span>
+                      <span><small>Days worked / leave</small><strong>{member.activeDays} / {attendance.loading || attendance.error ? '—' : leaveRows.filter((row) => row.employee_id === member.employee_id).reduce((total, row) => total + Number(row.leave_fraction), 0)}</strong></span>
                       <i className="ri-arrow-right-s-line" aria-hidden="true" />
                     </button>
                   ))}
@@ -1567,7 +1573,7 @@ const Timesheets = () => {
                   {monthDisplayEmployee?.employee_name || 'Selected person'}
                   {monthDisplayEmployee?.employee_code ? ` · ${monthDisplayEmployee.employee_code}` : ''}
                 </span>
-                {monthAttendanceLoading && <small>Loading day context…</small>}
+                {attendance.loading && <small>Loading day context…</small>}
               </div>
               <div className="timesheet-month-weekdays" aria-hidden="true">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <span key={day}>{day}</span>)}
@@ -1578,16 +1584,16 @@ const Timesheets = () => {
                   const summary = daySummaries[day];
                   const attendanceRow = monthAttendanceByDate.get(day);
                   const attendanceState = resolveAttendanceDayState(attendanceRow, dateKey(new Date()));
-                  const stateLabel = summary?.sessionCount
+                  const stateLabel = leaveLabelForDay(day) || (summary?.sessionCount
                     ? summary.hasOpenSession ? 'Open entry' : 'Recorded'
-                    : activeFilters.length > 0 ? 'No match' : MONTH_DAY_STATE_COPY[attendanceState];
+                    : activeFilters.length > 0 ? 'No match' : MONTH_DAY_STATE_COPY[attendanceState]);
                   return (
                     <button
                       type="button"
                       key={day}
                       className={`timesheet-month-day timesheet-month-day--${attendanceState}${day === selectedDate ? ' timesheet-month-day--selected' : ''}`}
                       aria-pressed={day === selectedDate}
-                      aria-label={`${formatAppDate(day, { weekday: 'long', month: 'long' })}: ${summary?.sessionCount ? formatDuration(summary.workedSeconds) : stateLabel}`}
+                      aria-label={`${formatAppDate(day, { weekday: 'long', month: 'long' })}: ${stateLabel}${summary?.sessionCount ? `, ${formatDuration(summary.workedSeconds)} worked` : ''}`}
                       onClick={() => setSelectedDate(day)}
                     >
                       <span>{Number(day.slice(-2))}</span>
@@ -1608,7 +1614,7 @@ const Timesheets = () => {
                   <div className="timesheet-day-totals">
                     <span className={`timesheet-day-status${selectedSummary.hasOpenSession ? ' timesheet-day-status--open' : ''}`}>
                       <small>Day status</small>
-                      <strong>{selectedSummary.hasOpenSession ? 'Open entry' : selectedSummary.sessionCount ? 'Recorded' : 'No time'}</strong>
+                      <strong>{selectedSummary.hasOpenSession ? 'Open entry' : selectedSummary.sessionCount ? 'Recorded' : leaveLabelForDay(selectedDate) || 'No time'}</strong>
                     </span>
                     <span><small>Worked</small><strong>{formatDuration(selectedSummary.workedSeconds)}</strong></span>
                     <span><small>Breaks</small><strong>{formatDuration(selectedSummary.breakSeconds)}</strong></span>
@@ -1620,7 +1626,8 @@ const Timesheets = () => {
                   </div>
                 </div>
                 {reportNotice}
-              {dayEvents.length === 0 ? (
+              {leaveContext}
+              {dayEvents.length === 0 && selectedLeave.length > 0 ? null : dayEvents.length === 0 ? (
                   <AppState type="empty" title="No time recorded" message="Choose another date or add time if you are authorised." compact />
                 ) : (
                   <ol className="timesheet-timeline timesheet-month-timeline">

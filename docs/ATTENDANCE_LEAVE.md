@@ -116,3 +116,34 @@ holiday, record downtime, approve another person's request, adjust another
 person's balance and search their approved/pending/rejected history. Verify
 self-review/self-adjustment are denied, Manager/Employee scope is unchanged,
 and both desktop and narrow-screen controls remain usable.
+
+## Feedback 46: approved leave in Timesheets
+
+Timesheets reuses `scoped_attendance_month` for approved leave in personal,
+managed-team and organisation scopes (HRMS-021/022/048/055). Week days and
+week/month day details show full- or half-day leave, including days with no
+work entries and half-day leave alongside recorded work. Monthly team summaries
+show separate days-worked and leave-day totals. Leave never adds worked or break
+seconds. Person and department filters apply to leave; project/activity filters
+apply only to work entries because leave belongs to a person, not a project.
+Weekends, holidays and pre-employment days carry no leave charge. Leave reasons
+and types are not displayed. The existing database projection enforces scope and
+approved-only visibility; no new database grants or migrations are required.
+
+Context reads use at most four concurrent person requests and discard stale
+results on navigation. Loading and failed reads are explicit, with retry, so an
+unavailable leave total is never displayed as zero. Feedback remains open pending
+release and user verification.
+
+## Feedback 54: holiday explorer on Leave
+
+The Leave sidebar shows the next three holidays and an Explore holidays button.
+The button opens a spacious Month/Year dialog: Month shows one calendar and every
+holiday in that month; Year shows twelve mini calendars and the full chronological
+list for that year, including past dates. Month headings drill into Month view.
+Previous/next and Today navigation preserve the selected view. Holiday dots and
+names accompany colour highlights; today has a separate outline. Empty periods
+state that no company holidays are scheduled. The dialog supports Escape, focus
+trapping and return to its trigger, with the background inert while open. Its
+content scrolls within the viewport and stacks on small screens. It reads the
+existing RLS-protected holiday data; holiday editing and Attendance are unchanged.
