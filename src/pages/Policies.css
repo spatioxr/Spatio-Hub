@@ -37,13 +37,14 @@
 .policy-reader-tools span { margin-right: auto; }
 .policy-reader-tools a { color: #246547; text-decoration: underline; }
 .policy-pdf-viewer { border: 1px solid #dde7e0; border-top: 0; background: #e8ece9; }
-.policy-pdf-controls, .policy-pdf-controls > div, .policy-pdf-controls label { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.policy-pdf-controls, .policy-pdf-navigation, .policy-page-jump, .policy-pdf-controls label { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .policy-pdf-controls { justify-content: space-between; padding: 10px 12px; background: #f7faf8; font-size: 12px; }
 .policy-pdf-controls select { padding: 8px; border: 1px solid #dce5df; border-radius: 8px; background: #fff; font: inherit; }
-.policy-pdf-scroll { overflow: auto; height: 68vh; min-height: 340px; padding: 12px; }
+.policy-pdf-scroll { overflow: auto; height: 75dvh; min-height: 340px; padding: 12px; overscroll-behavior: contain; overflow-anchor: none; }
 .policy-pdf-page { position: relative; background: #fff; margin: 0 auto; box-shadow: 0 2px 9px #0002; }
 .policy-pdf-page canvas { display: block; }
-.policy-pdf-loading { padding: 8px 12px; font-size: 12px; }
+.policy-pdf-stage { position: relative; min-height: 0; }
+.policy-pdf-loading { position: absolute; inset: 24px 0 auto; z-index: 2; text-align: center; padding: 12px; font-size: 13px; color: #52665a; }
 .policy-pdf-text { position: absolute; inset: 0; overflow: clip; line-height: 1; text-align: initial; letter-spacing: normal; word-spacing: normal; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; --min-font-size: 1; --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size)); --min-font-size-inv: calc(1 / var(--min-font-size)); }
 .policy-pdf-text :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; user-select: text; }
 .policy-pdf-text > :not(.markedContent), .policy-pdf-text .markedContent span:not(.markedContent) { z-index: 1; --font-height: 0; font-size: calc(var(--text-scale-factor) * var(--font-height)); --scale-x: 1; --rotate: 0deg; transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv)); }
@@ -69,7 +70,31 @@
   .policy-section-heading { flex-direction: column; }
   .policy-reader-tools { gap: 10px; }
   .policy-reader-tools span { flex-basis: 100%; }
-  .policy-pdf-scroll { height: 65vh; }
+  .policy-pdf-scroll { height: 72dvh; }
   .policy-acknowledge .btn { width: 100%; }
   .policy-report { padding: 14px; }
+}
+
+/* Keep page actions outside the scrolling document at both ends. */
+.policy-pdf-viewer { border-radius: 0 0 14px 14px; overflow: hidden; }
+.policy-pdf-controls { gap: 12px; border-bottom: 1px solid #dce5df; }
+.policy-pdf-navigation { flex-wrap: nowrap; }
+.policy-page-jump { flex-wrap: nowrap; margin: 0; white-space: nowrap; }
+.policy-page-jump input { width: 54px; padding: 8px 4px; border: 1px solid #dce5df; border-radius: 7px; background: #fff; text-align: center; font: inherit; }
+.policy-expand { margin-left: auto; }
+.policy-pdf-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: #fff; padding: 12px; border-top: 1px solid #dce5df; font-size: 12px; }
+.policy-pdf-hint { color: #65746c; }
+.policy-pdf-viewer--expanded { position: fixed; inset: 12px; z-index: 1200; display: flex; flex-direction: column; border: 1px solid #cad7cf; border-radius: 14px; box-shadow: 0 0 0 100vmax #14291ed9; }
+.policy-pdf-viewer--expanded .policy-pdf-stage { flex: 1; overflow: hidden; }
+.policy-pdf-viewer--expanded .policy-pdf-scroll { height: 100%; min-height: 0; box-sizing: border-box; }
+.policy-pdf-viewer :is(button, input, select, [tabindex]):focus-visible { outline: 3px solid #28704c; outline-offset: 2px; }
+@media (max-width: 600px) {
+  .policy-pdf-controls { gap: 8px; }
+  .policy-pdf-controls > .policy-pdf-navigation { width: 100%; justify-content: space-between; }
+  .policy-pdf-navigation { gap: 6px; }
+  .policy-pdf-navigation .btn { padding: 8px; min-height: 40px; }
+  .policy-page-jump, .policy-page-jump label { gap: 5px; }
+  .policy-expand { margin-left: 0; margin-right: auto; }
+  .policy-pdf-footer { justify-content: center; }
+  .policy-pdf-viewer--expanded { inset: 6px; }
 }

@@ -109,3 +109,26 @@ deploying the frontend. Test an actual upload/download through the destination
 Storage API: isolated PostgreSQL tests verify SQL/RLS, not the hosted Storage
 service. Roll back by reverting the Policies UI; retain its private bucket,
 tables, grants and all acknowledgement history. Do not drop stored documents.
+
+## Reader UX — feedback items 52 and 53
+
+- The embedded reader uses a larger viewport; **Expand reader** fills the window
+  on desktop and mobile. Escape or **Exit reading view** returns to the embedded
+  reader with the current page retained and focus returned to the expand button.
+- Previous/Next controls appear above and below the document. Enter a page number
+  and press Enter to jump directly; invalid destinations leave the page unchanged.
+  Left/Right keys navigate when the PDF scroll region is focused at fit-to-width;
+  at higher zoom they remain available for horizontal scrolling.
+- Every page change resets both scroll axes after rendering completes, including
+  Previous, Next, and direct jumps. Zoom and viewport resizing do not deliberately
+  reset the current page's scroll position. Loading feedback does not shift controls.
+- Acknowledgement rules, version history, downloads, and permissions are unchanged.
+
+Regression checks: with a multipage PDF, scroll to the bottom and navigate in both
+directions or jump to a page; each destination must open at its top-left. Repeat
+at increased zoom and at 390px width. Verify first/last boundaries, invalid page
+input, expanded view, Escape, focus restoration, and no horizontal page overflow.
+
+Verification: `npm run check` passed. A synthetic three-page PDF browser check
+passed the navigation and expanded-view cases above at desktop and 390px widths.
+These are local frontend checks; no release or tracker status update is included.

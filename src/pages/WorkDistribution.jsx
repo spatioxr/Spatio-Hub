@@ -8,10 +8,14 @@ import React, {
 } from 'react';
 import AppState from '../components/AppState';
 import Layout from '../components/Layout';
+import './WorkDistribution.css';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { getRole, ROLES } from '../utils/rbac';
 import {
+  ANALYTICS_EXPORT_TYPES,
+  buildDailyEmployeeCsv,
+  buildOrganisationDowntimeCsv,
   buildWorkDistributionCsv,
   workDistributionCsvFilename,
 } from '../utils/workDistributionCsv';
@@ -151,6 +155,7 @@ const WorkDistribution = () => {
   const [entries, setEntries] = useState([]);
   const [downtimeEvents, setDowntimeEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exportType, setExportType] = useState('entries');
   const [error, setError] = useState('');
   const [rangeError, setRangeError] = useState('');
   const [filters, setFilters] = useState({
@@ -342,16 +347,21 @@ const WorkDistribution = () => {
     });
   };
 
+  const exportCount = exportType === 'downtime' ? downtimeEvents.length : visibleEntries.length;
   const exportCsv = () => {
-    if (visibleEntries.length === 0 && downtimeEvents.length === 0) return;
+    if (loading || error || exportCount === 0) return;
 
-    const csv = buildWorkDistributionCsv(visibleEntries, summary, downtimeEvents);
+    const csv = exportType === 'downtime'
+      ? buildOrganisationDowntimeCsv(downtimeEvents)
+      : exportType === 'daily'
+        ? buildDailyEmployeeCsv(visibleEntries)
+        : buildWorkDistributionCsv(visibleEntries);
     const downloadUrl = URL.createObjectURL(new Blob([csv], {
       type: 'text/csv;charset=utf-8',
     }));
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = workDistributionCsvFilename(appliedRange);
+    link.download = workDistributionCsvFilename(appliedRange, exportType);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -385,18 +395,28 @@ const WorkDistribution = () => {
         ? 'Understand where time is going across projects and people assigned to projects you manage.'
         : 'Understand where team time is going across projects, internal activities, departments, and people.'}
       actions={(
-        <button
-          type="button"
-          className="btn btn-outline analytics-export-button"
-          onClick={exportCsv}
-          disabled={loading || Boolean(error) || (visibleEntries.length === 0 && downtimeEvents.length === 0)}
-          title={visibleEntries.length > 0 || downtimeEvents.length > 0
-            ? `Export ${visibleEntries.length} filtered work ${visibleEntries.length === 1 ? 'entry' : 'entries'} and ${downtimeEvents.length} downtime ${downtimeEvents.length === 1 ? 'event' : 'events'}`
-            : 'No work or downtime is available to export'}
-        >
-          <i className="ri-download-2-line" />
-          Export CSV
-        </button>
+        <div className="analytics-export">
+          <div className="analytics-export-controls">
+            <label htmlFor="analytics-export-format">Export</label>
+            <select id="analytics-export-format" value={exportType} onChange={(event) => setExportType(event.target.value)} aria-describedby="analytics-export-help">
+              {ANALYTICS_EXPORT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+            </select>
+            <button type="button" className="btn btn-outline analytics-export-button" onClick={exportCsv}
+              disabled={loading || Boolean(error) || exportCount === 0}>
+              <i className="ri-download-2-line" aria-hidden="true" /> Export CSV
+            </button>
+          </div>
+          <p id="analytics-export-help">
+            {exportType === 'downtime'
+              ? 'Organisation-wide events for this period; work filters do not apply.'
+              : exportType === 'daily'
+                ? 'Filtered work, grouped by employee and session start date (IST).'
+                : 'One row per filtered work session. Dates and times are in IST.'}
+            {' '}Hours are decimal (1.50 = 1h 30m).
+            {exportType !== 'downtime' && ' In-progress hours reflect the last data load.'}
+            {!loading && !error && exportCount === 0 && ' No matching records to export.'}
+          </p>
+        </div>
       )}
     >
       <form className="card analytics-range-panel" onSubmit={applyRange}>

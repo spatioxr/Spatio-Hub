@@ -1,0 +1,11 @@
+.analytics-export { max-width: 560px; }
+.analytics-export-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.analytics-export-controls label { font-size: 13px; font-weight: 600; }
+.analytics-export-controls select { min-width: 0; max-width: 100%; padding: 10px 12px; border: 1px solid #dce5df; border-radius: 8px; background: #fff; font: inherit; font-size: 13px; }
+.analytics-export p { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: #65746c; text-align: right; }
+@media (max-width: 600px) {
+  .analytics-export-controls { justify-content: flex-start; }
+  .analytics-export-controls select { flex: 1; }
+  .analytics-export-controls .analytics-export-button { flex-basis: 100%; width: 100%; }
+  .analytics-export p { text-align: left; }
+}
