@@ -1,3 +1,5 @@
+import useListSort from '../hooks/useListSort';
+import ListSortControls from '../components/ListSortControls';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import AppState from '../components/AppState';
@@ -99,6 +101,7 @@ const ActivityDrawer = ({
 };
 
 const Activities = () => {
+  const listSort = useListSort('activityList', [{ key: 'name', label: 'Activity name', value: (item) => item.name }, { key: 'status', label: 'Status', value: (item) => item.archived_at ? 'Archived' : 'Active' }]);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -289,7 +292,8 @@ const Activities = () => {
           />
         ) : (
           <div className="activity-list">
-            {filteredActivities.map((activity) => (
+            <ListSortControls sort={listSort} />
+            {listSort.sort(filteredActivities).map((activity) => (
               <article
                 className={`activity-row${activity.archived_at ? ' activity-row--archived' : ''}`}
                 key={activity.id}

@@ -14,9 +14,10 @@ const COMMON_ITEMS = [
 ];
 
 const MANAGE_ITEMS = [
+  { path: '/analytics/workload', name: 'Workload & Costing', icon: 'ri-scales-3-line', permission: PERMISSIONS.VIEW_WORK_DISTRIBUTION },
   { path: '/people', name: 'People', icon: 'ri-team-line', permission: PERMISSIONS.VIEW_PEOPLE },
   { path: '/projects', name: 'Projects', icon: 'ri-briefcase-4-line', permission: PERMISSIONS.MANAGE_OWNED_PROJECT_TEAM },
-  { path: '/analytics', name: 'Analytics', icon: 'ri-bar-chart-box-line', permission: PERMISSIONS.VIEW_WORK_DISTRIBUTION },
+  { path: '/analytics', end: true, name: 'Analytics', icon: 'ri-bar-chart-box-line', permission: PERMISSIONS.VIEW_WORK_DISTRIBUTION },
 ];
 
 const OBSERVER_ITEMS = [
@@ -33,16 +34,20 @@ const SETTINGS_ITEMS = [
   { path: '/admin-settings/workday-check-ins', name: 'Workday Check-ins', icon: 'ri-sun-line', permission: PERMISSIONS.MANAGE_BOS_EOD_EXCEPTIONS },
 ];
 
-const NavigationLink = ({ item }) => (
-  <NavLink
-    to={item.path}
-    end={item.end}
-    className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
-  >
-    <i className={item.icon} aria-hidden="true" />
-    <span>{item.name}</span>
-  </NavLink>
-);
+const NavigationLink = ({ item }) => {
+  const { pathname } = useLocation();
+  const parentActive = item.landing && pathname === item.path;
+  return (
+    <NavLink
+      to={item.landing || item.path}
+      end={item.end}
+      className={({ isActive }) => `sidebar-link${isActive || parentActive ? ' active' : ''}`}
+    >
+      <i className={item.icon} aria-hidden="true" />
+      <span>{item.name}</span>
+    </NavLink>
+  );
+};
 
 const NavigationGroup = ({ label, items, separated = false }) => {
   if (items.length === 0) return null;

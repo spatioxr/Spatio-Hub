@@ -71,6 +71,7 @@ external PostgreSQL connection.
 | `/track-work` | Live own-workday actions and today's timeline |
 | `/attendance` | Read-only factual attendance, approved leave, and holiday calendar |
 | `/timesheets` | Personal, team, and organisation timesheets |
+| `/analytics/workload` | Weekly workload, fixed monthly costing allocations, project detail and review flags |
 | `/projects` | Project definitions and scoped team assignments |
 | `/activities` | Internal activity catalogue |
 | `/people` | Permission-scoped employee directory |
@@ -85,6 +86,7 @@ All other routes redirect to the dashboard.
 ## Project references
 
 - [Phase 1 scope and decisions](docs/PHASE_1.md)
+- [Workload and costing contract](docs/WORKLOAD_COSTING.md)
 - [Phase 1 permission matrix](docs/PERMISSIONS.md)
 - [External Observer accounts](docs/EXTERNAL_ACCESS.md)
 - [Attendance and Leave product/test contract](docs/ATTENDANCE_LEAVE.md)

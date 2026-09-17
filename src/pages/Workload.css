@@ -1,0 +1,309 @@
+.workload-toolbar,
+.workload-actions,
+.workload-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.workload-toolbar,
+.workload-heading {
+  justify-content: space-between;
+}
+.workload-toolbar {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+.workload-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.workload-toolbar input,
+.workload-toolbar select {
+  padding: 8px;
+  border: 1px solid var(--border-color, #dfe3e8);
+  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  color: inherit;
+  font: inherit;
+}
+.workload-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0 20px;
+  overflow-x: auto;
+}
+.workload-tabs button {
+  padding: 10px 18px;
+  border: 1px solid var(--border-color, #dfe3e8);
+  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.workload-tabs button[aria-pressed='true'] {
+  background: #194d44;
+  color: white;
+  border-color: #194d44;
+}
+.workload-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.workload-kpis > div {
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, #e1e5e9);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.workload-kpis strong {
+  font-size: 30px;
+  letter-spacing: -0.8px;
+}
+.workload-kpis small,
+.workload-explanation,
+.workload-table small,
+.workload-balances small {
+  color: var(--text-muted, #667085);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.workload-explanation {
+  margin: 0 0 20px;
+  max-width: 1050px;
+}
+.workload-section {
+  padding: 22px;
+  margin-bottom: 20px;
+  min-width: 0;
+}
+.workload-section h2 {
+  font-size: 19px;
+  margin: 0 0 16px;
+}
+.workload-section h3 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.workload-section p {
+  line-height: 1.65;
+  margin: 8px 0 14px;
+}
+.workload-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.workload-table {
+  border-collapse: collapse;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+}
+.workload-table th {
+  font-weight: 600;
+  background: #f5f8f7;
+  color: #475467;
+  white-space: nowrap;
+}
+.workload-table th,
+.workload-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border-color, #e7ebef);
+  vertical-align: top;
+}
+.workload-table td:not(:first-child) {
+  font-variant-numeric: tabular-nums;
+}
+.workload-table small {
+  display: block;
+  max-width: 240px;
+  margin-top: 5px;
+}
+.workload-text-button {
+  border: 0;
+  background: none;
+  font: inherit;
+  color: #25685d;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.workload-project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.workload-project-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  padding: 20px;
+  border: 1px solid #dfe7e4;
+  border-radius: 10px;
+  background: #f8fbfa;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.workload-project-card strong {
+  font-size: 17px;
+}
+.workload-issue,
+.workload-day {
+  padding: 18px 0;
+  border-top: 1px solid var(--border-color, #e1e5e9);
+}
+.workload-actions .btn {
+  font-size: 12px;
+}
+.workload-actions > span {
+  font-size: 12px;
+  color: var(--text-muted, #667085);
+}
+.workload-flag {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #fff0df;
+  color: #8b470c;
+  margin: 0 6px 6px 0;
+}
+.workload-flag--workload {
+  background: #eaf0fd;
+  color: #335780;
+}
+.workload-flag--confirmed {
+  background: #e8f4ed;
+  color: #265d3d;
+}
+.workload-balances {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  background: #f4f8f6;
+  padding: 18px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+.workload-balances p {
+  margin: 8px 0;
+}
+.workload-notice {
+  background: #edf7ef;
+  padding: 14px;
+  border-radius: 8px;
+}
+.workload-error {
+  color: #b42318;
+  background: #fff0ed;
+  padding: 12px;
+}
+.workload-review-dialog {
+  padding: 24px;
+  max-width: 540px;
+  overflow: auto;
+}
+.workload-review-dialog form {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+.workload-review-dialog p {
+  line-height: 1.6;
+}
+.workload-leave {
+  margin-top: 24px;
+}
+.workload-section summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.workload-settings {
+  margin-top: 24px;
+}
+.workload-settings form {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.workload-settings .people-field {
+  flex: 1;
+  min-width: 170px;
+}
+.workload-settings .people-field input {
+  width: 100%;
+}
+@media (max-width: 700px) {
+  .workload-kpis {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .workload-kpis > div {
+    padding: 15px;
+  }
+  .workload-kpis strong {
+    font-size: 25px;
+  }
+  .workload-section {
+    padding: 15px;
+  }
+  .workload-toolbar {
+    padding: 14px;
+  }
+  .workload-project-grid {
+    grid-template-columns: 1fr;
+  }
+  .workload-heading {
+    align-items: flex-start;
+  }
+  .workload-review-dialog {
+    width: 100%;
+    padding: 20px;
+  }
+  .workload-table {
+    min-width: 600px;
+  }
+}
+
+.drawer.workload-timesheet-drawer { width: min(1200px, 96vw); max-width: 96vw; height: 95vh; display: flex; flex-direction: column; }
+.workload-timesheet-drawer iframe { flex: 1; width: 100%; border: 0; min-height: 0; }
+
+.workload-section select { padding: 8px 12px; border: 1px solid #cbd5d1; border-radius: 8px; background: white; font: inherit; margin: 8px 0 16px; }
+
+.workload-correction-backdrop { display: flex; justify-content: flex-end; padding: 16px; }
+.drawer.workload-timesheet-drawer { position: relative; inset: auto; width: min(1120px, 100%); max-width: 100%; height: 100%; border-radius: 16px; padding: 20px; gap: 12px; overflow: hidden; }
+.workload-timesheet-drawer .workload-heading { flex-shrink: 0; }
+.workload-timesheet-drawer h2, .workload-timesheet-drawer p { margin: 0; }
+.workload-timesheet-drawer > p { color: #52655c; font-size: 14px; }
+.workload-timesheet-drawer iframe { border: 1px solid #e1e8e4; border-radius: 10px; background: #f7f9f8; }
+.workload-guide { margin-top: 24px; line-height: 1.65; }
+.workload-guide summary { font-weight: 650; cursor: pointer; }
+.workload-guide p { max-width: 82ch; margin: 12px 0; color: #43584c; }
+.workload-guide h3 { font-size: 16px; margin: 0 0 8px; }
+.workload-guide-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin: 24px 0; }
+.workload-guide-steps section { padding: 16px; border: 1px solid #e1e8e4; border-radius: 12px; }
+.workload-guide-example { padding: 16px 20px; background: #f0f7f3; border-radius: 12px; }
+@media (max-width: 760px) { .workload-guide-steps { grid-template-columns: 1fr; gap: 12px; } .workload-correction-backdrop { padding: 8px; } .drawer.workload-timesheet-drawer { padding: 14px; } }
+
+.workload-project-filters { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; }
+.workload-project-filters label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600; flex: 1 1 260px; }
+.workload-project-filters input, .workload-project-filters select { width: 100%; min-height: 42px; margin: 0; padding: 8px 12px; border: 1px solid #cbd5d1; border-radius: 8px; background: white; font: inherit; }
+.workload-project-note { color: #52655c; font-size: 13px; line-height: 1.6; margin: 12px 0; }
+.workload-project-table caption { text-align: left; padding: 8px 0 12px; }
+.workload-sort-button { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.workload-sort-button:focus-visible { outline: 2px solid #19614a; outline-offset: 4px; }
+.workload-project-table { min-width: 920px; }

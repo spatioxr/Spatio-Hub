@@ -1,3 +1,5 @@
+import useListSort from '../hooks/useListSort';
+import ListSortControls from '../components/ListSortControls';
 import React, {
   useCallback,
   useContext,
@@ -151,6 +153,7 @@ const DistributionChart = ({
 };
 
 const WorkDistribution = () => {
+  const listSort = useListSort('entryList', [{ key: 'date', label: 'Start time', value: (item) => Date.parse(item.started_at) }, { key: 'person', label: 'Person', value: (item) => item.employee_name }, { key: 'context', label: 'Project / activity', value: (item) => item.context_label }, { key: 'hours', label: 'Worked time', value: (item) => Number(item.worked_seconds) }], 'date', 'desc');
   const { user } = useContext(AuthContext);
   const isManager = getRole(user) === ROLES.MANAGER;
   const analyticsScope = isManager ? 'managed' : 'organisation';
@@ -728,8 +731,9 @@ const WorkDistribution = () => {
                     </div>
                   )}
                 </div>
+                <ListSortControls sort={listSort} />
                 <ol className="analytics-entry-list" ref={entryListRef}>
-                  {visibleEntries.map((entry) => (
+                  {listSort.sort(visibleEntries).map((entry) => (
                     <li key={entry.work_entry_id} className="analytics-entry">
                       <span className={`analytics-entry-icon analytics-entry-icon--${entry.context_type}`}>
                         <i className={entry.context_type === 'project' ? 'ri-folder-3-line' : 'ri-flashlight-line'} />

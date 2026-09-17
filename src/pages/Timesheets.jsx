@@ -1,11 +1,16 @@
+import useListSort from '../hooks/useListSort';
+import ListSortControls from '../components/ListSortControls';
 import React, {
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import Layout from '../components/Layout';
+import { useLocation } from 'react-router-dom';
+import { timesheetInitialSelection } from '../utils/workload';
 import AppState from '../components/AppState';
 import TimesheetDailyReviews from '../components/TimesheetDailyReviews';
 import TimesheetReportEvent from '../components/TimesheetReportEvent';
@@ -48,6 +53,8 @@ import {
   timesheetLeaveLabel,
 } from '../utils/timesheet';
 import { isActiveScopeMember } from '../utils/people';
+
+const EmbeddedTimesheetLayout = ({ children, actions }) => <main style={{ padding: 16 }}>{actions}{children}</main>;
 
 const SCOPE_COPY = {
   personal: {
@@ -209,6 +216,7 @@ const defaultManualForm = (selectedDate) => ({
 });
 
 const Timesheets = () => {
+  const listSort = useListSort('monthPeople', [{ key: 'name', label: 'Person', value: (item) => item.employee_name }, { key: 'department', label: 'Department', value: (item) => item.employee_department }, { key: 'worked', label: 'Worked time', value: (item) => item.workedSeconds }, { key: 'breaks', label: 'Break time', value: (item) => item.breakSeconds }, { key: 'days', label: 'Days worked', value: (item) => item.activeDays }], 'name', 'asc');
   const { user } = useContext(AuthContext);
   const { status: workStatus } = useContext(WorkSessionContext);
   const userRole = getRole(user);
@@ -222,21 +230,33 @@ const Timesheets = () => {
     }
     return scopes;
   }, [user]);
-  const [scope, setScope] = useState('personal');
+  const location = useLocation();
+  const initial = timesheetInitialSelection(location.search, availableScopes, dateKey(new Date()));
+  const [scope, setScope] = useState(initial.scope);
   const [periodReviewOpen, setPeriodReviewOpen] = useState(false);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState('all');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(initial.employee);
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedProjectId, setSelectedProjectId] = useState('all');
   const [selectedActivityId, setSelectedActivityId] = useState('all');
   const [viewMode, setViewMode] = useState('week');
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
-  const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(`${initial.date}T12:00:00Z`)));
+  const [selectedDate, setSelectedDate] = useState(initial.date);
   const [entries, setEntries] = useState([]);
   const [voidedEntries, setVoidedEntries] = useState([]);
   const [members, setMembers] = useState([]);
   const [filterProjects, setFilterProjects] = useState([]);
   const [filterActivities, setFilterActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const openedReviewDay = useRef(false);
+  useEffect(() => {
+    if (loading || openedReviewDay.current || new URLSearchParams(location.search).get('workloadReview') !== '1') return;
+    const detail = document.getElementById('timesheet-work-detail');
+    if (detail) {
+      detail.scrollIntoView({ block: 'start' });
+      openedReviewDay.current = true;
+    }
+  }, [loading, location.search]);
+
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);
   const [manualEditor, setManualEditor] = useState(null);
@@ -1026,8 +1046,10 @@ const Timesheets = () => {
     </div>
   );
 
+  const TimesheetLayout = new URLSearchParams(location.search).get('workloadReview') === '1' ? EmbeddedTimesheetLayout : Layout;
+
   return (
-    <Layout
+    <TimesheetLayout
       title="Timesheets"
       eyebrow={scopeCopy.eyebrow}
       heading={scopeCopy.heading}
@@ -1547,7 +1569,8 @@ const Timesheets = () => {
                 />
               ) : (
                 <div className="timesheet-month-people">
-                  {monthEmployeeSummaries.map((member) => (
+                  <ListSortControls sort={listSort} />
+                  {listSort.sort(monthEmployeeSummaries).map((member) => (
                     <button
                       type="button"
                       key={member.employee_id}
@@ -2150,7 +2173,7 @@ const Timesheets = () => {
           </aside>
         </div>
       )}
-    </Layout>
+    </TimesheetLayout>
   );
 };
 

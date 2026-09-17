@@ -1,3 +1,4 @@
+import SortableTable from '../components/SortableTable';
 import React, { lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import AppState from '../components/AppState';
@@ -102,7 +103,7 @@ function AcknowledgementReport({ version, isCurrent }) {
       </div>
       {loading ? <AppState type="loading" title="Loading acknowledgements…" compact /> : error ? <AppState type="error" title="Report unavailable" message={error} compact /> : <>
         <label className="policy-report-filter"><span>Show</span><select aria-label="Filter acknowledgements" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Everyone ({rows.length})</option><option value="pending">Pending ({pending})</option><option value="read">Acknowledged ({rows.length - pending})</option></select></label>
-        {visible.length === 0 ? <AppState title="No matching acknowledgements" compact /> : <div className="policy-table-scroll"><table className="policy-table"><thead><tr><th scope="col">Person</th><th scope="col">Department</th><th scope="col">Acknowledgement</th></tr></thead><tbody>{visible.map((row) => <tr key={row.employee_id}><td>{row.employee_name}{row.employment_status !== 'Active' && <small>{row.employment_status}</small>}</td><td>{row.department || '—'}</td><td>{row.acknowledged_at ? timeLabel(row.acknowledged_at) : <span className="policy-status policy-status--pending">Pending</span>}</td></tr>)}</tbody></table></div>}
+        {visible.length === 0 ? <AppState title="No matching acknowledgements" compact /> : <div className="policy-table-scroll"><SortableTable sortId="acknowledgements" className="policy-table"><thead><tr><th scope="col">Person</th><th scope="col">Department</th><th scope="col">Acknowledgement</th></tr></thead><tbody>{visible.map((row) => <tr key={row.employee_id}><td data-sort-value={row.employee_name}>{row.employee_name}{row.employment_status !== 'Active' && <small>{row.employment_status}</small>}</td><td>{row.department || '—'}</td><td data-sort-value={row.acknowledged_at ? Date.parse(row.acknowledged_at) : null}>{row.acknowledged_at ? timeLabel(row.acknowledged_at) : <span className="policy-status policy-status--pending">Pending</span>}</td></tr>)}</tbody></SortableTable></div>}
       </>}
     </section>
   );

@@ -1,3 +1,6 @@
+import useListSort from '../hooks/useListSort';
+import ListSortControls from '../components/ListSortControls';
+import SortableTable from '../components/SortableTable';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
@@ -26,6 +29,7 @@ const titles = {
 const hours = (seconds) => `${(Number(seconds || 0) / 3600).toFixed(1)} h`;
 
 const ObserverHub = ({ view = 'overview' }) => {
+  const projectSort = useListSort('observerProjects', [{ key: 'name', label: 'Project name', value: (item) => item.name }, { key: 'code', label: 'Code', value: (item) => item.code }, { key: 'team', label: 'Team size', value: (item) => Number(item.member_count) }, { key: 'status', label: 'Status', value: (item) => item.archived_at ? 'Archived' : 'Active' }]);
   const [start, setStart] = useState(() => addAppDays(appDateKey(), -6));
   const [end, setEnd] = useState(() => appDateKey());
   const [data, setData] = useState(null);
@@ -259,7 +263,7 @@ const ObserverHub = ({ view = 'overview' }) => {
               </div>
               <h2>Who’s in / out</h2>
               <div className="observer-table-wrap">
-                <table className="observer-table">
+                <SortableTable sortId="observerLive" className="observer-table">
                   <thead>
                     <tr>
                       <th>Name</th>
@@ -278,14 +282,15 @@ const ObserverHub = ({ view = 'overview' }) => {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </SortableTable>
               </div>
               {!livePeople.length && <p>No staff match this search.</p>}
             </>
           )}
           {view === 'projects' && (
             <div className="observer-projects">
-              {projects.map((item) => (
+              <ListSortControls sort={projectSort} />
+              {projectSort.sort(projects).map((item) => (
                 <article key={item.id}>
                   <span className="badge primary">
                     {item.archived_at ? 'Archived' : 'Active'}
@@ -303,7 +308,7 @@ const ObserverHub = ({ view = 'overview' }) => {
           {view === 'timesheets' && (
             <>
               <div className="observer-table-wrap">
-                <table className="observer-table">
+                <SortableTable sortId="observerEntries" className="observer-table">
                   <thead>
                     <tr>
                       <th>Person</th>
@@ -318,16 +323,16 @@ const ObserverHub = ({ view = 'overview' }) => {
                       <tr key={item.id}>
                         <td>{item.employee_name}</td>
                         <td>{item.context_name}</td>
-                        <td>
+                        <td data-sort-value={Date.parse(item.started_at)}>
                           {formatAppDate(item.started_at)} ·{' '}
                           {formatAppClock(item.started_at)}
                         </td>
-                        <td>
+                        <td data-sort-value={item.ended_at ? Date.parse(item.ended_at) : null}>
                           {item.ended_at
                             ? `${formatAppDate(item.ended_at)} · ${formatAppClock(item.ended_at)}`
                             : 'Open'}
                         </td>
-                        <td>
+                        <td data-sort-value={item.stale ? null : Number(item.worked_seconds)}>
                           {item.stale
                             ? 'Unresolved timer'
                             : hours(item.worked_seconds)}
@@ -335,7 +340,7 @@ const ObserverHub = ({ view = 'overview' }) => {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </SortableTable>
               </div>
               {!entries.length && (
                 <p>No recorded work matches these filters.</p>
@@ -349,7 +354,7 @@ const ObserverHub = ({ view = 'overview' }) => {
                 imply absence. Leave reasons and types are private.
               </p>
               <div className="observer-table-wrap">
-                <table className="observer-table">
+                <SortableTable sortId="observerAttendance" className="observer-table">
                   <thead>
                     <tr>
                       <th>Date</th>
@@ -362,15 +367,15 @@ const ObserverHub = ({ view = 'overview' }) => {
                   <tbody>
                     {attendance.map((item) => (
                       <tr key={`${item.employee_id}:${item.date}`}>
-                        <td>{formatAppDate(item.date)}</td>
+                        <td data-sort-value={item.date}>{formatAppDate(item.date)}</td>
                         <td>{item.employee_name}</td>
                         <td>{observerAttendanceLabel(item, data.holidays)}</td>
-                        <td>{formatAppTimeValue(item.check_in)}</td>
-                        <td>{formatAppTimeValue(item.check_out)}</td>
+                        <td data-sort-value={item.check_in || null}>{formatAppTimeValue(item.check_in)}</td>
+                        <td data-sort-value={item.check_out || null}>{formatAppTimeValue(item.check_out)}</td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </SortableTable>
               </div>
               {!attendance.length && (
                 <p>No attendance matches these filters.</p>
@@ -396,7 +401,7 @@ const ObserverHub = ({ view = 'overview' }) => {
                 </article>
               </div>
               <div className="observer-table-wrap">
-                <table className="observer-table">
+                <SortableTable sortId="observerTotals" className="observer-table">
                   <thead>
                     <tr>
                       <th>Project / activity</th>
@@ -408,12 +413,12 @@ const ObserverHub = ({ view = 'overview' }) => {
                     {summaries.map((item) => (
                       <tr key={item.key}>
                         <td>{item.name}</td>
-                        <td>{hours(item.seconds)}</td>
-                        <td>{item.unresolved || '—'}</td>
+                        <td data-sort-value={item.seconds}>{hours(item.seconds)}</td>
+                        <td data-sort-value={item.unresolved || 0}>{item.unresolved || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </SortableTable>
               </div>
               {!summaries.length && (
                 <p>No recorded work matches these filters.</p>

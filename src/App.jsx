@@ -18,6 +18,7 @@ import WorkSetup from './pages/WorkSetup';
 import WorkdayCheckIns from './pages/WorkdayCheckIns';
 import Timesheets from './pages/Timesheets';
 import WorkDistribution from './pages/WorkDistribution';
+import Workload from './pages/Workload';
 import ResetPassword from './pages/ResetPassword';
 import { hasPermission, PERMISSIONS } from './utils/rbac';
 
@@ -92,6 +93,7 @@ const AppRoutes = () => (
                 </PermissionRoute>
               )}
             />
+            <Route path="/analytics/workload" element={<PermissionRoute permission={PERMISSIONS.VIEW_WORK_DISTRIBUTION}><Workload /></PermissionRoute>} />
             <Route
               path="/analytics"
               element={(

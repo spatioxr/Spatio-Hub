@@ -1,0 +1,17 @@
+.table-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.table-sort-button:hover { color: var(--primary, #00785a); }
+.table-sort-button:focus-visible { outline: 2px solid var(--primary, #00785a); outline-offset: 3px; border-radius: 3px; }
+.list-sort-controls { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+.list-sort-controls label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.list-sort-controls select { padding: 8px 10px; border: 1px solid var(--border, #d5dedb); border-radius: 6px; background: var(--surface, white); color: inherit; font: inherit; }

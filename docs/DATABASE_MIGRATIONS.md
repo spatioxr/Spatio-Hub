@@ -436,6 +436,13 @@ Run `people_rpc_active_actor.sql` and the full isolated database suite. Apply
 this migration to hosted environments as well; merging code does not apply SQL.
 Do not restore the vulnerable guard as a rollback; correct forward if needed.
 
+## Workload and costing — 16 September 2026
+
+Migration `20260916000100_workload_costing.sql` adds RLS-protected immutable
+baseline/review history, the bounded monthly workload allocation RPC, reviewed
+long-day confirmation, audited actual-end resolution, and consistent Manager raw
+project scope. Apply it before the workload UI. See [contract](WORKLOAD_COSTING.md).
+
 ## External Observer access — 16 September 2026
 
 `20260916000200_external_observer_access.sql` adds separate external identities,
@@ -445,6 +452,9 @@ it before deploying the updated `user-credentials` function and frontend.
 No employee rows or staff roles are rewritten. Run `external_observer_access.sql`
 and the existing database regression suite. See [External access](EXTERNAL_ACCESS.md)
 for deployment and non-destructive disablement.
+
+The workload review follow-up `20260916000300_admin_workload_review.sql` restricts
+long-day confirmation to Admin/Superadmin. Apply after the workload costing migration.
 
 `20260916000400_unified_observer_role_editor.sql` moves role administration into
 the existing Users & Access editor. It adds a unified profile projection and

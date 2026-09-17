@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
+import CostingSettings from '../components/CostingSettings';
 
 const WorkSetup = () => (
   <Layout
@@ -29,6 +30,7 @@ const WorkSetup = () => (
         <i className="ri-arrow-right-line" aria-hidden="true" />
       </Link>
     </div>
+    <CostingSettings />
   </Layout>
 );
 

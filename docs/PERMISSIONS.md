@@ -80,6 +80,16 @@ project or team.
 - Organisation downtime is never written into employee work entries or breaks,
   never stops a timer automatically, and is not multiplied by employee count.
 
+## Workload and costing
+
+Managers may see team/owned-project contributors' overall daily workload and
+aggregate other-project hours through the workload projection. Other-project raw
+entries, task text and identifiers remain hidden. Team internal-activity detail
+retains the existing Timesheet scope. Admins/Superadmins have organisation access
+and can configure effective-month costing baselines and resolve stale live timers.
+Long-day confirmations require a reason and access to every affected entry;
+Managers cannot confirm their own day. See [the calculation and review contract](WORKLOAD_COSTING.md).
+
 ## Implementation ownership
 
 - `HRMS-005`: canonical roles, permission names, UI capability checks, and this matrix.

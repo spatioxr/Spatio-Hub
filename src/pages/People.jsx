@@ -1,3 +1,4 @@
+import SortableTable from '../components/SortableTable';
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import AppState from '../components/AppState';
@@ -1016,7 +1017,7 @@ const People = ({ mode = 'directory' }) => {
           />
         ) : (
           <div className="table-wrap">
-            <table className="people-table">
+            <SortableTable sortId="directory" className="people-table">
               <thead>
                 <tr>
                   <th>Person</th>
@@ -1033,7 +1034,7 @@ const People = ({ mode = 'directory' }) => {
                   const manager = peopleById.get(person.reports_to);
                   return (
                     <tr className={isArchivedPerson(person) ? 'people-row--archived' : ''} key={person.id}>
-                      <td data-label="Person">
+                      <td data-label="Person" data-sort-value={person.name}>
                         <div className="people-person-cell">
                           <span className="people-avatar">
                             {person.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
@@ -1057,11 +1058,11 @@ const People = ({ mode = 'directory' }) => {
                           </div>
                         </div>
                       </td>
-                      <td data-label="Department">
+                      <td data-label="Department" data-sort-value={person.department}>
                         <strong className="people-mobile-value">{person.department || 'Not assigned'}</strong>
                         <span className="people-secondary">{person.designation || 'No designation'}</span>
                       </td>
-                      <td data-label="Role">
+                      <td data-label="Role" data-sort-value={roleLabel(person.role)}>
                         <div className="people-role-badges">
                           <span className="badge primary">{roleLabel(person.role)}</span>
                           {(person.is_leave_admin || ['admin', 'superadmin'].includes(person.role)) && <span className="badge success">Leave Admin</span>}
@@ -1126,7 +1127,7 @@ const People = ({ mode = 'directory' }) => {
                   );
                 })}
               </tbody>
-            </table>
+            </SortableTable>
           </div>
         )}
       </section>

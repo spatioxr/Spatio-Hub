@@ -93,6 +93,15 @@ Archiving removes a document from employee access; Admins can restore it.
 There is no draft/approval stage, department targeting, or portal-blocking gate.
 See [Policies contract](POLICIES.md).
 
+## Workload and costing allocation (feedback 14 / 50)
+
+Authorised 16 September 2026: Analytics adds weekly person/project insight,
+approved-leave coverage, actionable time-quality flags, and provisional allocation
+of a fixed monthly hours allowance (default 176) across projects and internal work.
+Leave and unrecorded/unresolved time remain separately reserved. This deliberately
+extends the original Analytics scope; it does not introduce overtime pay, payroll,
+scheduling, invoicing, or timesheet approval periods. See [Workload and costing](WORKLOAD_COSTING.md).
+
 ## Explicit non-goals
 
 Do not add these in phase 1 unless the tracker is deliberately changed:

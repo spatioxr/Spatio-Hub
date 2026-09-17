@@ -1,5 +1,8 @@
+import useListSort from '../hooks/useListSort';
+import ListSortControls from '../components/ListSortControls';
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
+import { Link } from 'react-router-dom';
 import AppState from '../components/AppState';
 import { AuthContext } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
@@ -207,6 +210,7 @@ const ProjectDrawer = ({
 };
 
 const Projects = ({ mode = 'manage' }) => {
+  const listSort = useListSort('projectList', [{ key: 'name', label: 'Project name', value: (item) => item.name }, { key: 'code', label: 'Code', value: (item) => item.code }, { key: 'managers', label: 'Managers', value: (item) => normaliseAssignments(item.managers).map((person) => person.name).join(', ') }, { key: 'people', label: 'Team size', value: (item) => normaliseAssignments(item.members).length }, { key: 'status', label: 'Status', value: (item) => item.archived_at ? 'Archived' : 'Active' }]);
   const { user } = useContext(AuthContext);
   const [projects, setProjects] = useState([]);
   const [directory, setDirectory] = useState([]);
@@ -537,7 +541,8 @@ const Projects = ({ mode = 'manage' }) => {
           />
         ) : (
           <div className="project-list">
-            {filteredProjects.map((project) => (
+            <ListSortControls sort={listSort} />
+            {listSort.sort(filteredProjects).map((project) => (
               <article className={`project-row${project.archived_at ? ' project-row--archived' : ''}`} key={project.id}>
                 <div className="project-row-main">
                   <span className="project-code">{project.code}</span>
@@ -574,6 +579,7 @@ const Projects = ({ mode = 'manage' }) => {
                 </div>
 
                 <div className="project-row-actions">
+                  <Link className="people-action-button" to={`/analytics/workload?tab=projects&project=${project.id}`}>View project</Link>
                   <button type="button" className="people-action-button" onClick={() => openProject(project)}>
                     <i className="ri-team-line" />
                     {canManageDefinitions ? 'Manage' : 'Manage team'}

@@ -1,3 +1,4 @@
+import SortableTable from '../components/SortableTable';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import AppState from '../components/AppState';
@@ -29,7 +30,7 @@ const formatAmount = (amount) => {
 
 const RequestTable = ({ requests, own, actionId, onEdit, onDecide }) => (
   <div className="table-wrap leave-request-table-wrap">
-    <table className="leave-request-table">
+    <SortableTable sortId={own ? 'ownLeave' : 'teamLeave'} className="leave-request-table">
       <thead>
         <tr>
           {!own && <th>Employee</th>}
@@ -45,26 +46,26 @@ const RequestTable = ({ requests, own, actionId, onEdit, onDecide }) => (
         {requests.map((request) => (
           <tr key={request.id}>
             {!own && (
-              <td data-label="Employee">
+              <td data-label="Employee" data-sort-value={request.employee_name}>
                 <div className="leave-person-cell">
                   <span>{request.employee_name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span>
                   <div><strong>{request.employee_name}</strong><small>{request.employee_code} · {request.employee_department || 'No department'}</small></div>
                 </div>
               </td>
             )}
-            <td data-label="Request">
+            <td data-label="Request" data-sort-value={request.type}>
               <span className={`leave-type-chip leave-type-chip--${LEAVE_META[request.type]?.tone || 'green'}`}>
                 <i className={LEAVE_META[request.type]?.icon} /> {request.type}
               </span>
               <small className="leave-request-created">Requested {formatAppDate(request.created_at)}</small>
             </td>
-            <td data-label="Dates">
+            <td data-label="Dates" data-sort-value={request.from_date}>
               <strong>{formatAppDate(request.from_date, { month: 'short' })}</strong>
               <small>{request.from_date === request.to_date ? 'One date' : `to ${formatAppDate(request.to_date, { month: 'short' })}`}</small>
             </td>
             <td data-label="Days"><strong>{request.days}</strong></td>
             <td data-label="Status"><span className={`badge ${statusTone(request.status)}`}>{request.status}</span></td>
-            <td data-label="Reason / decision">
+            <td data-label="Reason / decision" data-sort-value={request.reason}>
               <span className="leave-request-reason">{request.reason}</span>
               {request.rejection_comment && <small className="leave-decision-note">{request.rejection_comment}</small>}
               {request.decided_at && <small>Decided {formatAppDate(request.decided_at)}{request.decided_by_name ? ` by ${request.decided_by_name}` : ''}</small>}
@@ -89,7 +90,7 @@ const RequestTable = ({ requests, own, actionId, onEdit, onDecide }) => (
           </tr>
         ))}
       </tbody>
-    </table>
+    </SortableTable>
   </div>
 );
 
