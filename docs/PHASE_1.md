@@ -102,6 +102,10 @@ Leave and unrecorded/unresolved time remain separately reserved. This deliberate
 extends the original Analytics scope; it does not introduce overtime pay, payroll,
 scheduling, invoicing, or timesheet approval periods. See [Workload and costing](WORKLOAD_COSTING.md).
 
+## Work feedback (17 September 2026)
+
+User-authorized extension: optional weekly five-choice work feedback after End Day, an anytime form and an inbox restricted to superadmins. Superadmins can configure prompt frequency/day and open an optional 24-hour team pulse. Feedback is identified, explicitly disclosed, and separate from attendance, costing and performance evaluation. See [Work feedback](WORK_FEEDBACK.md). This does not mount the legacy Inbox or Performance features.
+
 ## Explicit non-goals
 
 Do not add these in phase 1 unless the tracker is deliberately changed:

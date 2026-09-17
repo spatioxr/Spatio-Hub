@@ -31,6 +31,7 @@ const WorkEndDayModal = ({
       await submitEndDay({ eodReport: needsEod ? eodReport.trim() : null });
       onComplete?.();
       onClose();
+      if (!subject && !endDayOverride) window.dispatchEvent(new Event('workday-ended-feedback'));
     } catch (submitError) {
       console.error('Unable to end the work day:', submitError.message);
       setError(submitError.message || 'Unable to end the work day. Please try again.');

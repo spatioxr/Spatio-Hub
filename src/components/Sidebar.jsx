@@ -11,6 +11,7 @@ const COMMON_ITEMS = [
   { path: '/attendance', name: 'Attendance', icon: 'ri-calendar-check-line', permission: PERMISSIONS.VIEW_ATTENDANCE },
   { path: '/leave', name: 'Leave', icon: 'ri-flight-takeoff-line', permission: PERMISSIONS.APPLY_OWN_LEAVE },
   { path: '/policies', name: 'Policies', icon: 'ri-file-shield-2-line', permission: PERMISSIONS.ACCESS_PORTAL },
+  { path: '/feedback', name: 'Work feedback', icon: 'ri-chat-smile-2-line', permission: PERMISSIONS.TRACK_OWN_WORK },
 ];
 
 const MANAGE_ITEMS = [

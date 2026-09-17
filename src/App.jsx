@@ -19,6 +19,7 @@ import WorkdayCheckIns from './pages/WorkdayCheckIns';
 import Timesheets from './pages/Timesheets';
 import WorkDistribution from './pages/WorkDistribution';
 import Workload from './pages/Workload';
+import WorkFeedback from './pages/WorkFeedback';
 import ResetPassword from './pages/ResetPassword';
 import { hasPermission, PERMISSIONS } from './utils/rbac';
 
@@ -84,6 +85,7 @@ const AppRoutes = () => (
               )}
             />
             <Route path="/leave" element={<PermissionRoute permission={PERMISSIONS.APPLY_OWN_LEAVE}><Leave /></PermissionRoute>} />
+            <Route path="/feedback" element={<PermissionRoute permission={PERMISSIONS.TRACK_OWN_WORK}><WorkFeedback key={user?.id} /></PermissionRoute>} />
             <Route path="/policies" element={<PermissionRoute permission={PERMISSIONS.TRACK_OWN_WORK}><Policies /></PermissionRoute>} />
             <Route
               path="/people"

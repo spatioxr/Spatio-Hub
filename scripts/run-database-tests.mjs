@@ -3,6 +3,9 @@ import { spawn } from 'node:child_process';
 import process from 'node:process';
 
 const verificationFiles = [
+  'supabase/verify/work_feedback_audiences.sql',
+  'supabase/verify/work_feedback_controls.sql',
+  'supabase/verify/work_feedback.sql',
   'supabase/verify/unified_observer_role_editor.sql',
   'supabase/verify/external_observer_access.sql',
   'supabase/verify/workload_costing.sql',

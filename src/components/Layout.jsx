@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Sidebar from './Sidebar';
+import WeeklyWorkFeedback from './WeeklyWorkFeedback';
 import TopBar from './TopBar';
 import PageHeader from './PageHeader';
 import LiveStatusBoard from './LiveStatusBoard';
@@ -39,6 +40,7 @@ const Layout = ({
     <div className={`app-container${showManagementRail ? ' app-container--with-live-rail' : ''}`}>
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <Sidebar />
+      {user.role !== 'observer' && <WeeklyWorkFeedback key={user.id} />}
       <div className="main-content">
         <TopBar
           title={title}

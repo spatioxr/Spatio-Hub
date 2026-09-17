@@ -77,6 +77,7 @@ external PostgreSQL connection.
 | `/people` | Permission-scoped employee directory |
 | `/admin-settings` | Phase 1 administration and work-entry requirements |
 | `/leave` | Working-day leave requests, balances, history, and Leave Admin workspace |
+| `/feedback` | Identified work feedback and superadmin-only inbox |
 | `/policies` | Company PDF library, in-portal reader, and read acknowledgements |
 | `/login` | Current login |
 | `/reset-password` | Required temporary-password replacement, password help, and authenticated password change |
