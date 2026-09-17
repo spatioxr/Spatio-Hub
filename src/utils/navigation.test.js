@@ -55,8 +55,8 @@ test('Users & Access presents retained profiles with explicit archive semantics'
 
   assert.match(people, /'Total profiles'/);
   assert.match(people, /'People in your scope'/);
-  assert.match(people, /\? 'Restore' : 'Archive'/);
-  assert.match(people, /'Access blocked'/);
+  assert.match(people, /\? 'Restore account' : 'Archive account'/);
+  assert.match(people, /isArchivedPerson\(person\) \? 'Archived'/);
   assert.match(people, /profile and work history will be retained/);
   assert.doesNotMatch(people, />Visible people</);
 });

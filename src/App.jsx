@@ -137,6 +137,11 @@ const AppRoutes = () => (
                 </PermissionRoute>
               )}
             />
+            <Route path="/admin-settings/work-setup/costing" element={(
+              <PermissionRoute permission={PERMISSIONS.ACCESS_ADMIN_SETTINGS}>
+                <WorkSetup section="costing" />
+              </PermissionRoute>
+            )} />
             <Route
               path="/admin-settings/work-setup/projects"
               element={(

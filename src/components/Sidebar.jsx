@@ -14,9 +14,9 @@ const COMMON_ITEMS = [
 ];
 
 const MANAGE_ITEMS = [
-  { path: '/analytics/workload', name: 'Workload & Costing', icon: 'ri-scales-3-line', permission: PERMISSIONS.VIEW_WORK_DISTRIBUTION },
   { path: '/people', name: 'People', icon: 'ri-team-line', permission: PERMISSIONS.VIEW_PEOPLE },
   { path: '/projects', name: 'Projects', icon: 'ri-briefcase-4-line', permission: PERMISSIONS.MANAGE_OWNED_PROJECT_TEAM },
+  { path: '/analytics/workload', name: 'Workload & Costing', icon: 'ri-scales-3-line', permission: PERMISSIONS.VIEW_WORK_DISTRIBUTION },
   { path: '/analytics', end: true, name: 'Analytics', icon: 'ri-bar-chart-box-line', permission: PERMISSIONS.VIEW_WORK_DISTRIBUTION },
 ];
 

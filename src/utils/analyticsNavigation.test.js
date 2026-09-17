@@ -45,19 +45,20 @@ test('clearing filters retains the reporting period and removes stale URL select
   assert.deepEqual(readAnalyticsView(search, today), view);
 });
 
-test('restored ranges respect real dates, ordering, future dates and the 31-day server limit', () => {
+test('restored ranges respect real dates, ordering, future dates without a duration cap', () => {
   for (const [start, end] of [
     ['invalid', today], ['2026-02-30', '2026-03-02'],
-    ['2026-09-16', '2026-09-01'], ['2026-08-01', '2026-09-01'],
+    ['2026-09-16', '2026-09-01'],
     ['2026-09-01', '2026-09-17'], ['', ''],
   ]) {
     assert.equal(validAnalyticsRange(start, end, today), false);
     const restored = readAnalyticsView(new URLSearchParams({ start, end, project: 'p1' }), today);
-    assert.deepEqual(restored.range, { start: '2026-09-10', end: today });
+    assert.deepEqual(restored.range, { start: '2026-09-14', end: today });
     assert.equal(restored.filters.project, 'p1');
   }
   assert.equal(validAnalyticsRange('2026-08-01', '2026-08-31', today), true);
   assert.equal(validAnalyticsRange(today, today, today), true);
+  assert.equal(validAnalyticsRange('2020-01-01', today, today), true);
 });
 
 test('a retained filter remains visible and removable when the new period has no matching work', () => {

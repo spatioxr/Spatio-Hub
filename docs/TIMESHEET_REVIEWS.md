@@ -15,11 +15,10 @@ Long text has Show more/Show less controls. Missing submission timestamps are
 labelled explicitly rather than invented. Pending and currently exempt reports
 appear as a compact status line, not timeline events.
 
-Period review is a secondary page action that opens a drawer for the selected
-week/month, person and department. View day closes the drawer and focuses the
-chosen day detail. Escape, backdrop and the close button dismiss it; keyboard
-focus is trapped and restored. Project/activity filters apply only to work
-sessions and their breaks because daily reports describe the entire workday.
+The separate Period review action and drawer were removed on September 17,
+2026 at the user's request. Reports remain available in Day Detail for both
+Week and Month. Project/activity filters apply only to work sessions and their
+breaks because daily reports describe the entire workday.
 
 Submitted means report text exists. Pending means no submission is recorded,
 not that a deadline was missed. Currently exempt reflects the employee's
@@ -76,3 +75,16 @@ Validation: application lint/build and 118 unit tests passed; synthetic full-pag
 Week/Month browser checks verified chronological events, Show more/less,
 Period review drawer, focus trapping, Escape/return focus, View day focus,
 and the 390px layout without horizontal overflow.
+
+## Manual entry simplification (17 September 2026)
+
+User-authorised HRMS-054 follow-up: Add Time now focuses on one work block.
+A shared date and From/To times replace repeated date-time fields; an explicit
+overnight control reveals the end date. Date changes shift break dates too.
+The form shows net worked duration and warns about conflicts with loaded entries;
+the database remains authoritative for all conflicts and permissions. Work mode
+defaults to the existing selected day and can be changed explicitly. Break fields
+are optional, the task and audit reason remain required, and one Save entry
+action replaces the three save choices. An optional Add another after saving
+checkbox retains person, date, context and work mode. The sequence preview and
+Save & next day flow have been removed. Corrections retain their audited RPC.

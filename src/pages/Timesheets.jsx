@@ -1,3 +1,4 @@
+import { moveManualEntryDate, manualEntryPreview } from '../utils/manualEntry';
 import useListSort from '../hooks/useListSort';
 import ListSortControls from '../components/ListSortControls';
 import React, {
@@ -12,7 +13,6 @@ import Layout from '../components/Layout';
 import { useLocation } from 'react-router-dom';
 import { timesheetInitialSelection } from '../utils/workload';
 import AppState from '../components/AppState';
-import TimesheetDailyReviews from '../components/TimesheetDailyReviews';
 import TimesheetReportEvent from '../components/TimesheetReportEvent';
 import useDailyReviews from '../hooks/useDailyReviews';
 import useTimesheetAttendance from '../hooks/useTimesheetAttendance';
@@ -27,6 +27,7 @@ import {
   ROLES,
 } from '../utils/rbac';
 import {
+  addAppDays,
   appDateKey,
   appDateTimeInputToIso,
   appDayRange,
@@ -233,7 +234,6 @@ const Timesheets = () => {
   const location = useLocation();
   const initial = timesheetInitialSelection(location.search, availableScopes, dateKey(new Date()));
   const [scope, setScope] = useState(initial.scope);
-  const [periodReviewOpen, setPeriodReviewOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(initial.employee);
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedProjectId, setSelectedProjectId] = useState('all');
@@ -263,6 +263,7 @@ const Timesheets = () => {
   const [manualContexts, setManualContexts] = useState([]);
   const [manualForm, setManualForm] = useState(() => defaultManualForm(dateKey(new Date())));
   const [manualError, setManualError] = useState('');
+  const [addAnother, setAddAnother] = useState(false);
   const [manualSaving, setManualSaving] = useState(false);
   const [manualContextsLoading, setManualContextsLoading] = useState(false);
   const [historyViewer, setHistoryViewer] = useState(null);
@@ -738,6 +739,7 @@ const Timesheets = () => {
 
     setManualError('');
     setManualContextsLoading(true);
+    setAddAnother(false);
     setManualEditor({ mode, entry, employee });
 
     const { data, error: contextError } = await supabase.rpc(
@@ -771,9 +773,7 @@ const Timesheets = () => {
       : contexts;
     const contextValue = entry
       ? `${entry.context_type}:${entry.context_id}`
-      : availableContexts[0]
-        ? `${availableContexts[0].context_type}:${availableContexts[0].context_id}`
-        : '';
+      : '';
 
     setManualContexts(availableContexts);
     const suggestedRange = nextManualEntryRange(selectedDate, selectedEntries);
@@ -791,6 +791,7 @@ const Timesheets = () => {
     } : {
       ...defaultManualForm(selectedDate),
       ...suggestedRange,
+      workMode: selectedDayWorkMode || 'office',
       context: contextValue,
     });
     setManualContextsLoading(false);
@@ -825,7 +826,11 @@ const Timesheets = () => {
   const saveManualEntry = async (event) => {
     event.preventDefault();
     if (!manualEditor) return;
-    const saveIntent = event.nativeEvent.submitter?.value || 'close';
+    const saveIntent = addAnother ? 'another' : 'close';
+    if (manualPreview.error) {
+      setManualError(manualPreview.error);
+      return;
+    }
 
     setManualError('');
 
@@ -911,16 +916,8 @@ const Timesheets = () => {
         setManualEditor(null);
         setManualContexts([]);
       } else {
-        const nextDate = saveIntent === 'next-day'
-          ? dateKey(addDays(new Date(`${selectedDate}T12:00:00Z`), 1))
-          : selectedDate;
-        const nextRange = saveIntent === 'next-day'
-          ? nextManualEntryRange(nextDate)
-          : nextManualEntryRange(selectedDate, [{ ended_at: endedAt.toISOString() }]);
-        if (saveIntent === 'next-day') {
-          setSelectedDate(nextDate);
-          setWeekStart(startOfWeek(new Date(`${nextDate}T12:00:00Z`)));
-        }
+        const nextDate = manualForm.startedAt.slice(0, 10);
+        const nextRange = nextManualEntryRange(nextDate, [{ ended_at: endedAt.toISOString() }]);
         setManualEditor((current) => ({ ...current, mode: 'create', entry: null }));
         setManualForm((current) => ({
           ...defaultManualForm(nextDate),
@@ -933,9 +930,7 @@ const Timesheets = () => {
         type: refreshResult.error ? 'error' : 'success',
         text: refreshResult.error
           ? `${actionLabel} The latest timesheet could not be refreshed; use Try again below.`
-          : saveIntent === 'next-day'
-            ? `${actionLabel} Ready for the next day.`
-            : saveIntent === 'another'
+          : saveIntent === 'another'
               ? `${actionLabel} Add the next entry below.`
               : actionLabel,
       });
@@ -1046,6 +1041,9 @@ const Timesheets = () => {
     </div>
   );
 
+  const manualPreview = manualEntryPreview(manualForm, entries, manualEditor?.employee.employee_id, manualEditor?.entry?.work_entry_id);
+  const manualOvernight = manualForm.startedAt.slice(0, 10) !== manualForm.endedAt.slice(0, 10);
+
   const TimesheetLayout = new URLSearchParams(location.search).get('workloadReview') === '1' ? EmbeddedTimesheetLayout : Layout;
 
   return (
@@ -1056,7 +1054,6 @@ const Timesheets = () => {
       description={scopeCopy.description}
       actions={(
         <div className="timesheet-page-actions">
-          <button type="button" className="btn btn-outline" aria-haspopup="dialog" onClick={() => setPeriodReviewOpen(true)}>Period review</button>
           {canUseManualEditor && (
             <button
               type="button"
@@ -1096,15 +1093,15 @@ const Timesheets = () => {
         />
       )}
 
-      {(availableScopes.length > 1 || isSharedScope) && (
-        <section className="filter-bar timesheet-controls" aria-label="Timesheet scope">
+      <section className="surface timesheet-view-controls" aria-label="Timesheet controls">
           {availableScopes.length > 1 && (
-            <div className="app-tabs">
+            <div className="app-tabs" role="group" aria-label="Timesheet scope">
               {availableScopes.map((availableScope) => (
                 <button
                   type="button"
                   className={`app-tab${scope === availableScope ? ' active' : ''}`}
                   key={availableScope}
+                  aria-pressed={scope === availableScope}
                   onClick={() => changeScope(availableScope)}
                 >
                   {SCOPE_COPY[availableScope].label}
@@ -1112,10 +1109,6 @@ const Timesheets = () => {
               ))}
             </div>
           )}
-        </section>
-      )}
-
-      <section className="surface timesheet-view-controls" aria-label="Timesheet view">
         <div className="app-tabs" role="tablist" aria-label="Timesheet period">
           <button
             type="button"
@@ -1136,11 +1129,6 @@ const Timesheets = () => {
             Month
           </button>
         </div>
-        <span>
-          {viewMode === 'week'
-            ? formatWeekRange(weekStart)
-            : formatMonthTitle(currentMonth.start)}
-        </span>
       </section>
 
       <section className="surface timesheet-filter-panel" aria-label="Timesheet filters">
@@ -1699,21 +1687,6 @@ const Timesheets = () => {
         </section>
       )}
 
-      <TimesheetDailyReviews
-        open={periodReviewOpen} onClose={() => setPeriodReviewOpen(false)}
-        current={reviews.current} rows={periodReports} retry={reviews.retry}
-        startDate={periodBounds.start} endDate={periodBounds.end}
-        onOpenDay={(report) => {
-          setSelectedDate(report.report_date);
-          if (scope !== 'personal') setSelectedEmployeeId(report.employee_id);
-          requestAnimationFrame(() => {
-            const detail = document.getElementById('timesheet-work-detail');
-            detail?.focus({ preventScroll: true });
-            detail?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          });
-        }}
-      />
-
       {manualEditor && (
         <div className="timesheet-editor-overlay" onMouseDown={(event) => {
           if (event.target === event.currentTarget) closeManualEditor();
@@ -1767,32 +1740,31 @@ const Timesheets = () => {
                 </div>
               )}
 
-              <section className="timesheet-entry-sequence" aria-label="Manual entry sequence">
-                <div>
-                  <span className="timesheet-sequence-dot" />
-                  <small>{formatClock(appDateTimeInputToIso(manualForm.startedAt), 'Start')}</small>
-                  <strong>Start work</strong>
-                </div>
-                {manualForm.breaks.map((breakEntry, index) => (
-                  <React.Fragment key={`sequence-${index}-${breakEntry.startedAt}`}>
-                    <div className="timesheet-entry-sequence--break">
-                      <span className="timesheet-sequence-dot" />
-                      <small>{formatClock(appDateTimeInputToIso(breakEntry.startedAt), 'Start')}</small>
-                      <strong>Start break</strong>
-                    </div>
-                    <div>
-                      <span className="timesheet-sequence-dot" />
-                      <small>{formatClock(appDateTimeInputToIso(breakEntry.endedAt), 'Resume')}</small>
-                      <strong>Resume work</strong>
-                    </div>
-                  </React.Fragment>
-                ))}
-                <div>
-                  <span className="timesheet-sequence-dot" />
-                  <small>{formatClock(appDateTimeInputToIso(manualForm.endedAt), 'End')}</small>
-                  <strong>End work</strong>
-                </div>
-              </section>
+              <div className="manual-entry-context">
+                <label className="timesheet-field"><span>Date</span>
+                  <input type="date" value={manualForm.startedAt.slice(0, 10)} required onChange={(event) => setManualForm((current) => {
+                    const moved = moveManualEntryDate(current, event.target.value);
+                    const dayEntry = entries.find((entry) => entry.employee_id === manualEditor.employee.employee_id && dateKey(entry.started_at) === event.target.value);
+                    return { ...moved, workMode: dayEntry?.work_mode || moved.workMode };
+                  })} />
+                </label>
+                <label className="timesheet-field manual-entry-mode">
+                  <span>Work mode</span>
+                  <select value={manualForm.workMode} required aria-describedby="manual-work-mode-note" onChange={(event) => setManualForm((current) => ({ ...current, workMode: event.target.value }))}>
+                    <option value="" disabled>Select work mode</option>
+                    <option value="office">Office</option>
+                    <option value="wfh">Work from home</option>
+                  </select>
+                </label>
+              </div>
+              <small id="manual-work-mode-note" className="manual-entry-mode-note">Work mode applies to all sessions on this day.</small>
+              <div className="timesheet-editor-grid">
+                <label className="timesheet-field"><span>From</span><input type="time" value={manualForm.startedAt.slice(11, 16)} required aria-describedby="manual-time-feedback" onChange={(event) => setManualForm((current) => ({ ...current, startedAt: `${current.startedAt.slice(0, 10)}T${event.target.value}` }))} /></label>
+                <label className="timesheet-field"><span>To</span><input type="time" value={manualForm.endedAt.slice(11, 16)} required aria-describedby="manual-time-feedback" onChange={(event) => setManualForm((current) => ({ ...current, endedAt: `${current.endedAt.slice(0, 10)}T${event.target.value}` }))} /></label>
+              </div>
+              <label className="manual-entry-check"><input type="checkbox" checked={manualOvernight} onChange={(event) => setManualForm((current) => ({ ...current, endedAt: `${event.target.checked ? addAppDays(current.startedAt.slice(0, 10), 1) : current.startedAt.slice(0, 10)}T${current.endedAt.slice(11)}` }))} /> Ends on a different day</label>
+              {manualOvernight && <label className="timesheet-field"><span>End date</span><input type="date" min={manualForm.startedAt.slice(0, 10)} value={manualForm.endedAt.slice(0, 10)} required onChange={(event) => { if (event.target.value) setManualForm((current) => ({ ...current, endedAt: `${event.target.value}T${current.endedAt.slice(11)}` })); }} /></label>}
+              <p id="manual-time-feedback" className={`manual-entry-duration${manualPreview.error ? ' manual-entry-duration--error' : ''}`} aria-live="polite">{manualPreview.error || (manualPreview.seconds !== null ? `${formatDuration(manualPreview.seconds)} worked${manualForm.breaks.length ? ' · breaks excluded' : ''}` : 'Enter From and To times.')}</p>
 
               <label className="timesheet-field">
                 <span>Project or activity</span>
@@ -1805,6 +1777,7 @@ const Timesheets = () => {
                   disabled={manualContextsLoading}
                   required
                 >
+                  {manualContexts.length > 0 && <option value="" disabled>Select project or activity</option>}
                   {manualContexts.length === 0 && (
                     <option value="">
                       {manualContextsLoading ? 'Loading…' : 'No permitted contexts'}
@@ -1822,26 +1795,9 @@ const Timesheets = () => {
               </label>
 
               <label className="timesheet-field">
-                <span>Work mode for this day</span>
-                <select
-                  value={manualForm.workMode}
-                  onChange={(event) => setManualForm((current) => ({
-                    ...current,
-                    workMode: event.target.value,
-                  }))}
-                  required
-                >
-                  <option value="" disabled>Select work mode</option>
-                  <option value="office">Office</option>
-                  <option value="wfh">Work from home</option>
-                </select>
-                <small>This applies to every session on the attendance day.</small>
-              </label>
-
-              <label className="timesheet-field">
-                <span>Task description</span>
+                <span>What did you work on?</span>
                 <textarea
-                  rows="3"
+                  rows="2"
                   value={manualForm.taskDescription}
                   onChange={(event) => setManualForm((current) => ({
                     ...current,
@@ -1852,42 +1808,12 @@ const Timesheets = () => {
                 />
               </label>
 
-              <div className="timesheet-editor-grid">
-                <label className="timesheet-field">
-                  <span>Start</span>
-                  <input
-                    type="datetime-local"
-                    value={manualForm.startedAt}
-                    onChange={(event) => setManualForm((current) => ({
-                      ...current,
-                      startedAt: event.target.value,
-                    }))}
-                    required
-                  />
-                </label>
-                <label className="timesheet-field">
-                  <span>End</span>
-                  <input
-                    type="datetime-local"
-                    value={manualForm.endedAt}
-                    onChange={(event) => setManualForm((current) => ({
-                      ...current,
-                      endedAt: event.target.value,
-                    }))}
-                    required
-                  />
-                </label>
-              </div>
-
-              <section className="timesheet-editor-breaks">
+              <section className={`timesheet-editor-breaks${manualForm.breaks.length ? '' : ' timesheet-editor-breaks--empty'}`}>
                 <div>
-                  <div>
-                    <span>Breaks</span>
-                    <small>Optional; each break must stay inside the entry.</small>
-                  </div>
+                  {manualForm.breaks.length > 0 && <div><span>Breaks</span><small>Excluded from worked time.</small></div>}
                   <button type="button" onClick={addManualBreak}>
                     <i className="ri-add-line" />
-                    Add break
+                    Add a break
                   </button>
                 </div>
                 {manualForm.breaks.map((breakEntry, index) => (
@@ -1895,12 +1821,12 @@ const Timesheets = () => {
                     <label className="timesheet-field">
                       <span>Break start</span>
                       <input
-                        type="datetime-local"
-                        value={breakEntry.startedAt}
+                        type={manualOvernight ? "datetime-local" : "time"}
+                        value={manualOvernight ? breakEntry.startedAt : breakEntry.startedAt.slice(11, 16)}
                         onChange={(event) => updateManualBreak(
                           index,
                           'startedAt',
-                          event.target.value,
+                          manualOvernight ? event.target.value : `${manualForm.startedAt.slice(0, 10)}T${event.target.value}`,
                         )}
                         required
                       />
@@ -1908,12 +1834,12 @@ const Timesheets = () => {
                     <label className="timesheet-field">
                       <span>Break end</span>
                       <input
-                        type="datetime-local"
-                        value={breakEntry.endedAt}
+                        type={manualOvernight ? "datetime-local" : "time"}
+                        value={manualOvernight ? breakEntry.endedAt : breakEntry.endedAt.slice(11, 16)}
                         onChange={(event) => updateManualBreak(
                           index,
                           'endedAt',
-                          event.target.value,
+                          manualOvernight ? event.target.value : `${manualForm.startedAt.slice(0, 10)}T${event.target.value}`,
                         )}
                         required
                       />
@@ -1930,65 +1856,25 @@ const Timesheets = () => {
               </section>
 
               <label className="timesheet-field">
-                <span>Reason for change</span>
+                <span>{manualEditor.mode === 'edit' ? 'Why are you correcting this?' : 'Why are you adding this?'}</span>
                 <textarea
-                  rows="3"
+                  rows="2"
                   value={manualForm.reason}
                   onChange={(event) => setManualForm((current) => ({
                     ...current,
                     reason: event.target.value,
                   }))}
-                  placeholder="Required for the immutable audit record"
+                  placeholder="e.g. Forgot to start the timer"
                   required
                 />
               </label>
 
+              {manualEditor.mode !== 'edit' && <label className="manual-entry-check"><input type="checkbox" checked={addAnother} onChange={(event) => setAddAnother(event.target.checked)} /> Add another after saving</label>}
               <footer className="timesheet-editor-footer">
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={closeManualEditor}
-                  disabled={manualSaving}
-                >
-                  Cancel
+                <button type="button" className="btn btn-outline" onClick={closeManualEditor} disabled={manualSaving}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={manualSaving || manualContextsLoading || manualContexts.length === 0 || Boolean(manualPreview.error)}>
+                  {manualSaving ? 'Saving…' : manualEditor.mode === 'edit' ? 'Save correction' : 'Save entry'}
                 </button>
-                {manualEditor.mode === 'edit' ? (
-                  <button
-                    type="submit"
-                    value="close"
-                    className="btn btn-primary"
-                    disabled={manualSaving || manualContextsLoading || manualContexts.length === 0}
-                  >
-                    {manualSaving ? 'Saving…' : 'Save correction'}
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="submit"
-                      value="close"
-                      className="btn btn-outline"
-                      disabled={manualSaving || manualContextsLoading || manualContexts.length === 0}
-                    >
-                      Save &amp; close
-                    </button>
-                    <button
-                      type="submit"
-                      value="another"
-                      className="btn btn-outline"
-                      disabled={manualSaving || manualContextsLoading || manualContexts.length === 0}
-                    >
-                      Save &amp; add another
-                    </button>
-                    <button
-                      type="submit"
-                      value="next-day"
-                      className="btn btn-primary"
-                      disabled={manualSaving || manualContextsLoading || manualContexts.length === 0}
-                    >
-                      {manualSaving ? 'Saving…' : 'Save & next day'}
-                    </button>
-                  </>
-                )}
               </footer>
             </form>
           </aside>
@@ -2029,7 +1915,7 @@ const Timesheets = () => {
               <label className="timesheet-field">
                 <span>Reason for voiding</span>
                 <textarea
-                  rows="3"
+                  rows="2"
                   value={voidReason}
                   onChange={(event) => setVoidReason(event.target.value)}
                   placeholder="For example: Duplicate entry or wrong employee"

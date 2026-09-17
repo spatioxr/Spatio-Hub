@@ -128,6 +128,8 @@ const PersonDrawer = ({
   onSave,
   onNotice,
   showPrivateDetails,
+  onArchive,
+  onCredential,
 }) => {
   const readOnly = mode === 'view';
   const drawerRef = useDialogFocus(true, onClose, { closeDisabled: saving });
@@ -505,6 +507,17 @@ const PersonDrawer = ({
 
           )}
 
+          {mode === 'edit' && person && (onArchive || onCredential) && (
+            <section className="people-account-actions" aria-label="Account actions">
+              <h3>Account actions</h3>
+              <p>{hasUnsavedChanges ? 'Save or discard profile changes before using account actions.' : 'Manage login access and account availability.'}</p>
+              <div>
+                {onCredential && <button type="button" className="btn btn-outline" disabled={saving || hasUnsavedChanges} onClick={() => onCredential(person)}>{person.auth_id ? 'Reset password' : 'Create login'}</button>}
+                {onArchive && <button type="button" className={`btn btn-outline${isArchivedPerson(person) ? '' : ' people-account-archive'}`} disabled={saving || hasUnsavedChanges} onClick={() => onArchive(person)}>{isArchivedPerson(person) ? 'Restore account' : 'Archive account'}</button>}
+              </div>
+            </section>
+          )}
+
           <div className="people-drawer-actions">
             <button type="button" className="btn btn-outline" onClick={onClose}>
               {readOnly ? 'Close' : 'Cancel'}
@@ -754,6 +767,7 @@ const People = ({ mode = 'directory' }) => {
 
     if (functionError || !data?.temporaryPassword) {
       const message = await credentialErrorMessage(functionError);
+      setDrawerError(message);
       setCredentialError(
         profileWasCreated
           ? `${person.name} was added, but login creation failed: ${message}`
@@ -763,6 +777,7 @@ const People = ({ mode = 'directory' }) => {
       return false;
     }
 
+    setDrawer(null);
     setCredential({
       action,
       personName: person.name,
@@ -881,6 +896,8 @@ const People = ({ mode = 'directory' }) => {
     ) return;
 
     setError('');
+    setDrawerError('');
+    setSaving(true);
     const archivedForm = { ...person,
       reports_to: person.reports_to || '', date_of_joining: person.date_of_joining || '',
       status: shouldArchive ? ARCHIVED_EMPLOYMENT_STATUS : ACTIVE_EMPLOYMENT_STATUS };
@@ -889,13 +906,16 @@ const People = ({ mode = 'directory' }) => {
       person.role === 'observer'
         ? { profile: archivedForm, target_id: person.id, source_account_type: 'external' }
         : { target_employee_id: person.id, ...toRpcPayload(archivedForm) },
-    );
+    ).catch((failure) => ({ error: failure }));
 
+    setSaving(false);
     if (saveError) {
+      setDrawerError(saveError.message || 'Unable to change this person’s status.');
       setError(saveError.message || 'Unable to change this person’s status.');
       return;
     }
 
+    setDrawer(null);
     setNotice(
       shouldArchive
         ? `${person.name} was archived. Their profile and history were retained.`
@@ -952,7 +972,7 @@ const People = ({ mode = 'directory' }) => {
         </div>
       )}
 
-      <div className="people-stats">
+      <div className="people-stats people-stats--compact">
         <div className="people-stat">
           <span className="people-stat-icon"><i className="ri-team-line" /></span>
           <div>
@@ -970,7 +990,7 @@ const People = ({ mode = 'directory' }) => {
         </div>
       </div>
 
-      <section className="card people-card">
+      <section className={`card people-card people-card--compact${isAccessMode ? ' people-card--access' : ''}`}>
         <div className="filter-bar people-filters">
           <label className="people-search">
             <i className="ri-search-line" aria-hidden="true" />
@@ -1018,22 +1038,34 @@ const People = ({ mode = 'directory' }) => {
         ) : (
           <div className="table-wrap">
             <SortableTable sortId="directory" className="people-table">
+              {isAccessMode && <colgroup>
+                <col className="people-access-id-column" />
+                <col className="people-access-person-column" />
+                <col className="people-access-role-column" />
+                <col className="people-access-status-column" />
+                <col className="people-access-action-column" />
+              </colgroup>}
               <thead>
                 <tr>
+                  {isAccessMode && <th>Employee ID</th>}
                   <th>Person</th>
-                  <th>Department</th>
-                  <th>Role</th>
-                  <th>Reports to</th>
-                  <th>Status</th>
-                  {isAccessMode && <th>Login</th>}
+                  {!isAccessMode && <><th>Contact</th><th>Department</th></>}
+                  <th>{isAccessMode ? 'Role & permissions' : 'Role'}</th>
+                  {!isAccessMode && <th>Reports to</th>}
+                  <th>{isAccessMode ? 'Account status' : 'Status'}</th>
                   <th aria-label="Actions" />
                 </tr>
               </thead>
               <tbody>
                 {filteredPeople.map((person) => {
                   const manager = peopleById.get(person.reports_to);
+                  const permissions = [
+                    (person.is_leave_admin || ['admin', 'superadmin'].includes(person.role)) && 'Leave Admin',
+                    (person.is_downtime_manager || ['admin', 'superadmin'].includes(person.role)) && 'Downtime Manager',
+                  ].filter(Boolean);
                   return (
                     <tr className={isArchivedPerson(person) ? 'people-row--archived' : ''} key={person.id}>
+                      {isAccessMode && <td data-label="Employee ID" data-sort-value={person.emp_code} className="people-employee-id">{person.emp_code || '—'}</td>}
                       <td data-label="Person" data-sort-value={person.name}>
                         <div className="people-person-cell">
                           <span className="people-avatar">
@@ -1041,7 +1073,13 @@ const People = ({ mode = 'directory' }) => {
                           </span>
                           <div className="people-person-details">
                             <strong>{person.name}</strong>
-                            <span>{person.emp_code}</span>
+                            {!isAccessMode && <span>{person.emp_code}</span>}
+                          </div>
+                        </div>
+                      </td>
+                      {!isAccessMode && <>
+                      <td data-label="Contact" data-sort-value={person.email}>
+                        <div className="people-contact-details">
                             <span className="people-contact-row">
                               <span>{person.email}</span>
                               <CopyContactButton label="Email" value={person.email} onCopied={setNotice} />
@@ -1055,40 +1093,29 @@ const People = ({ mode = 'directory' }) => {
                             {!person.phone_number && (
                               <span className="people-secondary">Phone not available</span>
                             )}
-                          </div>
                         </div>
                       </td>
                       <td data-label="Department" data-sort-value={person.department}>
                         <strong className="people-mobile-value">{person.department || 'Not assigned'}</strong>
                         <span className="people-secondary">{person.designation || 'No designation'}</span>
                       </td>
+                      </>}
                       <td data-label="Role" data-sort-value={roleLabel(person.role)}>
                         <div className="people-role-badges">
                           <span className="badge primary">{roleLabel(person.role)}</span>
-                          {(person.is_leave_admin || ['admin', 'superadmin'].includes(person.role)) && <span className="badge success">Leave Admin</span>}
-                          {(person.is_downtime_manager || ['admin', 'superadmin'].includes(person.role)) && <span className="badge warning">Downtime Manager</span>}
+                          {isAccessMode && permissions.length > 0 && <span className="people-permission-count" title={permissions.join(', ')} aria-label={permissions.join(', ')}>+{permissions.length} permissions</span>}
+                          {!isAccessMode && (person.is_leave_admin || ['admin', 'superadmin'].includes(person.role)) && <span className="badge success">Leave Admin</span>}
+                          {!isAccessMode && (person.is_downtime_manager || ['admin', 'superadmin'].includes(person.role)) && <span className="badge warning">Downtime Manager</span>}
                         </div>
                       </td>
-                      <td data-label="Reports to">{manager?.name || 'Not assigned'}</td>
-                      <td data-label="Status">
-                        <span className={`badge ${statusTone(person.status)}`}>
-                          {employmentStatusLabel(person.status)}
-                        </span>
+                      {!isAccessMode && <td data-label="Reports to">{manager?.name || 'Not assigned'}</td>}
+                      <td data-label={isAccessMode ? 'Account status' : 'Status'}>
+                        {isAccessMode ? <span className={`badge ${isArchivedPerson(person) || !isActivePerson(person) ? 'neutral' : !person.auth_id ? 'warning' : person.must_change_password ? 'primary' : 'success'}`}>
+                          {isArchivedPerson(person) ? 'Archived' : !isActivePerson(person) ? employmentStatusLabel(person.status) : !person.auth_id ? 'No login' : person.must_change_password ? 'Password change required' : 'Active'}
+                        </span> : <span className={`badge ${statusTone(person.status)}`}>{employmentStatusLabel(person.status)}</span>}
                       </td>
-                      {isAccessMode && (
-                        <td data-label="Login">
-                          <span className={`badge ${isArchivedPerson(person) ? 'neutral' : !person.auth_id ? 'warning' : person.must_change_password ? 'primary' : 'success'}`}>
-                            {isArchivedPerson(person)
-                              ? 'Access blocked'
-                              : !person.auth_id
-                              ? 'No login'
-                              : person.must_change_password
-                                ? 'Change required'
-                                : 'Active'}
-                          </span>
-                        </td>
-                      )}
                       <td className="people-row-actions">
+                        <div className="people-action-group">
                         <button
                           type="button"
                           className="people-action-button"
@@ -1097,31 +1124,7 @@ const People = ({ mode = 'directory' }) => {
                           <i className={canEditPerson(person) ? 'ri-edit-line' : 'ri-eye-line'} />
                           {canEditPerson(person) ? 'Edit' : 'View'}
                         </button>
-                        {canEditPerson(person) && person.id !== user.id && (
-                          <button
-                            type="button"
-                            className={`people-action-button ${isArchivedPerson(person) ? '' : 'people-action-button--danger'}`}
-                            onClick={() => toggleArchive(person)}
-                          >
-                            <i className={isArchivedPerson(person) ? 'ri-refresh-line' : 'ri-archive-line'} />
-                            {isArchivedPerson(person) ? 'Restore' : 'Archive'}
-                          </button>
-                        )}
-                        {isAccessMode && isSuperadmin && person.id !== user.id && isActivePerson(person) && (
-                          <button
-                            type="button"
-                            className="people-action-button"
-                            onClick={() => handleCredentialAction(person)}
-                            disabled={credentialActionId === person.id}
-                          >
-                            <i className={person.auth_id ? 'ri-key-2-line' : 'ri-user-add-line'} aria-hidden="true" />
-                            {credentialActionId === person.id
-                              ? 'Working…'
-                              : person.auth_id
-                                ? 'Reset password'
-                                : 'Create login'}
-                          </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1139,7 +1142,7 @@ const People = ({ mode = 'directory' }) => {
           person={drawer.person}
           people={people}
           currentUser={user}
-          saving={saving}
+          saving={saving || Boolean(credentialActionId)}
           error={drawerError}
           navigation={drawerNavigation}
           onClose={() => setDrawer(null)}
@@ -1147,6 +1150,8 @@ const People = ({ mode = 'directory' }) => {
           onSave={savePerson}
           onNotice={setNotice}
           showPrivateDetails={canManage}
+          onArchive={isAccessMode && drawer.mode === 'edit' && drawer.person?.id !== user.id && canEditPerson(drawer.person) ? toggleArchive : null}
+          onCredential={isAccessMode && isSuperadmin && drawer.mode === 'edit' && drawer.person?.id !== user.id && isActivePerson(drawer.person) ? handleCredentialAction : null}
         />
       )}
       {credential && (

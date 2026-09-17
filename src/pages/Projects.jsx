@@ -1,3 +1,6 @@
+import useUnsavedSettings from '../hooks/useUnsavedSettings';
+import SortableTable from '../components/SortableTable';
+import WorkSetupLayout from '../components/WorkSetupLayout';
 import useListSort from '../hooks/useListSort';
 import ListSortControls from '../components/ListSortControls';
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -34,9 +37,9 @@ const ProjectDrawer = ({
   error,
   onClose,
   onSave,
+  onArchive,
 }) => {
   const isCreate = !project;
-  const drawerRef = useDialogFocus(true, onClose, { closeDisabled: saving });
   const canEditDefinition = canManageDefinitions;
   const [form, setForm] = useState(() => (
     project
@@ -49,6 +52,14 @@ const ProjectDrawer = ({
       }
       : EMPTY_FORM
   ));
+
+  const initialForm = project ? { code: project.code || '', name: project.name || '', description: project.description || '', managerIds: normaliseAssignments(project.managers).map((person) => person.id), memberIds: normaliseAssignments(project.members).map((person) => person.id) } : EMPTY_FORM;
+  const dirty = JSON.stringify(form) !== JSON.stringify(initialForm);
+  useUnsavedSettings(dirty, saving);
+  const requestClose = () => {
+    if (!saving && (!dirty || window.confirm('Discard unsaved project changes?'))) onClose();
+  };
+  const drawerRef = useDialogFocus(true, requestClose, { closeDisabled: saving });
 
   const managerCandidates = candidates.filter((candidate) => (
     ['manager', 'admin', 'superadmin'].includes(candidate.role)
@@ -69,7 +80,7 @@ const ProjectDrawer = ({
   };
 
   return (
-    <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && onClose()}>
+    <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && requestClose()}>
       <aside
         ref={drawerRef}
         className="drawer project-drawer"
@@ -84,11 +95,11 @@ const ProjectDrawer = ({
             <h2 id="project-drawer-title">{isCreate ? 'Create project' : project.name}</h2>
             <p>
               {canEditDefinition
-                ? 'Keep the project definition and its explicit assignments together.'
+                ? 'Edit project details and accountable managers. Team assignments are managed in Projects.'
                 : 'Project details are read-only. You can manage this owned project’s team.'}
             </p>
           </div>
-          <button type="button" className="people-icon-button" onClick={onClose} aria-label="Close">
+          <button type="button" className="people-icon-button" onClick={requestClose} disabled={saving} aria-label="Close">
             <i className="ri-close-line" />
           </button>
         </div>
@@ -101,6 +112,7 @@ const ProjectDrawer = ({
         )}
 
         <form className="people-form project-form" onSubmit={handleSubmit}>
+          <fieldset className="work-setup-edit-fields" disabled={saving}>
           <div className="people-form-grid">
             <label className="people-field">
               <span>Project code *</span>
@@ -162,7 +174,7 @@ const ProjectDrawer = ({
             </fieldset>
           )}
 
-          {!isCreate && (
+          {!isCreate && !canEditDefinition && (
             <fieldset className="project-assignment-section" disabled={Boolean(project.archived_at)}>
               <legend>Team assignees</legend>
               <p>
@@ -193,12 +205,14 @@ const ProjectDrawer = ({
             </fieldset>
           )}
 
+          {project && canEditDefinition && <section className="work-setup-account-actions"><h3>Project availability</h3><p>{dirty ? 'Save or discard your edits before changing availability.' : project.archived_at ? 'Restore to make this project available again.' : 'Archiving removes this project from new work choices. Existing reports are retained.'}</p><button type="button" className="btn btn-outline" disabled={saving || dirty} onClick={() => onArchive(project)}>{project.archived_at ? 'Restore project' : 'Archive project'}</button></section>}
+          </fieldset>
           <div className="people-drawer-actions">
-            <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-outline" onClick={requestClose} disabled={saving}>Cancel</button>
             <button
               type="submit"
               className="btn"
-              disabled={saving || loadingCandidates || (isCreate && form.managerIds.length === 0)}
+              disabled={saving || loadingCandidates || !dirty || (canEditDefinition && !project?.archived_at && form.managerIds.length === 0)}
             >
               {saving ? 'Saving…' : isCreate ? 'Create project' : 'Save changes'}
             </button>
@@ -228,6 +242,7 @@ const Projects = ({ mode = 'manage' }) => {
   const canManageDefinitions = mode === 'setup'
     && hasPermission(user, PERMISSIONS.MANAGE_PROJECTS);
   const isSetupMode = mode === 'setup';
+  const PageLayout = isSetupMode ? WorkSetupLayout : Layout;
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -339,7 +354,7 @@ const Projects = ({ mode = 'manage' }) => {
       }
     }
 
-    if (!project.archived_at) {
+    if (!canManageDefinitions && !project.archived_at) {
       for (const employeeId of nextMembers) {
         if (!existingMembers.has(employeeId)) {
           const { error: assignmentError } = await supabase.rpc('assign_project_member', {
@@ -414,27 +429,22 @@ const Projects = ({ mode = 'manage' }) => {
   };
 
   const changeArchiveState = async (project) => {
-    setError('');
+    if (saving) return;
+    setSaving(true); setDrawerError('');
     const shouldArchive = !project.archived_at;
-    const { error: archiveError } = await supabase.rpc('set_project_archived', {
-      target_project_id: project.id,
-      should_archive: shouldArchive,
-    });
-
-    if (archiveError) {
-      setError(archiveError.message || 'Unable to change this project’s status.');
-      return;
-    }
-
-    const actionLabel = `${project.name} was ${shouldArchive ? 'archived' : 'restored'}.`;
-    const refreshResult = await fetchProjects();
-    setNotice(refreshResult.error
-      ? `${actionLabel} The project list could not be refreshed; use Try again below.`
-      : actionLabel);
+    try {
+      const { error: archiveError } = await supabase.rpc('set_project_archived', { target_project_id: project.id, should_archive: shouldArchive });
+      if (archiveError) throw archiveError;
+      setDrawer(null);
+      const actionLabel = `${project.name} was ${shouldArchive ? 'archived' : 'restored'}.`;
+      const refreshed = await fetchProjects();
+      setNotice(refreshed.error ? `${actionLabel} Refresh the list to see the change.` : actionLabel);
+    } catch (failure) { setDrawerError(failure.message || 'Unable to change project availability.'); }
+    finally { setSaving(false); }
   };
 
   return (
-    <Layout
+    <PageLayout
       title={isSetupMode ? 'Project Setup' : 'Projects'}
       eyebrow={isSetupMode ? 'Work Setup' : 'Manage'}
       heading={isSetupMode ? 'Project Setup' : 'Projects'}
@@ -465,7 +475,7 @@ const Projects = ({ mode = 'manage' }) => {
         </div>
       )}
 
-      <div className="project-stats">
+      {!isSetupMode && <div className="project-stats">
         <div className="people-stat">
           <span className="people-stat-icon"><i className="ri-briefcase-4-line" /></span>
           <div><strong>{projects.length}</strong><span>Visible projects</span></div>
@@ -478,9 +488,9 @@ const Projects = ({ mode = 'manage' }) => {
           <span className="people-stat-icon project-stat-icon--archived"><i className="ri-archive-line" /></span>
           <div><strong>{archivedCount}</strong><span>Archived</span></div>
         </div>
-      </div>
+      </div>}
 
-      <section className="card project-card">
+      <section className={`card project-card${isSetupMode ? ' work-setup-list' : ''}`}>
         <div className="filter-bar people-filters">
           <label className="people-search">
             <i className="ri-search-line" aria-hidden="true" />
@@ -488,7 +498,7 @@ const Projects = ({ mode = 'manage' }) => {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search projects, managers or team"
+              placeholder={isSetupMode ? "Search code, project or manager" : "Search projects, managers or team"}
               aria-label="Search projects"
             />
           </label>
@@ -502,9 +512,10 @@ const Projects = ({ mode = 'manage' }) => {
                 type="button"
                 key={value}
                 className={`app-tab${status === value ? ' active' : ''}`}
+                aria-pressed={status === value}
                 onClick={() => setStatus(value)}
               >
-                {label}
+                {label}{isSetupMode && ` (${loading ? '…' : value === 'active' ? activeCount : value === 'archived' ? archivedCount : projects.length})`}
               </button>
             ))}
           </div>
@@ -539,6 +550,17 @@ const Projects = ({ mode = 'manage' }) => {
                 ? 'Create the first project with an accountable manager.'
                 : 'No owned projects are assigned to you.'}
           />
+        ) : isSetupMode ? (
+          <div className="table-wrap"><SortableTable sortId="setupProjects" className="work-setup-table">
+            <thead><tr><th>Code</th><th>Project</th><th>Managers</th><th>Status</th><th aria-label="Actions" /></tr></thead>
+            <tbody>{filteredProjects.map((project) => <tr key={project.id}>
+              <td data-label="Code">{project.code}</td>
+              <td data-label="Project"><strong>{project.name}</strong></td>
+              <td data-label="Managers">{normaliseAssignments(project.managers).map((person) => person.name).join(', ') || 'Not assigned'}</td>
+              <td data-label="Status"><span className={`badge ${project.archived_at ? 'neutral' : 'success'}`}>{project.archived_at ? 'Archived' : 'Active'}</span></td>
+              <td><button type="button" className="people-action-button" onClick={() => openProject(project)}>Edit</button></td>
+            </tr>)}</tbody>
+          </SortableTable></div>
         ) : (
           <div className="project-list">
             <ListSortControls sort={listSort} />
@@ -611,9 +633,10 @@ const Projects = ({ mode = 'manage' }) => {
           error={drawerError}
           onClose={() => setDrawer(null)}
           onSave={saveProject}
+          onArchive={changeArchiveState}
         />
       )}
-    </Layout>
+    </PageLayout>
   );
 };
 

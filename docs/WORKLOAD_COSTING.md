@@ -184,3 +184,27 @@ example and separate explanations of provisional weeks and zero allocations.
 The correction drawer has inset margins, a rounded frame, a loading indication,
 locked background scrolling and opens at the selected day's detail. Returning
 retains the review period and filters. No employee records were changed for UI checks.
+
+## Loading feedback and cache (17 September 2026)
+
+The first request shows the loading component. Loaded results stay visible during
+refresh, with a fixed-width Refreshing button indicator; transient failures show a retry message
+instead of removing the figures. An in-memory cache reuses results for 30 seconds
+and keeps at most six period selections. It is scoped to the signed-in session,
+person and role, never persisted to browser storage. Explicit refresh and saved
+corrections invalidate cached periods. Rejected authorisation clears displayed
+and cached results. Switching periods never displays the previous period's data.
+
+## Inline confirmation (17 September 2026)
+
+Confirm correct now uses two clicks in place: first arms a checkmark confirmation,
+second saves it. Escape or moving focus away cancels the armed state. No typed
+explanation is requested; the existing RPC records a standard confirmation note
+alongside the actor, date and fingerprint. Pending submissions cannot be repeated;
+failures remain visible and retryable. Successful confirmation refreshes the queue
+and invalidates cached figures. Timer corrections still require their actual end
+and correction reason. Existing server eligibility and permissions remain intact.
+
+Refresh feedback stays in the toolbar; success notifications float outside the
+page layout so they do not shift the review list. Confirmation buttons retain a
+fixed width and explicit green hover, armed, focus and disabled colours.

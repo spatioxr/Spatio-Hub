@@ -1,7 +1,7 @@
-import useListSort from '../hooks/useListSort';
-import ListSortControls from '../components/ListSortControls';
+import useUnsavedSettings from '../hooks/useUnsavedSettings';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import Layout from '../components/Layout';
+import WorkSetupLayout from '../components/WorkSetupLayout';
+import SortableTable from '../components/SortableTable';
 import AppState from '../components/AppState';
 import { supabase } from '../utils/supabaseClient';
 import useDialogFocus from '../hooks/useDialogFocus';
@@ -17,9 +17,9 @@ const ActivityDrawer = ({
   error,
   onClose,
   onSave,
+  onArchive,
 }) => {
   const isCreate = !activity;
-  const drawerRef = useDialogFocus(true, onClose, { closeDisabled: saving });
   const [form, setForm] = useState(() => (
     activity
       ? {
@@ -29,13 +29,18 @@ const ActivityDrawer = ({
       : EMPTY_FORM
   ));
 
+  const dirty = form.name !== (activity?.name || '') || form.description !== (activity?.description || '');
+  useUnsavedSettings(dirty, saving);
+  const requestClose = () => { if (!saving && (!dirty || window.confirm('Discard unsaved activity changes?'))) onClose(); };
+  const drawerRef = useDialogFocus(true, requestClose, { closeDisabled: saving });
+
   const handleSubmit = (event) => {
     event.preventDefault();
     onSave(form);
   };
 
   return (
-    <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && onClose()}>
+    <div className="drawer-backdrop" onClick={(event) => event.target === event.currentTarget && requestClose()}>
       <aside
         ref={drawerRef}
         className="drawer activity-drawer"
@@ -49,12 +54,10 @@ const ActivityDrawer = ({
             <span className="page-eyebrow">Activity administration</span>
             <h2 id="activity-drawer-title">{isCreate ? 'Create activity' : activity.name}</h2>
             <p>
-              {activity?.has_history
-                ? 'The name is locked because this activity has reported work. Its description can still be updated.'
-                : 'Keep internal work choices concise and distinct from client projects.'}
+              Define when employees should choose this activity.
             </p>
           </div>
-          <button type="button" className="people-icon-button" onClick={onClose} aria-label="Close">
+          <button type="button" className="people-icon-button" onClick={requestClose} disabled={saving} aria-label="Close">
             <i className="ri-close-line" />
           </button>
         </div>
@@ -67,6 +70,7 @@ const ActivityDrawer = ({
         )}
 
         <form className="people-form activity-form" onSubmit={handleSubmit}>
+          <fieldset className="work-setup-edit-fields" disabled={saving}>
           <label className="people-field">
             <span>Activity name *</span>
             <input
@@ -76,6 +80,7 @@ const ActivityDrawer = ({
               placeholder="Internal activity"
               required
             />
+            {activity?.has_history && <small>This name is locked because it is used in reports. You can still edit the description.</small>}
           </label>
 
           <label className="people-field">
@@ -88,9 +93,11 @@ const ActivityDrawer = ({
             />
           </label>
 
+          {activity && <section className="work-setup-account-actions"><h3>Activity availability</h3><p>{dirty ? 'Save or discard your edits before changing availability.' : activity.archived_at ? 'Restore to make this activity selectable again.' : 'Archiving removes this activity from new work choices. Existing reports are retained.'}</p><button type="button" className="btn btn-outline" disabled={saving || dirty} onClick={() => onArchive(activity)}>{activity.archived_at ? 'Restore activity' : 'Archive activity'}</button></section>}
+          </fieldset>
           <div className="people-drawer-actions">
-            <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn" disabled={saving}>
+            <button type="button" className="btn btn-outline" onClick={requestClose} disabled={saving}>Cancel</button>
+            <button type="submit" className="btn" disabled={saving || !dirty}>
               {saving ? 'Saving…' : isCreate ? 'Create activity' : 'Save changes'}
             </button>
           </div>
@@ -101,7 +108,6 @@ const ActivityDrawer = ({
 };
 
 const Activities = () => {
-  const listSort = useListSort('activityList', [{ key: 'name', label: 'Activity name', value: (item) => item.name }, { key: 'status', label: 'Status', value: (item) => item.archived_at ? 'Archived' : 'Active' }]);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -164,52 +170,37 @@ const Activities = () => {
   };
 
   const saveActivity = async (form) => {
-    setSaving(true);
-    setDrawerError('');
-
-    const activity = drawer.activity;
-    const { error: saveError } = activity
-      ? await supabase.rpc('update_activity_definition', {
-        target_activity_id: activity.id,
-        activity_name: form.name,
-        activity_description: form.description,
-      })
-      : await supabase.rpc('create_activity', {
-        activity_name: form.name,
-        activity_description: form.description,
-      });
-
-    if (saveError) {
-      setDrawerError(saveError.message || 'Unable to save this activity.');
-      setSaving(false);
-      return;
-    }
-
-    setDrawer(null);
-    setNotice(`${form.name.trim()} was ${activity ? 'updated' : 'created'}.`);
-    await fetchActivities();
-    setSaving(false);
+    if (saving) return;
+    setSaving(true); setDrawerError('');
+    try {
+      const activity = drawer.activity;
+      const { error: saveError } = activity
+        ? await supabase.rpc('update_activity_definition', { target_activity_id: activity.id, activity_name: form.name, activity_description: form.description })
+        : await supabase.rpc('create_activity', { activity_name: form.name, activity_description: form.description });
+      if (saveError) throw saveError;
+      setDrawer(null);
+      setNotice(`${form.name.trim()} was ${activity ? 'updated' : 'created'}.`);
+      await fetchActivities();
+    } catch (failure) { setDrawerError(failure.message || 'Unable to save this activity.'); }
+    finally { setSaving(false); }
   };
 
   const changeArchiveState = async (activity) => {
-    setError('');
-    const shouldArchive = !activity.archived_at;
-    const { error: archiveError } = await supabase.rpc('set_activity_archived', {
-      target_activity_id: activity.id,
-      should_archive: shouldArchive,
-    });
-
-    if (archiveError) {
-      setError(archiveError.message || 'Unable to change this activity’s status.');
-      return;
-    }
-
-    setNotice(`${activity.name} was ${shouldArchive ? 'archived' : 'restored'}.`);
-    await fetchActivities();
+    if (saving) return;
+    setSaving(true); setDrawerError('');
+    try {
+      const shouldArchive = !activity.archived_at;
+      const { error: archiveError } = await supabase.rpc('set_activity_archived', { target_activity_id: activity.id, should_archive: shouldArchive });
+      if (archiveError) throw archiveError;
+      setDrawer(null);
+      setNotice(`${activity.name} was ${shouldArchive ? 'archived' : 'restored'}.`);
+      await fetchActivities();
+    } catch (failure) { setDrawerError(failure.message || 'Unable to change activity availability.'); }
+    finally { setSaving(false); }
   };
 
   return (
-    <Layout
+    <WorkSetupLayout
       title="Activities"
       eyebrow="Work Setup"
       heading="Internal activities"
@@ -228,22 +219,7 @@ const Activities = () => {
         </div>
       )}
 
-      <div className="project-stats">
-        <div className="people-stat">
-          <span className="people-stat-icon"><i className="ri-list-check-3" /></span>
-          <div><strong>{activities.length}</strong><span>Total activities</span></div>
-        </div>
-        <div className="people-stat">
-          <span className="people-stat-icon people-stat-icon--active"><i className="ri-play-circle-line" /></span>
-          <div><strong>{activeCount}</strong><span>Selectable</span></div>
-        </div>
-        <div className="people-stat">
-          <span className="people-stat-icon project-stat-icon--archived"><i className="ri-archive-line" /></span>
-          <div><strong>{archivedCount}</strong><span>Archived</span></div>
-        </div>
-      </div>
-
-      <section className="card project-card">
+      <section className="card project-card work-setup-list">
         <div className="filter-bar people-filters">
           <label className="people-search">
             <i className="ri-search-line" aria-hidden="true" />
@@ -265,9 +241,10 @@ const Activities = () => {
                 type="button"
                 key={value}
                 className={`app-tab${status === value ? ' active' : ''}`}
+                aria-pressed={status === value}
                 onClick={() => setStatus(value)}
               >
-                {label}
+                {label} ({loading ? '…' : value === 'active' ? activeCount : value === 'archived' ? archivedCount : activities.length})
               </button>
             ))}
           </div>
@@ -291,41 +268,15 @@ const Activities = () => {
               : 'Create the first approved internal activity.'}
           />
         ) : (
-          <div className="activity-list">
-            <ListSortControls sort={listSort} />
-            {listSort.sort(filteredActivities).map((activity) => (
-              <article
-                className={`activity-row${activity.archived_at ? ' activity-row--archived' : ''}`}
-                key={activity.id}
-              >
-                <span className="activity-row-icon"><i className="ri-lightbulb-flash-line" /></span>
-                <div className="activity-row-copy">
-                  <div className="project-title-line">
-                    <h3>{activity.name}</h3>
-                    <span className={`badge ${activity.archived_at ? 'neutral' : 'success'}`}>
-                      {activity.archived_at ? 'Archived' : 'Active'}
-                    </span>
-                    {activity.has_history && <span className="badge neutral">Used in reports</span>}
-                  </div>
-                  <p>{activity.description || 'No description provided.'}</p>
-                </div>
-                <div className="project-row-actions">
-                  <button type="button" className="people-action-button" onClick={() => openEdit(activity)}>
-                    <i className="ri-edit-line" />
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className={`people-action-button${activity.archived_at ? '' : ' people-action-button--danger'}`}
-                    onClick={() => changeArchiveState(activity)}
-                  >
-                    <i className={activity.archived_at ? 'ri-refresh-line' : 'ri-archive-line'} />
-                    {activity.archived_at ? 'Restore' : 'Archive'}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+          <div className="table-wrap"><SortableTable sortId="setupActivities" className="work-setup-table">
+            <thead><tr><th>Activity</th><th>Description</th><th>Status</th><th aria-label="Actions" /></tr></thead>
+            <tbody>{filteredActivities.map((activity) => <tr key={activity.id}>
+              <td data-label="Activity"><strong>{activity.name}</strong></td>
+              <td data-label="Description"><span className="work-setup-description" title={activity.description || ''}>{activity.description || '—'}</span></td>
+              <td data-label="Status"><span className={`badge ${activity.archived_at ? 'neutral' : 'success'}`}>{activity.archived_at ? 'Archived' : 'Active'}</span></td>
+              <td><button type="button" className="people-action-button" onClick={() => openEdit(activity)}>Edit</button></td>
+            </tr>)}</tbody>
+          </SortableTable></div>
         )}
       </section>
 
@@ -336,9 +287,10 @@ const Activities = () => {
           error={drawerError}
           onClose={() => setDrawer(null)}
           onSave={saveActivity}
+          onArchive={changeArchiveState}
         />
       )}
-    </Layout>
+    </WorkSetupLayout>
   );
 };
 

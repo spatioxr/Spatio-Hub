@@ -1,4 +1,5 @@
-import { addAppDays, appDateDistance } from './timezone.js';
+import { periodRange } from './analyticsPeriods.js';
+import { appDateDistance } from './timezone.js';
 
 export const ANALYTICS_FILTER_KEYS = ['project', 'activity', 'department', 'employee'];
 export const emptyAnalyticsFilters = () => Object.fromEntries(
@@ -13,17 +14,20 @@ const validDate = (value) => {
 
 export const validAnalyticsRange = (start, end, today) => (
   validDate(start) && validDate(end) && end <= today
-  && appDateDistance(start, end) >= 0 && appDateDistance(start, end) < 31
+  && appDateDistance(start, end) >= 0
 );
 
 export const readAnalyticsView = (search, today) => {
   const params = new URLSearchParams(search);
   const start = params.get('start');
   const end = params.get('end');
+  const valid = validAnalyticsRange(start, end, today);
+  const mode = valid ? params.get('period') : 'week';
   return {
-    range: validAnalyticsRange(start, end, today)
-      ? { start, end }
-      : { start: addAppDays(today, -6), end: today },
+    range: valid
+      ? ['week', 'month'].includes(mode) ? periodRange(mode, start, today) : { start, end }
+      : periodRange('week', today, today),
+    ...(['week', 'month', 'custom'].includes(mode) ? { mode } : {}),
     filters: Object.fromEntries(ANALYTICS_FILTER_KEYS.map((key) => (
       [key, params.get(key) || 'all']
     ))),
@@ -32,6 +36,7 @@ export const readAnalyticsView = (search, today) => {
 
 export const writeAnalyticsView = (search, view) => {
   const params = new URLSearchParams(search);
+  if (view.mode) params.set('period', view.mode);
   params.set('start', view.range.start);
   params.set('end', view.range.end);
   ANALYTICS_FILTER_KEYS.forEach((key) => {

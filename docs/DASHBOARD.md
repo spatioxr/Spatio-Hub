@@ -30,3 +30,26 @@ People, and work tracking visible without a hard reload.
 
 All facts remain permission-scoped in Supabase. The Dashboard introduces no
 Phase 2 route or mutation.
+
+## Availability follow-up (17 September 2026)
+
+User-requested extension of the HRMS-048 governed leave surface: Leave Admin
+viewers see today's approved absences plus the next four upcoming approved
+requests, ordered by start date. Future rows show the employee, leave type,
+half-day indicator and date range. Ongoing leave stays in today's list; pending,
+rejected and cancelled requests are excluded. Empty lists have explicit messages,
+and a View all leave link appears when either list has more than four requests.
+Both lists reuse `scoped_leave_requests` through LeaveContext and retain the
+existing permission boundary and dashboard refresh cycle.
+
+Verify date/year boundaries, ordering and excluded statuses with dashboard unit
+tests; check populated/empty availability and date wrapping at laptop/mobile widths.
+
+The Next Holiday card now opens a monthly company calendar (HRMS-035 follow-up).
+It starts at the next holiday's month, or the current month if none is upcoming.
+Previous/next month and Today controls support browsing; holidays are highlighted
+with date markers and their full names appear in a readable list below the grid.
+Only the displayed month's holidays are marked; today's date is outlined. It reuses the
+governed holiday list, IST date formatting and existing accessible dialog focus,
+Escape and dismissal behavior. Month-grid tests cover leap days, Monday/Sunday
+starts, multiple holidays on a date and navigation across year boundaries.

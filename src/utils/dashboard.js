@@ -1,8 +1,43 @@
+import { addAppDays } from './timezone.js';
+
+export const holidayCalendarMonth = (month, holidays = []) => {
+  const first = `${month.slice(0, 7)}-01`;
+  const weekday = new Date(`${first}T12:00:00Z`).getUTCDay();
+  const start = addAppDays(first, -((weekday + 6) % 7));
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = addAppDays(start, index);
+    return {
+      date,
+      inMonth: date.slice(0, 7) === first.slice(0, 7),
+      holidays: holidays.filter((holiday) => holiday.date === date),
+    };
+  });
+};
+
+export const shiftCalendarMonth = (month, offset) => {
+  const [year, number] = month.split('-').map(Number);
+  return new Date(Date.UTC(year, number - 1 + offset, 1, 12)).toISOString().slice(0, 10);
+};
+
 const LEAVE_TYPES = Object.freeze([
   { type: 'Sick Leave', icon: 'ri-heart-pulse-line' },
   { type: 'Casual Leave', icon: 'ri-sun-cloudy-line' },
   { type: 'Comp Off', icon: 'ri-time-line' },
 ]);
+
+export const dashboardLeaveAvailability = (requests = [], today) => {
+  const approved = requests.filter((request) => {
+    const from = request.from_date || request.from;
+    const to = request.to_date || request.to;
+    return request.status === 'Approved' && from && to && from <= to && to >= today;
+  }).sort((a, b) => (a.from_date || a.from).localeCompare(b.from_date || b.from)
+    || (a.employees?.name || '').localeCompare(b.employees?.name || ''));
+
+  return {
+    today: approved.filter((request) => (request.from_date || request.from) <= today),
+    upcoming: approved.filter((request) => (request.from_date || request.from) > today),
+  };
+};
 
 export const attendanceCompletionRate = (summary = {}) => {
   const workingDays = Math.max(0, Number(summary.workingDays || 0));

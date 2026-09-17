@@ -8,6 +8,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import AnalyticsPeriodPicker from '../components/AnalyticsPeriodPicker';
+import { earliestAnalyticsDate, loadAnalytics } from '../utils/analyticsData';
 import AppState from '../components/AppState';
 import Layout from '../components/Layout';
 import './WorkDistribution.css';
@@ -20,7 +22,6 @@ import {
   changeAnalyticsFilter,
   emptyAnalyticsFilters,
   retainAnalyticsOption,
-  validAnalyticsRange,
 } from '../utils/analyticsNavigation';
 import {
   ANALYTICS_EXPORT_TYPES,
@@ -30,9 +31,7 @@ import {
   workDistributionCsvFilename,
 } from '../utils/workDistributionCsv';
 import {
-  appDateDistance,
   appDateKey,
-  appDayRange,
   formatAppClock,
   formatAppDate,
   formatAppDateTime,
@@ -43,11 +42,7 @@ import {
   sumDowntimeSeconds,
 } from '../utils/downtime';
 
-const MAX_RANGE_DAYS = 31;
-
 const dateKey = appDateKey;
-
-const rangeLength = (startDate, endDate) => appDateDistance(startDate, endDate) + 1;
 
 const formatDuration = (seconds) => {
   const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -55,10 +50,6 @@ const formatDuration = (seconds) => {
   const minutes = Math.floor((safeSeconds % 3600) / 60);
   if (hours === 0) return `${minutes}m`;
   return `${hours}h ${String(minutes).padStart(2, '0')}m`;
-};
-
-const formatRange = (startDate, endDate) => {
-  return `${formatAppDate(startDate)} – ${formatAppDate(endDate)}`;
 };
 
 const formatEntryDate = formatAppDate;
@@ -158,14 +149,22 @@ const WorkDistribution = () => {
   const isManager = getRole(user) === ROLES.MANAGER;
   const analyticsScope = isManager ? 'managed' : 'organisation';
   const today = dateKey();
-  const { range: appliedRange, filters, updateView } = useAnalyticsNavigation(user.id, today);
-  const [draftRange, setDraftRange] = useState(appliedRange);
+  const { range: appliedRange, mode, filters, updateView } = useAnalyticsNavigation(user.id, today);
+  const [detailRows, setDetailRows] = useState([]);
+  const [detailsLoaded, setDetailsLoaded] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState('');
+  const periodKey = `${user.id}:${analyticsScope}:${appliedRange.start}:${appliedRange.end}`;
+  const [settledPeriod, setSettledPeriod] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [detailLimit, setDetailLimit] = useState(200);
+  useEffect(() => setDetailLimit(200), [appliedRange, filters]);
   const [entries, setEntries] = useState([]);
   const [downtimeEvents, setDowntimeEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(true);
+  const loading = fetching || settledPeriod !== periodKey;
   const [exportType, setExportType] = useState('entries');
   const [error, setError] = useState('');
-  const [rangeError, setRangeError] = useState('');
   const entriesRef = useRef(null);
   const filtersRef = useRef(null);
   const chartsRef = useRef(null);
@@ -174,47 +173,58 @@ const WorkDistribution = () => {
   const requestRef = useRef(0);
   const optionLabelsRef = useRef(new Map());
 
-  useEffect(() => {
-    setDraftRange(appliedRange);
-    setRangeError('');
-  }, [appliedRange]);
-
-  const fetchEntries = useCallback(async () => {
+  const fetchEntries = useCallback(async (refresh = false) => {
     const request = ++requestRef.current;
-    setLoading(true);
+    setFetching(true);
     setError('');
-
-    const range = appDayRange(appliedRange.start, appliedRange.end);
-    const [entryResult, downtimeResult] = await Promise.all([
-      supabase.rpc('scoped_timesheet_entries', {
-        requested_start_at: range.start,
-        requested_end_at: range.end,
-        requested_scope: analyticsScope,
-        requested_employee_id: null,
-      }),
-      supabase.rpc('organisation_downtime_for_period', {
-        requested_start_at: range.start,
-        requested_end_at: range.end,
-      }),
-    ]);
-    if (request !== requestRef.current) return;
-    const fetchError = entryResult.error || downtimeResult.error;
-
-    if (fetchError) {
+    setDetailsLoaded(false);
+    setDetailsLoading(false);
+    setDetailRows([]);
+    setDetailsError('');
+    try {
+      const result = await loadAnalytics(supabase, appliedRange, analyticsScope, user.id, {
+        refresh: refresh === true, isCurrent: () => request === requestRef.current,
+      });
+      if (request !== requestRef.current) return;
+      setEntries(result.rows);
+      setDowntimeEvents(result.downtime);
+    } catch (failure) {
+      if (request !== requestRef.current) return;
       setEntries([]);
       setDowntimeEvents([]);
-      setError(fetchError.message || 'Unable to load work-distribution analytics.');
-    } else {
-      setEntries(entryResult.data || []);
-      setDowntimeEvents(downtimeResult.data || []);
+      setError(failure.message || 'Unable to load analytics.');
+    } finally {
+      if (request === requestRef.current) {
+        setSettledPeriod(periodKey);
+        setFetching(false);
+      }
     }
-    setLoading(false);
-  }, [analyticsScope, appliedRange]);
+  }, [analyticsScope, appliedRange, user.id, periodKey]);
 
   useEffect(() => {
     void fetchEntries();
     return () => { requestRef.current += 1; };
   }, [fetchEntries]);
+
+  const loadDetails = async () => {
+    const request = requestRef.current;
+    setDetailsLoading(true);
+    setDetailsError('');
+    try {
+      const result = await loadAnalytics(supabase, appliedRange, analyticsScope, user.id, {
+        details: true, isCurrent: () => request === requestRef.current,
+      });
+      if (request !== requestRef.current) return null;
+      setDetailRows(result.rows);
+      setDetailsLoaded(true);
+      return result.rows;
+    } catch (failure) {
+      if (request === requestRef.current) setDetailsError(failure.message || 'Unable to load supporting entries.');
+      return null;
+    } finally {
+      if (request === requestRef.current) setDetailsLoading(false);
+    }
+  };
 
   const periodOptions = useMemo(() => ({
     projects: uniqueOptions(
@@ -252,7 +262,7 @@ const WorkDistribution = () => {
     return [dimension, retainAnalyticsOption(options, filters[key], optionLabelsRef.current.get(`${dimension}:${filters[key]}`))];
   })), [periodOptions, filters]);
 
-  const filteredEntries = useMemo(() => entries.filter((entry) => {
+  const matchesFilters = useCallback((entry) => {
     const employeeMatches = filters.employee === 'all'
       || entry.employee_id === filters.employee;
     const departmentMatches = filters.department === 'all'
@@ -271,7 +281,8 @@ const WorkDistribution = () => {
       );
 
     return employeeMatches && departmentMatches && contextMatches;
-  }), [entries, filters]);
+  }, [filters]);
+  const filteredEntries = useMemo(() => entries.filter(matchesFilters), [entries, matchesFilters]);
 
   const activeFilters = useMemo(() => {
     const labels = {
@@ -308,7 +319,7 @@ const WorkDistribution = () => {
     return {
       workedSeconds,
       breakSeconds,
-      sessions: filteredEntries.length,
+      sessions: filteredEntries.reduce((total, entry) => total + Number(entry.session_count || 1), 0),
       employees: new Set(filteredEntries.map((entry) => entry.employee_id)).size,
       downtimeSeconds: sumDowntimeSeconds(downtimeEvents),
     };
@@ -338,10 +349,10 @@ const WorkDistribution = () => {
   }), [filteredEntries]);
 
   const visibleEntries = useMemo(() => (
-    [...filteredEntries].sort((left, right) => (
+    detailRows.filter(matchesFilters).sort((left, right) => (
       new Date(right.started_at) - new Date(left.started_at)
     ))
-  ), [filteredEntries]);
+  ), [detailRows, matchesFilters]);
 
   const clearFilters = () => updateView({ filters: emptyAnalyticsFilters() });
 
@@ -364,6 +375,7 @@ const WorkDistribution = () => {
 
   const drillIntoEntries = (dimension, item, button) => {
     selectedBarRef.current = button;
+    if (!detailsLoaded && !detailsLoading && !loading) void loadDetails();
     updateView({ filters: changeAnalyticsFilter(filters, dimension, item.key, true) });
     window.requestAnimationFrame(() => {
       if (entryListRef.current) entryListRef.current.scrollTop = 0;
@@ -375,15 +387,19 @@ const WorkDistribution = () => {
     selectedBarRef.current?.isConnected ? selectedBarRef.current : chartsRef.current,
   );
 
-  const exportCount = exportType === 'downtime' ? downtimeEvents.length : visibleEntries.length;
-  const exportCsv = () => {
-    if (loading || error || exportCount === 0) return;
+  const exportCount = exportType === 'downtime' ? downtimeEvents.length : summary.sessions;
+  const exportCsv = async () => {
+    if (loading || exporting || error || exportCount === 0) return;
+    setExporting(true);
+    const rows = exportType === 'downtime' ? [] : detailsLoaded ? detailRows : await loadDetails();
+    if (!rows) { setExporting(false); return; }
+    const exportRows = rows.filter(matchesFilters);
 
     const csv = exportType === 'downtime'
       ? buildOrganisationDowntimeCsv(downtimeEvents)
       : exportType === 'daily'
-        ? buildDailyEmployeeCsv(visibleEntries)
-        : buildWorkDistributionCsv(visibleEntries);
+        ? buildDailyEmployeeCsv(exportRows)
+        : buildWorkDistributionCsv(exportRows);
     const downloadUrl = URL.createObjectURL(new Blob([csv], {
       type: 'text/csv;charset=utf-8',
     }));
@@ -394,27 +410,7 @@ const WorkDistribution = () => {
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-  };
-
-  const applyRange = (event) => {
-    event.preventDefault();
-    const days = rangeLength(draftRange.start, draftRange.end);
-
-    if (!draftRange.start || !draftRange.end || !Number.isFinite(days) || days < 1) {
-      setRangeError('Choose an end date on or after the start date.');
-      return;
-    }
-    if (days > MAX_RANGE_DAYS) {
-      setRangeError(`Choose a date range of ${MAX_RANGE_DAYS} days or fewer.`);
-      return;
-    }
-    if (!validAnalyticsRange(draftRange.start, draftRange.end, today)) {
-      setRangeError('Choose valid reporting dates ending today or earlier.');
-      return;
-    }
-
-    setRangeError('');
-    updateView({ range: { ...draftRange } });
+    setExporting(false);
   };
 
   return (
@@ -433,8 +429,8 @@ const WorkDistribution = () => {
               {ANALYTICS_EXPORT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
             </select>
             <button type="button" className="btn btn-outline analytics-export-button" onClick={exportCsv}
-              disabled={loading || Boolean(error) || exportCount === 0}>
-              <i className="ri-download-2-line" aria-hidden="true" /> Export CSV
+              disabled={loading || exporting || Boolean(error) || exportCount === 0}>
+              <i className="ri-download-2-line" aria-hidden="true" /> {exporting ? 'Preparing…' : 'Export CSV'}
             </button>
           </div>
           <p id="analytics-export-help">
@@ -450,62 +446,24 @@ const WorkDistribution = () => {
         </div>
       )}
     >
-      <form className="card analytics-range-panel" onSubmit={applyRange}>
-        <div className="analytics-range-copy">
-          <span className="page-eyebrow">Reporting period</span>
-          <h2>{formatRange(appliedRange.start, appliedRange.end)}</h2>
-          <p>Up to 31 days at a time · Asia/Kolkata reporting day</p>
-        </div>
-        <div className="analytics-range-fields">
-          <label className="people-field">
-            <span>Start date</span>
-            <input
-              type="date"
-              value={draftRange.start}
-              max={draftRange.end}
-              onChange={(event) => setDraftRange((current) => ({
-                ...current,
-                start: event.target.value,
-              }))}
-            />
-          </label>
-          <label className="people-field">
-            <span>End date</span>
-            <input
-              type="date"
-              value={draftRange.end}
-              min={draftRange.start}
-              max={today}
-              onChange={(event) => setDraftRange((current) => ({
-                ...current,
-                end: event.target.value,
-              }))}
-            />
-          </label>
-          <button type="submit" className="btn" disabled={loading}>
-            {loading ? 'Loading…' : 'Apply range'}
-          </button>
-        </div>
-        {rangeError && (
-          <p className="analytics-range-error" role="alert">
-            <i className="ri-error-warning-line" />
-            {rangeError}
-          </p>
-        )}
-      </form>
+      <AnalyticsPeriodPicker range={appliedRange} mode={mode} today={today} loading={loading}
+        onChange={(range, nextMode) => updateView({ range, mode: nextMode })}
+        onAllTime={() => earliestAnalyticsDate(supabase, today)} />
+      {!loading && detailsError && <p role="alert" className="analytics-update-note">{detailsError}</p>}
 
+      <div className="analytics-results" aria-busy={loading}>
+        {loading && <div className="analytics-results-skeleton" aria-hidden="true">
+          <div className="card analytics-skeleton-filters"><span /><div>{Array.from({ length: 4 }, (_, i) => <span key={i} />)}</div></div>
+          <div className="analytics-kpi-grid">{Array.from({ length: 5 }, (_, i) => <div className="card analytics-skeleton-kpi" key={i}><span /><span /></div>)}</div>
+          <div className="analytics-chart-grid">{Array.from({ length: 4 }, (_, i) => <div className="card analytics-skeleton-chart" key={i}><span />{[85, 65, 45].map((width) => <span key={width} style={{ width: `${width}%` }} />)}</div>)}</div>
+        </div>}
+        <div className={loading ? 'analytics-results-content analytics-results-content--loading' : 'analytics-results-content'} aria-hidden={loading || undefined} inert={loading ? '' : undefined}>
       {error ? (
         <AppState
           type="error"
           title="Analytics could not be loaded"
           message={error}
-          action={<button type="button" className="btn btn-outline" onClick={fetchEntries}>Try again</button>}
-        />
-      ) : loading ? (
-        <AppState
-          type="loading"
-          title={`Building the ${isManager ? 'managed-project' : 'organisation'} view`}
-          message="Adding worked time and breaks across the selected permitted period."
+          action={<button type="button" className="btn btn-outline" onClick={() => fetchEntries(true)}>Try again</button>}
         />
       ) : (
         <>
@@ -709,7 +667,7 @@ const WorkDistribution = () => {
                         : 'All work sessions behind the current reporting period.'}
                     </p>
                   </div>
-                  <span>{visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'}</span>
+                  <span>{summary.sessions} {summary.sessions === 1 ? 'entry' : 'entries'}</span>
                 </div>
 
                 <div className="analytics-entry-navigation">
@@ -731,9 +689,10 @@ const WorkDistribution = () => {
                     </div>
                   )}
                 </div>
-                <ListSortControls sort={listSort} />
+                {!detailsLoaded && <button type="button" className="btn btn-outline" disabled={loading || detailsLoading} onClick={loadDetails}>{detailsLoading ? 'Loading entries…' : 'Load supporting entries'}</button>}
+                {detailsLoaded && <ListSortControls sort={listSort} />}
                 <ol className="analytics-entry-list" ref={entryListRef}>
-                  {listSort.sort(visibleEntries).map((entry) => (
+                  {listSort.sort(visibleEntries).slice(0, detailLimit).map((entry) => (
                     <li key={entry.work_entry_id} className="analytics-entry">
                       <span className={`analytics-entry-icon analytics-entry-icon--${entry.context_type}`}>
                         <i className={entry.context_type === 'project' ? 'ri-folder-3-line' : 'ri-flashlight-line'} />
@@ -763,11 +722,14 @@ const WorkDistribution = () => {
                     </li>
                   ))}
                 </ol>
+                {visibleEntries.length > detailLimit && <button type="button" className="btn btn-outline" onClick={() => setDetailLimit((count) => count + 200)}>Show more entries ({detailLimit} of {visibleEntries.length})</button>}
               </section>
             </>
           )}
         </>
       )}
+        </div>
+      </div>
     </Layout>
   );
 };

@@ -17,6 +17,9 @@ import { appDateKey, formatAppClock, formatAppDate } from '../utils/timezone';
 import { summarizeAttendanceMonth } from '../utils/attendance';
 import {
   attendanceCompletionRate,
+  dashboardLeaveAvailability,
+  holidayCalendarMonth,
+  shiftCalendarMonth,
   leaveBalanceSeries,
   workdayPresentation,
 } from '../utils/dashboard';
@@ -60,6 +63,7 @@ const Dashboard = () => {
   const [reportingManager, setReportingManager] = useState(null);
   const [reportingManagerAvatarUrl, setReportingManagerAvatarUrl] = useState(null);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [holidayMonth, setHolidayMonth] = useState(() => `${appDateKey().slice(0, 7)}-01`);
   const [attendanceSummary, setAttendanceSummary] = useState(EMPTY_ATTENDANCE);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState('');
@@ -194,15 +198,12 @@ const Dashboard = () => {
   const userFirstName = user.name ? user.name.split(' ')[0] : 'there';
   const workday = workdayPresentation(workStatus, dayState.hasWorkToday, contextLabel);
   const upcomingHolidayCount = holidays.filter((holiday) => holiday.date >= appDateKey()).length;
+  const holidayDays = holidayCalendarMonth(holidayMonth, holidays);
+  const monthHolidays = holidays.filter((holiday) => holiday.date.slice(0, 7) === holidayMonth.slice(0, 7));
 
-  const dailyLeaves = canReviewLeave
-    ? requests.filter((request) => {
-      const fromDate = request.from_date || request.from;
-      const toDate = request.to_date || request.to;
-      const today = appDateKey();
-      return request.status === 'Approved' && fromDate && toDate && today >= fromDate && today <= toDate;
-    })
-    : [];
+  const { today: dailyLeaves, upcoming: upcomingLeaves } = dashboardLeaveAvailability(
+    canReviewLeave ? requests : [], appDateKey(),
+  );
 
   return (
     <Layout
@@ -293,7 +294,10 @@ const Dashboard = () => {
           </div>
           <i className="ri-arrow-right-s-line dashboard-snapshot-arrow" />
         </button>
-        <button type="button" className="dashboard-snapshot-card dashboard-snapshot-card--holiday" onClick={() => setShowHolidayModal(true)}>
+        <button type="button" className="dashboard-snapshot-card dashboard-snapshot-card--holiday" onClick={() => {
+          setHolidayMonth(`${(dashboardFacts.nextHoliday?.date || appDateKey()).slice(0, 7)}-01`);
+          setShowHolidayModal(true);
+        }}>
           <span className="dashboard-snapshot-icon"><i className="ri-sun-line" /></span>
           <div>
             <span>Next holiday</span>
@@ -414,6 +418,40 @@ const Dashboard = () => {
                 })}
               </div>
             )}
+            <div className="dashboard-upcoming-leave">
+              <div className="dashboard-card-heading">
+                <h4>Upcoming leave</h4>
+                <span className="dashboard-count-badge">{upcomingLeaves.length}</span>
+              </div>
+              {upcomingLeaves.length === 0 ? (
+                <p className="dashboard-upcoming-empty">No upcoming approved leave.</p>
+              ) : (
+                <div className="dashboard-leave-today-list">
+                  {upcomingLeaves.slice(0, 4).map((leave) => {
+                    const employeeName = leave.employees?.name || 'Team member';
+                    const from = leave.from_date || leave.from;
+                    const to = leave.to_date || leave.to;
+                    return (
+                      <article key={leave.id}>
+                        <span>{initialsFor(employeeName)}</span>
+                        <div>
+                          <strong>{employeeName}</strong>
+                          <small>{leave.type}{leave.is_half_day ? ' · Half day' : ''}</small>
+                          <small className="dashboard-leave-dates">
+                            {formatAppDate(from)}{from !== to ? ` – ${formatAppDate(to)}` : ''}
+                          </small>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+              {(dailyLeaves.length > 4 || upcomingLeaves.length > 4) && (
+                <button type="button" className="dashboard-inline-link" onClick={() => navigate('/leave')}>
+                  View all leave <i className="ri-arrow-right-line" aria-hidden="true" />
+                </button>
+              )}
+            </div>
           </section>
         )}
       </div>
@@ -440,33 +478,47 @@ const Dashboard = () => {
             <div className="salary-modal-header">
               <div>
                 <span className="page-eyebrow">Company calendar</span>
-                <h3 className="salary-modal-title" id="holiday-dialog-title">Upcoming holidays</h3>
+                <h3 className="salary-modal-title" id="holiday-dialog-title">Holiday calendar</h3>
                 <p className="salary-modal-sub">{upcomingHolidayCount} scheduled from today</p>
               </div>
-              <button type="button" className="salary-modal-close" onClick={() => setShowHolidayModal(false)} aria-label="Close upcoming holidays">
+              <button type="button" className="salary-modal-close" onClick={() => setShowHolidayModal(false)} aria-label="Close holiday calendar">
                 <i className="ri-close-line" aria-hidden="true" />
               </button>
             </div>
-            <div className="dashboard-holiday-grid">
-              {holidays.filter((holiday) => holiday.date >= appDateKey()).map((holiday) => (
-                <article key={holiday.id}>
-                  <div className="dashboard-holiday-date">
-                    <span>{formatAppDate(holiday.date, { month: 'short', day: undefined, year: undefined })}</span>
-                    <strong>{formatAppDate(holiday.date, { day: 'numeric', month: undefined, year: undefined })}</strong>
-                  </div>
-                  <div>
-                    <strong>{holiday.name}</strong>
-                    <span>{formatAppDate(holiday.date, { weekday: 'long', day: undefined, month: undefined, year: undefined })}</span>
-                  </div>
-                </article>
-              ))}
-              {upcomingHolidayCount === 0 && (
-                <div className="dashboard-empty-compact">
-                  <i className="ri-calendar-check-line" />
-                  <div><strong>No upcoming holidays</strong><span>The company holiday calendar has no future dates.</span></div>
-                </div>
-              )}
+            <div className="dashboard-calendar-toolbar">
+              <button type="button" onClick={() => setHolidayMonth(shiftCalendarMonth(holidayMonth, -1))} aria-label="Previous month"><i className="ri-arrow-left-s-line" aria-hidden="true" /></button>
+              <h4 aria-live="polite">{formatAppDate(holidayMonth, { day: undefined, month: 'long' })}</h4>
+              <button type="button" onClick={() => setHolidayMonth(shiftCalendarMonth(holidayMonth, 1))} aria-label="Next month"><i className="ri-arrow-right-s-line" aria-hidden="true" /></button>
+              <button type="button" className="dashboard-calendar-today" onClick={() => setHolidayMonth(`${appDateKey().slice(0, 7)}-01`)}>Today</button>
             </div>
+            <table className="dashboard-holiday-calendar" aria-label={formatAppDate(holidayMonth, { day: undefined, month: 'long' })}>
+              <thead><tr>{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => <th key={day} scope="col">{day}</th>)}</tr></thead>
+              <tbody>
+                {Array.from({ length: 6 }, (_, week) => (
+                  <tr key={week}>
+                    {holidayDays.slice(week * 7, week * 7 + 7).map((day) => (
+                      <td key={day.date} className={`${day.inMonth ? '' : 'calendar-outside'} ${day.inMonth && day.holidays.length ? 'calendar-holiday' : ''}`}>
+                        <time dateTime={day.date} aria-current={day.date === appDateKey() ? 'date' : undefined} aria-label={`${formatAppDate(day.date)}${day.inMonth && day.holidays.length ? `: ${day.holidays.map((holiday) => holiday.name).join(', ')}` : ''}`}>{Number(day.date.slice(-2))}</time>
+                        {day.inMonth && day.holidays.length > 0 && <span className="dashboard-calendar-holiday-dot" aria-hidden="true" />}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="dashboard-calendar-legend"><span aria-hidden="true" /> Company holiday · Today is outlined</p>
+            {monthHolidays.length > 0 && (
+              <ul className="dashboard-calendar-holidays" aria-label="Holidays this month">
+                {monthHolidays.map((holiday) => (
+                  <li key={holiday.id}>
+                    <time dateTime={holiday.date}>{formatAppDate(holiday.date, { year: undefined })}</time>
+                    <strong>{holiday.name}</strong>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {monthHolidays.length === 0 && <p className="dashboard-upcoming-empty">No company holidays scheduled this month.</p>}
+
           </div>
         </div>
       )}

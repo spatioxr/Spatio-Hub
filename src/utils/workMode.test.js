@@ -24,7 +24,8 @@ test('controlled workday start sends the daily mode only when supplied', () => {
 test('manual add and correction require and audit a daily work mode', () => {
   const timesheets = read('../pages/Timesheets.jsx');
 
-  assert.match(timesheets, /Work mode for this day/);
+  assert.match(timesheets, /<span>Work mode<\/span>/);
+  assert.match(timesheets, /Work mode applies to all sessions on this day/);
   assert.match(timesheets, /entry_work_mode: manualForm\.workMode/);
   assert.match(timesheets, /key: 'work-mode'/);
   assert.match(timesheets, /scoped_attendance_work_modes/);

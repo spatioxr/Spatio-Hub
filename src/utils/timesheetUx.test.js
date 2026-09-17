@@ -18,17 +18,6 @@ test('Timesheets keeps Month separate from the manual Add Time workspace', () =>
   assert.match(page, /timesheet-month-calendar/);
 });
 
-test('manual entry supports continuous save actions and event-order cues', () => {
-  assert.match(page, /Save &amp; add another/);
-  assert.match(page, /Save & next day/);
-  assert.match(page, /Start work/);
-  assert.match(page, /Start break/);
-  assert.match(page, /Resume work/);
-  assert.match(page, /End work/);
-  assert.doesNotMatch(page, /Change project/);
-  assert.match(page, /Correct entry/);
-});
-
 test('accidental entries are voided through a controlled audited function', () => {
   assert.match(page, /void_manual_time_entry/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.void_manual_time_entry/);
@@ -39,6 +28,6 @@ test('accidental entries are voided through a controlled audited function', () =
 
 test('month and manual-entry layouts include narrow-screen safeguards', () => {
   assert.match(styles, /\.timesheet-month-calendar/);
-  assert.match(styles, /\.timesheet-entry-sequence/);
+  assert.match(styles, /\.timesheet-editor-grid/);
   assert.match(styles, /@media \(max-width: 680px\)[\s\S]*\.timesheet-month-people/);
 });

@@ -1,3 +1,4 @@
+import { workloadCache } from '../utils/workloadCache';
 import SortableTable from '../components/SortableTable';
 import React, {
   useCallback,
@@ -35,6 +36,8 @@ import {
 } from '../utils/workload';
 import './Workload.css';
 
+const EMPTY_SNAPSHOTS = [];
+
 const TimesheetReviewDrawer = ({ url, onClose }) => {
   const focusRef = useDialogFocus(true, onClose);
   const [frameReady, setFrameReady] = useState(false);
@@ -69,18 +72,11 @@ const ReviewDialog = ({ review, onClose, onSaved }) => {
     setSaving(true);
     setError('');
     try {
-      const result = review.entry
-        ? await supabase.rpc('close_stale_work_entry', {
-            target_entry: review.entry.id,
-            actual_end: appDateTimeInputToIso(actualEnd),
-            change_reason: reason.trim(),
-          })
-        : await supabase.rpc('confirm_workload_day', {
-            target_employee: review.person.id,
-            target_date: review.day.work_date,
-            expected_fingerprint: review.day.fingerprint,
-            review_reason: reason.trim(),
-          });
+      const result = await supabase.rpc('close_stale_work_entry', {
+        target_entry: review.entry.id,
+        actual_end: appDateTimeInputToIso(actualEnd),
+        change_reason: reason.trim(),
+      });
       if (result.error) throw result.error;
       onSaved();
     } catch (failure) {
@@ -104,7 +100,7 @@ const ReviewDialog = ({ review, onClose, onSaved }) => {
       >
         <div className="workload-heading">
           <h2 id="workload-review-title">
-            {review.entry ? 'Resolve open timer' : 'Confirm recorded hours'}
+            Resolve open timer
           </h2>
           <button className="btn btn-outline" onClick={close} disabled={saving}>
             Close
@@ -114,9 +110,7 @@ const ReviewDialog = ({ review, onClose, onSaved }) => {
           {review.person.name} · {formatAppDate(review.day.work_date)}
         </p>
         <p>
-          {review.entry
-            ? `Started ${formatAppDateTime(review.entry.started_at)}. Enter the actual end, in IST. The original record and reason remain in change history.`
-            : 'Confirm that the recorded hours are correct, even if below eight hours. Unworked hours stay unallocated; confirmation does not increase costing hours. Changes to the entries require a fresh review.'}
+          {`Started ${formatAppDateTime(review.entry.started_at)}. Enter the actual end, in IST. The original record and reason remain in change history.`}
         </p>
         {error && (
           <p role="alert" className="workload-error">
@@ -138,7 +132,7 @@ const ReviewDialog = ({ review, onClose, onSaved }) => {
           )}
           <label className="people-field">
             <span>
-              {review.entry ? 'Correction reason' : 'Why these hours are valid'}
+              Correction reason
             </span>
             <textarea
               required
@@ -149,11 +143,7 @@ const ReviewDialog = ({ review, onClose, onSaved }) => {
             />
           </label>
           <button className="btn" disabled={saving || !reason.trim()}>
-            {saving
-              ? 'Saving…'
-              : review.entry
-                ? 'Save actual end'
-                : 'Confirm recorded hours'}
+            {saving ? 'Saving…' : 'Save actual end'}
           </button>
         </form>
       </aside>
@@ -161,8 +151,49 @@ const ReviewDialog = ({ review, onClose, onSaved }) => {
   );
 };
 
+const ConfirmDayButton = ({ person, day, onSaved }) => {
+  const [stage, setStage] = useState('idle');
+  const [error, setError] = useState('');
+  const inFlight = useRef(false);
+  const confirm = async () => {
+    if (inFlight.current || stage === 'confirmed') return;
+    if (stage !== 'armed') { setStage('armed'); setError(''); return; }
+    inFlight.current = true;
+    setStage('saving');
+    try {
+      const result = await supabase.rpc('confirm_workload_day', {
+        target_employee: person.id,
+        target_date: day.work_date,
+        expected_fingerprint: day.fingerprint,
+        review_reason: 'Recorded hours confirmed as correct.',
+      });
+      if (result.error) throw result.error;
+      setStage('confirmed');
+      onSaved();
+    } catch (failure) {
+      setStage('idle');
+      setError(failure.message || 'Could not confirm. Please try again.');
+    } finally {
+      inFlight.current = false;
+    }
+  };
+  return (
+    <div className="workload-inline-confirm">
+      <button type="button" className={`btn workload-confirm-button${stage === 'armed' ? ' workload-confirm-armed' : ''}`}
+        disabled={stage === 'saving' || stage === 'confirmed'}
+        onClick={confirm}
+        onBlur={() => { if (stage === 'armed') setStage('idle'); }}
+        onKeyDown={(event) => { if (event.key === 'Escape') setStage('idle'); }}
+        aria-label={`${stage === 'armed' ? 'Confirm these hours' : stage === 'confirmed' ? 'Confirmed' : 'Confirm correct'} for ${person.name} on ${formatAppDate(day.work_date)}`}>
+        {stage === 'saving' ? 'Confirming…' : stage === 'confirmed' ? '✓ Confirmed' : stage === 'armed' ? '✓ Click to confirm' : 'Confirm correct'}
+      </button>
+      {error && <p role="alert" className="workload-error">{error}</p>}
+    </div>
+  );
+};
+
 const Workload = () => {
-  const { user } = useContext(AuthContext);
+  const { user, session } = useContext(AuthContext);
   const canResolve = ['admin', 'superadmin'].includes(user?.role);
   const { refresh: refreshOwnWork } = useContext(WorkSessionContext);
   const [params, setParams] = useSearchParams();
@@ -184,7 +215,12 @@ const Workload = () => {
   const range = workloadRange(anchor, mode);
   const months = workloadMonths(range);
   const monthKey = months.join(',');
-  const [snapshots, setSnapshots] = useState([]);
+  const cacheOwner = `${user?.id}:${user?.role}:${session?.access_token || ''}`;
+  const snapshotKey = `${cacheOwner}:${monthKey}`;
+  const [snapshotState, setSnapshotState] = useState({ key: '', data: EMPTY_SNAPSHOTS });
+  const snapshotRef = useRef(snapshotState);
+  const snapshots = snapshotState.key === snapshotKey ? snapshotState.data : EMPTY_SNAPSHOTS;
+  const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -201,31 +237,52 @@ const Workload = () => {
       );
       return next;
     });
-  const load = useCallback(async (quiet = false) => {
+  const load = useCallback(async (force = false) => {
     const version = ++request.current;
-    if (!quiet) setLoading(true);
+    const cached = force ? null : workloadCache.get(cacheOwner, monthKey);
+    const previous = snapshotRef.current.key === snapshotKey ? snapshotRef.current.data : EMPTY_SNAPSHOTS;
+    const publish = (data) => {
+      const next = { key: snapshotKey, data };
+      snapshotRef.current = next;
+      setSnapshotState(next);
+    };
     setError('');
+    if (cached) {
+      publish(cached);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    if (force) workloadCache.clear();
+    setLoading(previous.length === 0);
+    setRefreshing(true);
     try {
-      const results = await Promise.all(
-        monthKey
-          .split(',')
-          .map((month) =>
-            supabase.rpc('workload_month', { requested_month: month }),
-          ),
-      );
+      const results = await Promise.all(monthKey.split(',').map((month) =>
+        supabase.rpc('workload_month', { requested_month: month }),
+      ));
       if (version !== request.current) return;
       const failure = results.find((result) => result.error);
-      if (failure) throw failure.error;
-      setSnapshots(results.map((result) => result.data));
+      if (failure) {
+        if ([401, 403].includes(failure.status) || ['42501', 'PGRST301', 'PGRST302'].includes(failure.error.code)) {
+          workloadCache.clear();
+          publish(EMPTY_SNAPSHOTS);
+        }
+        throw failure.error;
+      }
+      const next = results.map((result) => result.data);
+      workloadCache.set(cacheOwner, monthKey, next);
+      publish(next);
     } catch (failure) {
       if (version === request.current) {
-        setSnapshots([]);
         setError(failure.message || 'Unable to load workload.');
       }
     } finally {
-      if (version === request.current) setLoading(false);
+      if (version === request.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [monthKey, user?.id]);
+  }, [monthKey, cacheOwner, snapshotKey]);
   useEffect(() => {
     void load();
     return () => {
@@ -289,7 +346,7 @@ const Workload = () => {
           className="btn btn-outline"
           onClick={() => setCorrection(timesheetReviewLink(item.id, day, user.role))}
         >
-          Needs correction · open timesheet
+          Correct timesheet
         </button>
       ) : (
         <span>
@@ -306,12 +363,15 @@ const Workload = () => {
             'work_on_leave',
           ].includes(flag),
         ) && (
-          <button
-            className="btn btn-outline"
-            onClick={() => setReview({ person: item, day })}
-          >
-            Confirm correct
-          </button>
+          <ConfirmDayButton
+            key={`${item.id}:${day.work_date}:${day.fingerprint}`}
+            person={item}
+            day={day}
+            onSaved={() => {
+              setNotice(`${item.name} · ${formatAppDate(day.work_date)} confirmed correct.`);
+              void load(true);
+            }}
+          />
         )}
       {day.review_entries
         ?.filter((entry) => canResolve && entry.can_close)
@@ -454,8 +514,8 @@ const Workload = () => {
               }
             />
           </label>
-          <button className="btn btn-outline" onClick={load} disabled={loading}>
-            Refresh
+          <button className="btn btn-outline workload-refresh-button" onClick={() => void load(true)} disabled={refreshing} aria-label={refreshing ? 'Refreshing workload' : 'Refresh workload'}>
+            <span role="status">{refreshing ? 'Refreshing…' : 'Refresh'}</span>
           </button>
         </div>
       </section>
@@ -475,21 +535,22 @@ const Workload = () => {
         ))}
       </nav>
       {notice && (
-        <p role="status" className="workload-notice">
-          {notice}
-        </p>
+        <div role="status" className="workload-toast"><span>{notice}</span><button type="button" aria-label="Dismiss notification" onClick={() => setNotice('')}>×</button></div>
       )}
-      {loading ? (
+      {error && snapshots.length > 0 && <p role="alert" className="workload-error">Could not refresh: {error} Showing previously loaded figures. <button className="btn btn-outline" onClick={() => void load(true)}>Retry</button></p>}
+      {loading || (!snapshots.length && !error) ? (
         <AppState
+          type="loading"
           title="Loading workload…"
-          description="Calculating the complete monthly allocation."
+          message="Calculating the complete monthly allocation."
         />
-      ) : error ? (
+      ) : error && !snapshots.length ? (
         <AppState
+          type="error"
           title="Workload unavailable"
-          description={error}
+          message={error}
           action={
-            <button className="btn btn-outline" onClick={load}>
+            <button className="btn btn-outline" onClick={() => void load(true)}>
               Try again
             </button>
           }
@@ -603,40 +664,36 @@ const Workload = () => {
             </section>
           )}
           {tab === 'review' && (
-            <section className="card workload-section">
-              <h2>Days needing attention</h2>
-              <p>Admins resolve these items. Above-eight-hour indicators and today’s running timers are informational and do not appear here. Corrected or confirmed issues leave this queue automatically.</p>
+            <section className="card workload-section workload-review-list">
+              <div className="workload-review-header">
+                <div><h2>Days needing attention</h2><p>Confirm the hours or open the timesheet to correct them.</p></div>
               <label>Show <select value={queueFilter} onChange={(event) => setQueueFilter(event.target.value)}>
                 <option value="all">All pending issues</option>
                 <option value="missing_time">Below expected / missing hours</option>
                 <option value="long_day">Long days to confirm</option>
                 <option value="invalid">Stale timers and conflicting records</option>
               </select></label>
+              </div>
               {issues.length ? (
                 issues.filter(({ day }) => queueFilter === 'all' || (queueFilter === 'invalid' ? reviewFlags(day).some((flag) => !['missing_time', 'long_day'].includes(flag)) : day.flags.includes(queueFilter))).map(({ person: item, day }) => (
                   <article
                     className="workload-issue"
                     key={`${item.id}:${day.work_date}`}
                   >
-                    <h3>
-                      <button
-                        className="workload-text-button"
-                        onClick={() => change({ person: item.id })}
-                      >
-                        {item.name}
-                      </button>{' '}
-                      · {formatAppDate(day.work_date)}
-                    </h3>
+                    <div className="workload-issue-person">
+                      <h3><button className="workload-text-button" onClick={() => change({ person: item.id })}>{item.name}</button></h3>
+                      <time dateTime={day.work_date}>{formatAppDate(day.work_date)}</time>
+                    </div>
+                    <div className="workload-issue-facts">
                     <p>
                       {reviewFlags(day)
                         .map((flag) => WORKLOAD_FLAGS[flag])
                         .join(' · ')}
                     </p>
-                    <p>
-                      {hours(Number(day.recorded_seconds) / 3600)} recorded
-                      hours · {hours(day.costing_hours)} provisional costing
-                      hours
+                    <p className="workload-issue-hours">
+                      <strong>{hours(Number(day.recorded_seconds) / 3600)}h</strong> recorded · {hours(day.costing_hours)}h costing (provisional)
                     </p>
+                    </div>
                     {issueActions(item, day)}
                   </article>
                 ))

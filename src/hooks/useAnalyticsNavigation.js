@@ -21,7 +21,7 @@ export default function useAnalyticsNavigation(userId, today) {
   const search = searchParams.toString();
   const view = useMemo(() => {
     const params = new URLSearchParams(search);
-    const hasView = ['start', 'end', ...ANALYTICS_FILTER_KEYS].some((key) => params.has(key));
+    const hasView = ['period', 'start', 'end', ...ANALYTICS_FILTER_KEYS].some((key) => params.has(key));
     return readAnalyticsView(hasView ? search : savedSearch, today);
   }, [search, savedSearch, today]);
   const { start, end } = view.range;
@@ -43,5 +43,5 @@ export default function useAnalyticsNavigation(userId, today) {
     if (params.toString() !== search) setSearchParams(params);
   };
 
-  return { range, filters: view.filters, updateView };
+  return { range, mode: view.mode || 'custom', filters: view.filters, updateView };
 }
