@@ -80,7 +80,7 @@
 .feedback-settings fieldset { border:0; padding:0; margin:0; min-width:0; }
 .feedback-schedule-fields { display:flex; gap:16px; flex-wrap:wrap; margin:20px 0 12px; }
 .feedback-schedule-fields label { display:flex; flex:1; min-width:160px; flex-direction:column; gap:8px; font-size:13px; }
-.feedback-schedule-fields select { padding:10px; border:1px solid #ccd9d3; border-radius:8px; background:white; font:inherit; }
+.feedback-schedule-fields select, .feedback-schedule-fields input[type="time"] { padding:10px; border:1px solid #ccd9d3; border-radius:8px; background:white; font:inherit; }
 .feedback-settings .btn-secondary { background:white; color:#236455; border:1px solid #ccd9d3; }
 .feedback-pulse-confirm { margin-top:16px; padding:16px; border-radius:8px; background:#f0f6f3; font-size:14px; }
 .feedback-pulse-active { color:#236455; font-weight:600; }

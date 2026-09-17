@@ -21,9 +21,7 @@ export default function WorkFeedbackSettings() {
   const run = async (action) => {
     setBusy(true); setError(''); setNotice('');
     try {
-      const { data, error: failure } = await supabase.rpc(action === 'launch' ? 'launch_work_feedback_pulse' : 'manage_work_feedback', action === 'launch' ? { audience, target: target || null } : {
-        action, ...(action === 'save' ? { automatic: settings.enabled, cadence: settings.frequency, preferred_day: settings.weekday } : {}),
-      });
+      const { data, error: failure } = await supabase.rpc(action === 'launch' ? 'launch_work_feedback_pulse' : action === 'save' ? 'save_work_feedback_schedule' : 'manage_work_feedback', action === 'launch' ? { audience, target: target || null } : action === 'save' ? { automatic: settings.enabled, cadence: settings.frequency, preferred_day: settings.weekday, timing: settings.time_mode || 'end_day', minutes: settings.time_minutes ?? 600, sound: settings.sound_enabled ?? true } : { action });
       if (failure) throw failure;
       if (action === 'get') await loadAudiences();
       setSettings((current) => action === 'launch' || action === 'close' ? { ...current, pulse: data.pulse } : data); setConfirmPulse(false);
@@ -47,14 +45,22 @@ export default function WorkFeedbackSettings() {
     {notice && <p role="status" className="feedback-inbox-notice">{notice}</p>}
     {!settings ? !error && <p role="status">Loading settings…</p> : <>
       <form className="feedback-card" onSubmit={(event) => { event.preventDefault(); run('save'); }}>
-        <h2>Regular check-ins</h2><p>A short, optional pop-up after End Day.</p>
+        <h2>Regular check-ins</h2><p>Choose when to ask the team how work is going.</p>
         <fieldset disabled={busy}>
           <label className="feedback-followup"><input type="checkbox" checked={settings.enabled} onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })} />Ask automatically</label>
           <div className="feedback-schedule-fields">
             <label>Frequency<select disabled={!settings.enabled} value={settings.frequency} onChange={(event) => setSettings({ ...settings, frequency: event.target.value })}><option value="weekly">Weekly</option><option value="fortnightly">Every two weeks</option><option value="monthly">Monthly</option></select></label>
-            <label>Preferred day<select disabled={!settings.enabled} value={settings.weekday} onChange={(event) => setSettings({ ...settings, weekday: Number(event.target.value) })}>{['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((day, index) => <option key={day} value={index + 1}>{day}</option>)}</select></label>
+            <label>Preferred day<select disabled={!settings.enabled} value={settings.weekday} onChange={(event) => setSettings({ ...settings, weekday: Number(event.target.value) })}><option value={0}>Random weekday</option>{['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((day, index) => <option key={day} value={index + 1}>{day}</option>)}</select></label>
           </div>
-          <p className="feedback-meta">{settings.frequency === 'monthly' ? 'The first selected weekday each month' : 'On the selected weekday'}, or their next End Day. Dates use India time. Skipping dismisses that check-in.</p>
+          <div className="feedback-schedule-fields">
+            <label>Time<select disabled={!settings.enabled} value={settings.time_mode || 'end_day'} onChange={(event) => setSettings({ ...settings, time_mode: event.target.value })}>
+              <option value="end_day">After End Day</option><option value="fixed">At a specific time</option><option value="random">Random time · 10 AM–5 PM</option>
+            </select></label>
+            {settings.time_mode === 'fixed' && <label>Time (India)<input type="time" required disabled={!settings.enabled} value={`${String(Math.floor((settings.time_minutes ?? 600) / 60)).padStart(2, '0')}:${String((settings.time_minutes ?? 600) % 60).padStart(2, '0')}`} onChange={(event) => { if (event.target.value) { const [hours, minutes] = event.target.value.split(':').map(Number); setSettings({ ...settings, time_minutes: hours * 60 + minutes }); } }} /></label>}
+          </div>
+          <p className="feedback-meta">{settings.weekday === 0 ? 'A different weekday is chosen for each person each period.' : settings.frequency === 'monthly' ? 'The first selected weekday each month.' : 'On the selected weekday.'} {settings.time_mode === 'random' ? 'A different time is chosen per person, between 10 AM and 5 PM on weekdays.' : settings.time_mode === 'fixed' ? 'Appears when the hub is open at or after this time.' : 'Appears after their next End Day on or after the chosen day.'} One prompt per period, in India time. Missed prompts expire at the end of the period.</p>
+          <label className="feedback-followup"><input type="checkbox" checked={settings.sound_enabled ?? true} onChange={(event) => setSettings({ ...settings, sound_enabled: event.target.checked })} />Play a gentle sound when a check-in or pulse appears</label>
+          <p className="feedback-meta">Sound plays after the employee has interacted with the hub, if their browser allows audio.</p>
           <div className="feedback-actions"><button className="btn btn-primary" disabled={busy}>{busy ? 'Please wait…' : 'Save schedule'}</button></div>
         </fieldset>
       </form>
