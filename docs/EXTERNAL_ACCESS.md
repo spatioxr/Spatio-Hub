@@ -81,8 +81,7 @@ the earlier read-only boundary intact.
 ## Release and verification
 
 Apply both Observer database migrations first, deploy the updated `user-credentials` Edge
-Function second, then publish the frontend. No production migration or deployment
-was performed as part of the local implementation. Existing staff data is not
+Function second, then publish the frontend. Existing staff data is not
 rewritten. To disable the feature, revoke external accounts; retain their records
 and guards rather than dropping the table while external Auth identities exist.
 
@@ -95,3 +94,18 @@ attendance wording, unresolved totals and the actual credentials handler with
 mocked Auth operations. Synthetic browser checks cover navigation, forbidden
 routes, filters, error clearing, the unified editor, role round trips, new Observer login provisioning and mobile layout. Hosted Auth
 and Edge Function smoke checks are still required after deployment.
+
+### Production deployment — 17 September 2026
+
+Applied both Observer migrations together in one transaction to `spatio-people`
+and reloaded the API schema cache. Deployed the Observer-aware `user-credentials`
+Edge Function. This resolved the missing `employees.observer_account_id` error
+caused by publishing the frontend before its database migrations.
+
+Verified that People and Users & Access load, and the existing user editor
+includes Observer (view only). Read-only database checks confirmed the new
+column, unified profile RPC, external-account RLS, and restrictive Observer
+policies on every other public table. The credentials endpoint rejects requests
+without authentication. No existing users or roles were changed; no Observer
+accounts were created. A real Observer login/password round trip was not run
+against production.
