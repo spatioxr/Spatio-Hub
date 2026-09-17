@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   combineWorkload,
+  costingLabel,
+  costingPending,
   reviewFlags,
   projectPeople,
   summarizeWorkload,
@@ -117,4 +119,26 @@ test('hour indicators remain visible without keeping confirmed short days in rev
   assert.deepEqual(reviewFlags({ flags: ['below_eight'] }), []);
   assert.deepEqual(reviewFlags({ flags: ['below_eight', 'missing_time'] }), ['missing_time']);
   assert.deepEqual(reviewFlags({ flags: ['above_eight', 'long_day'] }), ['long_day']);
+});
+
+test('costing labels distinguish blocked, live, partial and genuine zero allocations', () => {
+  assert.equal(costingLabel(0), '0.00');
+  assert.equal(costingLabel(0, costingPending({ recorded_seconds: 3600, flags: ['long_day'] })), 'Pending review');
+  assert.equal(costingLabel(0, costingPending({ recorded_seconds: 3600, flags: ['in_progress'] })), 'Timer running');
+  assert.equal(costingLabel(3, { pendingReview: true }), '3.00 · Partial · pending review');
+  assert.equal(costingLabel(0, costingPending({ recorded_seconds: 0, flags: ['long_day'] })), '0.00');
+  assert.equal(costingLabel(2, costingPending({ recorded_seconds: 3600, flags: ['missing_time', 'below_eight'] })), '2.00');
+});
+
+test('pending costing follows selected period contexts rather than unrelated monthly flags', () => {
+  const flagged = { ...day('2026-09-15', 13, 'p', 0), flags: ['long_day'] };
+  const live = { ...day('2026-09-17', 2, 'q', 0), flags: ['in_progress'] };
+  const person = { days: [flagged, live, day('2026-09-16', 8, 'q', 6)], months: [{ needs_review: true }] };
+  const p = summarizeWorkload(person, 'p');
+  assert.equal(costingLabel(p.costing, p), 'Pending review');
+  const q = summarizeWorkload(person, 'q');
+  assert.equal(costingLabel(q.costing, q), '6.00 · Partial · timer running');
+  const empty = summarizeWorkload(person, 'unrelated');
+  assert.equal(costingLabel(empty.costing, empty), '0.00');
+  assert.equal(costingLabel(q.contexts[0].costing, q.contexts[0]), '6.00 · Partial · timer running');
 });

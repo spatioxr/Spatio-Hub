@@ -11,6 +11,7 @@ import React, {
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import WorkloadProjects from '../components/WorkloadProjects';
+import CostingAmount from '../components/CostingAmount';
 import AppState from '../components/AppState';
 import { AuthContext } from '../context/AuthContext';
 import { WorkSessionContext } from '../context/WorkSessionContext';
@@ -25,6 +26,8 @@ import {
 } from '../utils/timezone';
 import {
   combineWorkload,
+  costingLabel,
+  costingPending,
   projectPeople,
   reviewFlags,
   summarizeWorkload,
@@ -328,6 +331,8 @@ const Workload = () => {
       recorded: sum.recorded + item.recorded,
       costing: sum.costing + item.costing,
       issues: sum.issues + item.issues,
+      pendingReview: sum.pendingReview || item.pendingReview,
+      pendingTimer: sum.pendingTimer || item.pendingTimer,
     }),
     { recorded: 0, costing: 0, issues: 0 },
   );
@@ -425,12 +430,7 @@ const Workload = () => {
                 </td>
                 <td data-sort-value={sum.recorded}>{hours(sum.recorded)}</td>
                 <td data-sort-value={sum.costing}>
-                  <strong>{hours(sum.costing)}</strong>
-                  <small>
-                    {sum.needsReview
-                      ? 'Needs review · provisional'
-                      : 'Provisional'}
-                  </small>
+                  <CostingAmount value={sum.costing} pendingReview={sum.pendingReview} pendingTimer={sum.pendingTimer} />
                 </td>
                 <td data-sort-value={sum.totalRecorded}>
                   {hours(sum.totalRecorded)}h
@@ -578,8 +578,9 @@ const Workload = () => {
             </div>
             <div>
               <span>Costing hours · provisional</span>
-              <strong>{hours(totals.costing)}</strong>
-              <small>Questionable days reserve their allowance</small>
+              <strong>{totals.costing > 0 ? hours(totals.costing) : (totals.pendingReview ? 'Pending review' : totals.pendingTimer ? 'Timer running' : hours(0))}</strong>
+              {totals.costing > 0 && (totals.pendingReview || totals.pendingTimer) && <small>Partial · {totals.pendingReview ? 'pending review' : 'timer running'}{totals.pendingReview && totals.pendingTimer ? ' · timer running' : ''}</small>}
+              <small>Excludes time pending review or still running</small>
             </div>
             <div>
               <span>Days needing review</span>
@@ -691,7 +692,7 @@ const Workload = () => {
                         .join(' · ')}
                     </p>
                     <p className="workload-issue-hours">
-                      <strong>{hours(Number(day.recorded_seconds) / 3600)}h</strong> recorded · {hours(day.costing_hours)}h costing (provisional)
+                      <strong>{hours(Number(day.recorded_seconds) / 3600)}h</strong> recorded · Costing hours: {costingLabel(day.costing_hours, costingPending(day))} (provisional)
                     </p>
                     </div>
                     {issueActions(item, day)}
@@ -760,7 +761,7 @@ const Workload = () => {
                       <tr key={context.context_id}>
                         <td>{context.label}</td>
                         <td data-sort-value={context.recorded}>{hours(context.recorded)}</td>
-                        <td data-sort-value={context.costing}>{hours(context.costing)}</td>
+                        <td data-sort-value={context.costing}><CostingAmount value={context.costing} pendingReview={context.pendingReview} pendingTimer={context.pendingTimer} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -774,7 +775,7 @@ const Workload = () => {
                     </h3>
                     <span>
                       {hours(Number(day.recorded_seconds) / 3600)}h recorded ·{' '}
-                      <strong>{hours(day.costing_hours)}h costing</strong>
+                      <strong>Costing hours: {costingLabel(day.costing_hours, costingPending(day))}</strong>
                     </span>
                   </div>
                   <p>
@@ -808,7 +809,7 @@ const Workload = () => {
                     <p key={context.context_id}>
                       {context.label} ·{' '}
                       {hours(Number(context.recorded_seconds) / 3600)}h recorded
-                      · {hours(context.costing_hours)}h costing
+                      · Costing hours: {costingLabel(context.costing_hours, costingPending(day, context.recorded_seconds))}
                     </p>
                   ))}
                   {issueActions(person, day)}
@@ -829,7 +830,7 @@ const Workload = () => {
         </div>
         <div className="workload-guide-example"><h3>Example: a 100-hour work allocation</h3><p>If eligible recorded time is 60% on a project and 40% on internal work, their costing allocations are <strong>60 hours and 40 hours</strong>.</p></div>
         <p><strong>Why weekly figures change:</strong> each week uses the complete month’s distribution. Later entries or corrections can change earlier weekly figures.</p>
-        <p><strong>Why some hours are zero:</strong> days with open timers or unresolved invalid records do not fund costing. Leave, unworked time and future days stay separate from project costs.</p>
+        <p><strong>Pending and partial costing:</strong> Pending review or Timer running means recorded time is excluded for now. Partial means the number includes eligible time only; other recorded time is still pending. A plain 0.00 means no costing allocation, without excluded recorded time. Leave, unworked time and future days stay separate from project costs.</p>
         <p>Select a person to see: <strong>work allocation + leave reserve + unallocated = monthly allowance.</strong></p>
       </details>
       {correction && (

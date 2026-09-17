@@ -208,3 +208,9 @@ and correction reason. Existing server eligibility and permissions remain intact
 Refresh feedback stays in the toolbar; success notifications float outside the
 page layout so they do not shift the review list. Confirmation buttons retain a
 fixed width and explicit green hover, armed, focus and disabled colours.
+
+### Costing availability labels — 17 September 2026
+
+Within the existing feedback 14/50 workload scope, all costing displays (people, projects, totals, review rows and day/context detail) now identify excluded recorded time as Pending review or Timer running. Mixed allocations retain their numeric hours with a Partial explanation. Flags are scoped to the selected dates and project/context; unrelated monthly issues and missing-time flags do not turn genuine zero allocations into pending values. Numeric sorting and server calculations are unchanged. Focused tests cover these distinctions and project isolation.
+
+Table refinement: people, project and context tables keep numeric costing values without repeated provisional/partial sublabels. Muted red with an information marker indicates excluded time awaiting review; a neutral marker indicates running timers only. Hover or keyboard focus reveals the explanation. Detailed daily breakdowns retain explicit status text. Numeric sorting and allocations remain unchanged.

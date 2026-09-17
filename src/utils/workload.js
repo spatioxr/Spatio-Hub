@@ -16,6 +16,17 @@ export const reviewFlags = (day) =>
     (flag) => !['above_eight', 'below_eight', 'in_progress'].includes(flag),
   );
 export const workloadHours = (value) => Number(value || 0).toFixed(2);
+// Mirror the server's exclusion flags; missing/short time alone still earns allocation.
+export const costingPending = (day, recordedSeconds = day.recorded_seconds) => ({
+  pendingReview: Number(recordedSeconds) > 0 && (day.flags || []).some((flag) =>
+    ['stale_session', 'future_time', 'long_day', 'work_on_leave'].includes(flag)),
+  pendingTimer: Number(recordedSeconds) > 0 && (day.flags || []).includes('in_progress'),
+});
+export const costingLabel = (value, { pendingReview = false, pendingTimer = false } = {}) => {
+  const pending = [pendingReview && 'Pending review', pendingTimer && 'Timer running'].filter(Boolean).join(' · ');
+  if (!pending) return workloadHours(value);
+  return Number(value) > 0 ? `${workloadHours(value)} · Partial · ${pending.toLowerCase()}` : pending;
+};
 export const monthStart = (date) => `${date.slice(0, 7)}-01`;
 export const workloadRange = (date, mode) => {
   if (mode === 'month') {
@@ -73,6 +84,8 @@ export const summarizeWorkload = (person, projectId = null) => {
   let aboveEight = 0;
   let leave = 0;
   let issues = 0;
+  let pendingReview = false;
+  let pendingTimer = false;
   const contexts = new Map();
   for (const day of person.days) {
     totalRecorded += Number(day.recorded_seconds) / 3600;
@@ -85,7 +98,14 @@ export const summarizeWorkload = (person, projectId = null) => {
         ...context,
         recorded: 0,
         costing: 0,
+        pendingReview: false,
+        pendingTimer: false,
       };
+      const pending = costingPending(day, context.recorded_seconds);
+      row.pendingReview ||= pending.pendingReview;
+      row.pendingTimer ||= pending.pendingTimer;
+      pendingReview ||= pending.pendingReview;
+      pendingTimer ||= pending.pendingTimer;
       row.recorded += Number(context.recorded_seconds) / 3600;
       row.costing += Number(context.costing_hours);
       recorded += Number(context.recorded_seconds) / 3600;
@@ -96,6 +116,8 @@ export const summarizeWorkload = (person, projectId = null) => {
   return {
     recorded,
     costing,
+    pendingReview,
+    pendingTimer,
     totalRecorded,
     aboveEight,
     leave,

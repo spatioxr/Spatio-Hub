@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import CostingAmount from './CostingAmount';
 import { useSearchParams } from 'react-router-dom';
 import { projectPeople, summarizeWorkload, workloadHours } from '../utils/workload';
 
@@ -30,6 +31,8 @@ export default function WorkloadProjects({ projects, people, onSelect }) {
       status: project.archived_at ? 'Archived' : 'Active',
       people: members.length,
       recorded: summaries.reduce((sum, item) => sum + item.recorded, 0),
+      pendingReview: summaries.some((item) => item.pendingReview),
+      pendingTimer: summaries.some((item) => item.pendingTimer),
       costing: summaries.reduce((sum, item) => sum + item.costing, 0),
       review: summaries.some((item) => item.needsReview) ? 'Needs review' : 'No pending issues',
     };
@@ -73,7 +76,7 @@ export default function WorkloadProjects({ projects, people, onSelect }) {
               <td>{row.code}</td>
               <td><button className="workload-text-button" onClick={() => onSelect(row.id)}>{row.name}</button></td>
               <td>{row.managers}</td><td>{row.status}</td><td>{row.people}</td>
-              <td>{workloadHours(row.recorded)}</td><td>{workloadHours(row.costing)}</td><td>{row.review}</td>
+              <td>{workloadHours(row.recorded)}</td><td><CostingAmount value={row.costing} pendingReview={row.pendingReview} pendingTimer={row.pendingTimer} /></td><td>{row.review}</td>
             </tr>
           ))}</tbody>
         </table>
